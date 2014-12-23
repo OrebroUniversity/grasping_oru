@@ -1,0 +1,10 @@
+<library path="lib/libocc_rviz_visualisation">
+  <class name="occ_rviz_visualisation/OCC"
+         type="OCCDisplay"
+         base_class_type="rviz::Display">
+    <description>
+      Displays a simple occupancy map message.
+    </description>
+    <message_type>simple_occ_map/SimpleOccMapMsg</message_type>
+  </class>
+</library>
