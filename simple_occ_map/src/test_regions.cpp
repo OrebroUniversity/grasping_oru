@@ -17,22 +17,39 @@ int main() {
     SimpleOccMap sm(0,0,0,resolution,map_size,map_size,map_size);
     sm.setAllFree();
 
-    for(int j=0; j<100; ++j) {
+    for(int j=0; j<20; ++j) {
 
-	for(int i=0; i<10; ++i) {
+	for(int i=0; i<100; ++i) {
 	    int x = (float)rand()* map_size/RAND_MAX; 
 	    int y = (float)rand()* map_size/RAND_MAX; 
 	    int z = (float)rand()* map_size/RAND_MAX;
 	    sm.setOccupied(x,y,z);	
 	}
 	double t1 = getDoubleTime();
-	MaxEmptyCubeExtractor extractor;
+	//MaxEmptyCubeExtractor extractor;
+	DfunMaxEmptyCubeExtractor extractor;
 	CellIdxCube cube;
 	cube = extractor.getMaxCube(&sm);
 	double t2 = getDoubleTime();
 	std::cout<<"extract took :"<<t2-t1<<" sec\n";
 	std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<endl;
-	ConstraintMap object_map (0,0,0,resolution,map_size,map_size,map_size);
+	
+
+	bool isokay = true;
+	CellIndex id;
+	for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
+		for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
+			for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) {
+				if(sm.isOccupied(id)) {
+					std::cout<<id.i<<","<<id.j<<","<<id.k<<" really? "<<sm.isOccupied(id)<<std::endl;
+					isokay=false;
+				}
+			}
+		}
+	}
+	if(isokay) std::cerr<<"OKAY\n";
+/* 
+        ConstraintMap object_map (0,0,0,resolution,map_size,map_size,map_size);
 	Eigen::Affine3f pose;
 	pose.setIdentity();
 	Eigen::Vector3f bl,ur;
@@ -40,11 +57,11 @@ int main() {
 	}
 	if(!object_map.getCenterCell(cube.ur,ur)) {
 	}
-	//std::cout<<"ur "<<ur.transpose()<<std::endl;
+	std::cout<<"ur "<<ur.transpose()<<std::endl;
 	pose.translation() = bl ;//<<cube.bl.i/resolution,cube.bl.j/resolution,cube.bl.k/resolution;
 	Eigen::Vector3f box_size = ur-bl; //((cube.ur.i-cube.bl.i)/resolution,(cube.ur.j-cube.bl.j)/resolution,(cube.ur.k-cube.bl.k)/resolution);
-	//std::cerr<<"box size "<<box_size.transpose()<<std::endl;
-	//std::cerr<<"box pos "<<pose.translation().transpose()<<std::endl;
+	std::cerr<<"box size "<<box_size.transpose()<<std::endl;
+	std::cerr<<"box pos "<<pose.translation().transpose()<<std::endl;
 	object_map.drawBox(pose,box_size);
 	object_map.updateMap();
 	std::vector<CellIndex> ids;
@@ -57,6 +74,7 @@ int main() {
 		std::cout<<ids[q].i<<","<<ids[q].j<<","<<ids[q].k<<" really? "<<sm.isOccupied(ids[q])<<std::endl;
 	    }
 	}
+*/
     }
 #if 0
 //test cases for active set

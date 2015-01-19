@@ -1,6 +1,8 @@
 #include <simple_occ_map/SimpleOccMap.hh>
 #include <simple_occ_map/ConstraintMap.hh>
 #include <simple_occ_map/SimpleOccMapMsg.h>
+#include <tf/transform_broadcaster.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include <ros/ros.h>
 
@@ -20,6 +22,7 @@ class SimpleOccNode {
 	std::string fname;
 
     public:
+	tf::TransformBroadcaster br;
 	ConstraintMap *map;
 	ConstraintMap *object_map;
 	ConstraintMap loaded;
@@ -31,7 +34,8 @@ class SimpleOccNode {
 	    map_publisher_ = nh_.advertise<simple_occ_map::SimpleOccMapMsg> ("map_topic",10);
 	    object_map_publisher_ = nh_.advertise<simple_occ_map::SimpleOccMapMsg> ("object_map_topic",10);
 	    map = new ConstraintMap();
-	    nh_.param<std::string>("gripper_file",fname,"test_small.cons");
+	    //nh_.param<std::string>("gripper_file",fname,"test_small.cons");
+	    nh_.param<std::string>("gripper_file",fname,"full.cons");
 	    map->loadGripperConstraints(fname.c_str());
 	    object_map = new ConstraintMap(0,0,0,resolution,map_size/resolution,map_size/resolution,map_size/resolution);
 	}
@@ -43,12 +47,14 @@ class SimpleOccNode {
 	void publishMap() {
 	    simple_occ_map::SimpleOccMapMsg msg;
 	    object_map->toMessage(msg);
+	    msg.header.frame_id = "/map_frame";
 	    object_map_publisher_.publish(msg);
 	    
 	    simple_occ_map::SimpleOccMapMsg msg2;
 	    map->toMessage(msg2);
+	    msg2.header.frame_id = "/gripper_frame";
 	    map_publisher_.publish(msg2);
-	    //ROS_INFO("Publishing map");
+	    ROS_INFO("Publishing map");
 
 	}
 
@@ -57,15 +63,22 @@ class SimpleOccNode {
 	    
 	    Eigen::Affine3f pose;
 	    pose.setIdentity();
+	    pose = Eigen::AngleAxisf(-0.57,Eigen::Vector3f::UnitX());
+	    //pose.translation()<<-0.25,-0.1,-0.1;
 	    object_map->drawCylinder(pose,0.1,0.5);
 
 	    //pose = Eigen::AngleAxisf((float)rand()/RAND_MAX,Eigen::Vector3f::UnitX()) *
 	    //	Eigen::AngleAxisf((float)rand()/RAND_MAX,Eigen::Vector3f::UnitY()) *Eigen::AngleAxisf((float)rand()/RAND_MAX,Eigen::Vector3f::UnitZ());
-	    pose.translation()<<0.1,0.1,0;
-	    Eigen::Vector3f box_size(0.1, 0.2, 0.3);
+	    pose.setIdentity();
+	    pose.translation()<<-0.25,-0.1,-0.1;
+	    Eigen::Vector3f box_size(0.1, 0.2, 0.8);
 	    object_map->drawBox(pose,box_size);
 	    
-	    pose.translation()<<-0.4,-0.35,0;
+	    pose.translation()<<-0.5,-0.5,-0.1;
+	    box_size <<1, 1, 0.02;
+	    object_map->drawBox(pose,box_size);
+	    
+	    pose.translation()<<0.1,-0.35,-0.1;
 	    box_size <<0.2, 0.2, 0.4;
 	    object_map->drawBox(pose,box_size);
 	    
@@ -92,8 +105,15 @@ int main(int argc, char **argv) {
     nd.addScene();
     Eigen::Affine3f pose;
     pose.setIdentity();
+    pose = Eigen::AngleAxisf(-0.57,Eigen::Vector3f::UnitX());
+    //pose.translation()<<-0.25,-0.1,-0.1;
     CylinderConstraint cc(pose,0.115,0.5);
     nd.map->computeValidConfigs(nd.object_map, cc);
+
+    tf::Transform transform;
+    tf::transformEigenToTF(pose.cast<double>(),transform);
+    nd.br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map_frame", "gripper_frame"));
+
     
     nd.map->resetMap(); 
     nd.map->drawValidConfigsSmall(); 
@@ -101,7 +121,8 @@ int main(int argc, char **argv) {
     ros::spinOnce();
 
     while(ros::ok()) {
-	//sleep(20);
+	    nd.br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map_frame", "gripper_frame"));
+	//sleep(2);
 	//nd.publishMap();
 	ros::spinOnce();
 	loop_rate.sleep();

@@ -163,3 +163,23 @@ void SimpleOccMap::getIntersection(const SimpleOccMap *other, std::vector<CellIn
     }
     
 }
+
+void SimpleOccMap::getIntersectionWithPose(const SimpleOccMap *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const {
+
+    CellIndex id;
+    for (id.i=0; id.i<size_x; ++id.i) {
+	for (id.j=0; id.j<size_y; ++id.j) {
+	    for (id.k=0; id.k<size_z; ++id.k) {
+		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC) {
+		    Eigen::Vector3f this_point;
+		    CellIndex other_idx;
+		    if(!this->getCenterCell(id,this_point)) continue;
+		    this_point = this_to_map*this_point;
+		    if(other->getIdxPoint(this_point,other_idx)) {
+			if(other->isOccupied(other_idx)) idx_this.push_back(id);
+		    }
+		}	   
+	    }
+	}
+    }
+}

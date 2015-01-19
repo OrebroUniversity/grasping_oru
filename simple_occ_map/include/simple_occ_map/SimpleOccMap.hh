@@ -119,6 +119,7 @@ class SimpleOccMap {
 
 	///intersection methods
 	void getIntersection(const SimpleOccMap *other, std::vector<CellIndex> &idx_this) const;
+	void getIntersectionWithPose(const SimpleOccMap *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const;
 
 	///helpers
 	inline bool isInside(const int &i, const int &j, const int &k) const {

@@ -92,7 +92,7 @@ class CellIdxCube {
     public:
 	CellIndex bl, ur;
 	int volume() const{
-	   return (abs(ur.i-bl.i)*abs(ur.j-bl.j)*abs(ur.k-bl.k)); 
+	   return ((abs(ur.i-bl.i)+1)*(abs(ur.j-bl.j)+1)*(abs(ur.k-bl.k)+1)); 
 	}
 };
 inline bool cubecmpr(const CellIdxCube &a, const CellIdxCube &b) {
@@ -108,5 +108,16 @@ class MaxEmptyCubeExtractor {
 	CellIdxCube getMaxCube(SimpleOccMap *map);
 
 };
+
+typedef int Triplet [3];
+inline int minval (int a, int b) {
+	return a < b ? a : b;
+}
+class DfunMaxEmptyCubeExtractor {
+    public:
+	std::vector<CellIdxCube> empty_cubes;
+	CellIdxCube getMaxCube(SimpleOccMap *map);
+};
+
 
 #endif

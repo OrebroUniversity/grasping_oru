@@ -720,3 +720,195 @@ CellIdxCube MaxEmptyCubeExtractor::getMaxCube(SimpleOccMap *map) {
     return empty_cubes.front();
 
 }
+
+CellIdxCube DfunMaxEmptyCubeExtractor::getMaxCube(SimpleOccMap *map) {
+    Triplet*** distance_grid;
+    distance_grid = new Triplet**[map->size_x];
+    CellIndex id;
+    CellIdxCube cube;
+    //pass through map: forward pass. initialize distances
+    for(id.i = 0; id.i < map->size_x; ++id.i) {
+	    distance_grid[id.i] = new Triplet*[map->size_y];
+	    for(id.j = 0; id.j < map->size_y; ++id.j) {
+		    distance_grid[id.i][id.j] = new Triplet[map->size_z];
+		    for(id.k = 0; id.k < map->size_z; ++id.k) {
+			    if(map->grid[id.i][id.j][id.k] > SimpleOccMap::FREE ) {
+				    //std::cerr<<"OBST  "<<id.i<<" "<<id.j<<" "<<id.k<<std::endl; 
+				    distance_grid[id.i][id.j][id.k][0] = 0;
+				    distance_grid[id.i][id.j][id.k][1] = 0;
+				    distance_grid[id.i][id.j][id.k][2] = 0;
+			    } else {
+				    //set it to 1+ prev value
+				    distance_grid[id.i][id.j][id.k][0] = id.i > 0 ? distance_grid[id.i-1][id.j][id.k][0]+1 : 1;
+				    distance_grid[id.i][id.j][id.k][1] = id.j > 0 ? distance_grid[id.i][id.j-1][id.k][1]+1 : 1;
+				    distance_grid[id.i][id.j][id.k][2] = id.k > 0 ? distance_grid[id.i][id.j][id.k-1][2]+1 : 1;
+			    }
+		    }
+	    }
+    }	    
+    //reverse pass: set to min of previous value and current value
+    for(id.i = map->size_x-1; id.i>=0; --id.i) {
+	    for(id.j = map->size_y-1; id.j>=0; --id.j) {
+		    for(id.k = map->size_z-1; id.k>=0; --id.k) {
+			    if(map->grid[id.i][id.j][id.k] > SimpleOccMap::FREE ) {
+				    //std::cerr<<"OBST2 "<<id.i<<" "<<id.j<<" "<<id.k<<std::endl; 
+				    distance_grid[id.i][id.j][id.k][0] = 0;
+				    distance_grid[id.i][id.j][id.k][1] = 0;
+				    distance_grid[id.i][id.j][id.k][2] = 0;
+			    } else {
+				    //set it to 1+ prev value
+				    distance_grid[id.i][id.j][id.k][0] = id.i < map->size_x-1 ? 
+					    minval(distance_grid[id.i][id.j][id.k][0],distance_grid[id.i+1][id.j][id.k][0]+1) : 1;
+				    distance_grid[id.i][id.j][id.k][1] = id.j < map->size_y-1 ?
+					    minval(distance_grid[id.i][id.j][id.k][1],distance_grid[id.i][id.j+1][id.k][1]+1) : 1;
+				    distance_grid[id.i][id.j][id.k][2] = id.k < map->size_z-1 ?
+					    minval(distance_grid[id.i][id.j][id.k][2],distance_grid[id.i][id.j][id.k+1][2]+1) : 1;
+			    }
+		    }
+	    }
+    }	   
+#if 0 
+    //print outs
+    for(id.i = 0; id.i < map->size_x; ++id.i) {
+	    for(id.j = 0; id.j < map->size_y; ++id.j) {
+		    for(id.k = 0; id.k < map->size_z; ++id.k) {
+			    std::cout<<map->grid[id.i][id.j][id.k]<<" ";
+		    }
+		    std::cout<<std::endl;
+	    }
+	    std::cout<<std::endl;
+	    std::cout<<std::endl;
+    }
+    
+    for(id.i = 0; id.i < map->size_x; ++id.i) {
+	    for(id.j = 0; id.j < map->size_y; ++id.j) {
+		    for(id.k = 0; id.k < map->size_z; ++id.k) {
+			    std::cout<<"("<<distance_grid[id.i][id.j][id.k][0]<<","<<distance_grid[id.i][id.j][id.k][1]<<","<<distance_grid[id.i][id.j][id.k][2]<<") ";
+		    }
+		    std::cout<<std::endl;
+	    }
+	    std::cout<<std::endl;
+	    std::cout<<std::endl;
+    }
+#endif
+
+    int maxvolume = 0;
+    //pass through dist_grid
+    for(id.i = 0; id.i < map->size_x; ++id.i) {
+	    for(id.j = 0; id.j < map->size_y; ++id.j) {
+		    for(id.k = 0; id.k < map->size_z; ++id.k) {
+			    Triplet thisone;
+			    thisone[0]  = distance_grid[id.i][id.j][id.k][0];
+			    thisone[1]  = distance_grid[id.i][id.j][id.k][1];
+			    thisone[2]  = distance_grid[id.i][id.j][id.k][2];
+			    if((thisone[0])*(thisone[1])*(thisone[2]) > maxvolume) {
+				//check what the maxvolume at this point would be
+				Triplet min_ids[6];
+				for(int x=0; x<6; ++x) {
+					min_ids[x][0] = thisone[0];
+					min_ids[x][1] = thisone[1];
+					min_ids[x][2] = thisone[2];
+				}
+
+				//along xy
+				for(int i=id.i-(thisone[0]-1); i<id.i+(thisone[0]); ++i) {
+					min_ids[0][1] = minval(min_ids[0][1],distance_grid[i][id.j][id.k][1]);
+				}
+				for(int i=id.i-(thisone[0]-1); i<id.i+(thisone[0]); ++i) {
+					for(int j=id.j-(min_ids[0][1]-1); j<id.j+(min_ids[0][1]); ++j) {
+						min_ids[0][2] = minval(min_ids[0][2],distance_grid[i][j][id.k][2]);
+					}
+				}
+				//along xz
+				for(int i=id.i-(thisone[0]-1); i<id.i+(thisone[0]); ++i) {
+					min_ids[1][2] = minval(min_ids[1][2],distance_grid[i][id.j][id.k][2]);
+				}
+				for(int i=id.i-(thisone[0]-1); i<id.i+(thisone[0]); ++i) {
+					for(int k=id.k-(min_ids[1][2]-1); k<id.k+(min_ids[1][2]); ++k) {
+						min_ids[1][1] = minval(min_ids[1][1],distance_grid[i][id.j][k][1]);
+					}
+				}
+
+				//along yx
+				for(int j=id.j-(thisone[1]-1); j<id.j+(thisone[1]); ++j) {
+					min_ids[2][0] = minval(min_ids[2][0],distance_grid[id.i][j][id.k][0]);
+				}
+				for(int j=id.j-(thisone[1]-1); j<id.j+(thisone[1]); ++j) {
+					for(int i=id.i-(min_ids[2][0]-1); i<id.i+(min_ids[2][0]); ++i) {
+						min_ids[2][2] = minval(min_ids[2][2],distance_grid[i][j][id.k][2]);
+					}
+				}
+				//along yz
+				for(int j=id.j-(thisone[1]-1); j<id.j+(thisone[1]); ++j) {
+					min_ids[3][2] = minval(min_ids[3][2],distance_grid[id.i][j][id.k][2]);
+				}
+				for(int j=id.j-(thisone[1]-1); j<id.j+(thisone[1]); ++j) {
+					for(int k=id.k-(min_ids[3][2]-1); k<id.k+(min_ids[3][2]); ++k) {
+						min_ids[3][0] = minval(min_ids[3][0],distance_grid[id.i][j][k][0]);
+					}
+				}
+
+				//along zx
+				for(int k=id.k-(thisone[2]-1); k<id.k+(thisone[2]); ++k) {
+					min_ids[4][0] = minval(min_ids[4][0],distance_grid[id.i][id.j][k][0]);
+				}
+				for(int k=id.k-(thisone[2]-1); k<id.k+(thisone[2]); ++k) {
+					for(int i=id.i-(min_ids[4][0]-1); i<id.i+(min_ids[4][0]); ++i) {
+						min_ids[4][1] = minval(min_ids[4][1],distance_grid[i][id.j][k][1]);
+					}
+				}
+				//along zy
+				for(int k=id.k-(thisone[2]-1); k<id.k+(thisone[2]); ++k) {
+					min_ids[5][1] = minval(min_ids[5][1],distance_grid[id.i][id.j][k][1]);
+				}
+				for(int k=id.k-(thisone[2]-1); k<id.k+(thisone[2]); ++k) {
+					for(int j=id.j-(min_ids[5][1]-1); j<id.j+(min_ids[5][1]); ++j) {
+						min_ids[5][0] = minval(min_ids[5][0],distance_grid[id.i][j][k][0]);
+					}
+				}
+					
+				int maxvolu=-1;
+				int maxvolu_id=-1;
+				for(int x=0; x<6; ++x) {
+					int v = (min_ids[x][0])*(min_ids[x][1])*(min_ids[x][2]);
+					if(v >maxvolu) {
+						maxvolu = v;
+						maxvolu_id = x;
+					}
+				}
+				if(maxvolu > maxvolume && maxvolu_id >=0) {
+					maxvolume = maxvolu;
+					cube.bl.i = id.i - (min_ids[maxvolu_id][0]-1);//);
+					cube.bl.j = id.j - (min_ids[maxvolu_id][1]-1);//);
+					cube.bl.k = id.k - (min_ids[maxvolu_id][2]-1);//);
+					cube.ur.i = id.i + (min_ids[maxvolu_id][0]-1);//);
+					cube.ur.j = id.j + (min_ids[maxvolu_id][1]-1);//);
+					cube.ur.k = id.k + (min_ids[maxvolu_id][2]-1);//);
+					//std::cerr<<"NEW "<<maxvolu_id<<" "<<maxvolume<<" "<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<min_ids[maxvolu_id][0]<<" "<<min_ids[maxvolu_id][1]<<" "<<min_ids[maxvolu_id][2]<<" was: "<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
+					//std::cerr<<"CUBE ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
+				}
+
+			    }
+		    }
+	    }
+    }
+    if(maxvolume == 0) {
+	cube.bl.i = 0;
+	cube.bl.j = 0;
+	cube.bl.k = 0;
+	cube.ur.i = 0;
+	cube.ur.j = 0;
+	cube.ur.k = 0;
+    }
+
+    //dealloc
+    for(id.i = 0; id.i < map->size_x; ++id.i) {
+	    for(id.j = 0; id.j < map->size_y; ++id.j) {
+		    delete []  distance_grid[id.i][id.j];
+	    }
+	    delete [] distance_grid[id.i];
+    }	    
+    delete [] distance_grid;
+
+    return cube;
+}

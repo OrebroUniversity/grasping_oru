@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_msgs
   roscpp
+  tf
+  tf_conversions
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,7 +62,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS message_runtime std_msgs roscpp
+  CATKIN_DEPENDS message_runtime std_msgs roscpp tf tf_conversions
   DEPENDS eigen
 )
 

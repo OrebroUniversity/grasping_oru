@@ -113,14 +113,30 @@ void ConstraintMap::drawValidConfigs() {
 void ConstraintMap::drawValidConfigsSmall() {
     CellIndex id, id2;
     Eigen::Vector3f pt;
-    for(id.i = cube.bl.i; id.i<cube.ur.i; ++id.i) {
-	for(id.j = cube.bl.j; id.j<cube.ur.j; ++id.j) {
-	    for(id.k = cube.bl.k; id.k<cube.ur.k; ++id.k) {
+    //the non-selected valid configs in green...
+    for (id.i=0; id.i<n_v; ++id.i) {
+	for (id.j=0; id.j<n_o; ++id.j) {
+	    for (id.k=0; id.k<n_d; ++id.k) {
 		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
 		if(valid_configs[config_index] != NULL) {
 		    pt = valid_configs[config_index]->pose.translation();
 		    this->getIdxPoint(pt,id2);
+		    this->setFree(id2);
+		}
+	    }
+	}
+    }
+
+    for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
+	for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
+	    for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) { 
+		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
+		//std::cerr<<config_index<<" "<<valid_configs.size()<<std::endl;
+		if(valid_configs[config_index] != NULL) {
+		    pt = valid_configs[config_index]->pose.translation();
+		    this->getIdxPoint(pt,id2);
 		    this->setOccupied(id2);
+		    //std::cerr<<"set valid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
 		} else {
 		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
 		}
@@ -169,18 +185,20 @@ void ConstraintMap::computeValidConfigs(SimpleOccMap *object_map, CylinderConstr
     }
     */
     std::vector<CellIndex> overlap;
-    this->getIntersection(object_map,overlap);
+    this->getIntersectionWithPose(object_map,cylinder.pose,overlap);
     
-    Eigen::Vector3f x;
+    Eigen::Vector3f x, x_map;
     CellIndex id;
+    std::cerr<<"overlap size is "<<overlap.size()<<std::endl;
     for(int i=0; i<overlap.size(); ++i) {
 	id = overlap[i];
-        this->getCenterCell(id,x);	
+        this->getCenterCell(id,x);
+	x_map = cylinder.pose*x;	
 	for(int j=0; j<config_grid[id.i][id.j][id.k].configs.size(); ++j) {
 	    if(config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
 		if(*config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
 		    //check if x inside cylinder
-		    if(cylinder(x)) {
+		    if(cylinder(x_map)) {
 			//if yes, update min_oa
 			(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
 		    } else {
@@ -235,11 +253,12 @@ void ConstraintMap::computeValidConfigs(SimpleOccMap *object_map, CylinderConstr
 	    id.j = ((i-id.k)/n_d)%n_o;
 	    id.i = (i-id.k-id.j*n_d)/(n_o*n_d);
 	    config_sample_grid->setOccupied(id);
-	    std::cerr<<"id "<<i<<" is "<<id.i<<","<<id.j<<","<<id.k<<" ?== "<<(i == id.k + n_d*id.j + n_d*n_o*id.i)<<std::endl;
+	    //std::cerr<<"id "<<i<<" is "<<id.i<<","<<id.j<<","<<id.k<<" ?== "<<(i == id.k + n_d*id.j + n_d*n_o*id.i)<<std::endl;
 	}
     }
     double t1i = getDoubleTime();
-    MaxEmptyCubeExtractor extractor;
+    DfunMaxEmptyCubeExtractor extractor;
+    //MaxEmptyCubeExtractor extractor;
     cube = extractor.getMaxCube(config_sample_grid);
 
     double t2 = getDoubleTime();
