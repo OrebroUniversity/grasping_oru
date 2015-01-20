@@ -3,7 +3,7 @@
 
 #include <boost/circular_buffer.hpp>
 
-#include <simple_occ_map/SimpleOccMapMsg.h>
+#include <constraint_map/SimpleOccMapMsg.h>
 #include <rviz/message_filter_display.h>
 
 namespace Ogre
@@ -21,7 +21,7 @@ namespace rviz
 
 class OCCVisual;
 
-class OCCDisplay: public rviz::MessageFilterDisplay<simple_occ_map::SimpleOccMapMsg>{
+class OCCDisplay: public rviz::MessageFilterDisplay<constraint_map::SimpleOccMapMsg>{
     Q_OBJECT
     public:
 
@@ -38,7 +38,7 @@ class OCCDisplay: public rviz::MessageFilterDisplay<simple_occ_map::SimpleOccMap
 	    void updateHistoryLength();
 
     private:
-	void processMessage(const simple_occ_map::SimpleOccMapMsg::ConstPtr& msg);
+	void processMessage(const constraint_map::SimpleOccMapMsg::ConstPtr& msg);
 
 	std::vector<boost::shared_ptr<OCCVisual> > visuals_;
 	std::vector<boost::shared_ptr<OCCVisual> > fvisuals_;

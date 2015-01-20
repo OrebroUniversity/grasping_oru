@@ -1,4 +1,4 @@
-#include <simple_occ_map/SimpleOccMap.hh>
+#include <constraint_map/SimpleOccMap.hh>
 
 SimpleOccMap::SimpleOccMap(float _cen_x, float _cen_y, float _cen_z, 
 	float _resolution, int _size_x, int _size_y, int _size_z) {
@@ -63,7 +63,7 @@ SimpleOccMap::~SimpleOccMap() {
     }
 }
 
-void SimpleOccMap::toMessage(simple_occ_map::SimpleOccMapMsg &msg) {
+void SimpleOccMap::toMessage(constraint_map::SimpleOccMapMsg &msg) {
     if(!isInitialized) return;
     msg.header.frame_id = "my_frame";
     msg.cell_size = resolution;
@@ -83,7 +83,7 @@ void SimpleOccMap::toMessage(simple_occ_map::SimpleOccMapMsg &msg) {
 
 }
 
-void SimpleOccMap::fromMessage(const simple_occ_map::SimpleOccMapMsg &msg) {
+void SimpleOccMap::fromMessage(const constraint_map::SimpleOccMapMsg &msg) {
     
     center(0) = msg.x_cen;
     center(1) = msg.y_cen;

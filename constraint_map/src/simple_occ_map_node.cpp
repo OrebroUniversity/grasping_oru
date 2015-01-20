@@ -1,6 +1,6 @@
-#include <simple_occ_map/SimpleOccMap.hh>
-#include <simple_occ_map/ConstraintMap.hh>
-#include <simple_occ_map/SimpleOccMapMsg.h>
+#include <constraint_map/SimpleOccMap.hh>
+#include <constraint_map/ConstraintMap.hh>
+#include <constraint_map/SimpleOccMapMsg.h>
 #include <tf/transform_broadcaster.h>
 #include <tf_conversions/tf_eigen.h>
 
@@ -31,8 +31,8 @@ class SimpleOccNode {
 	    nh_ = ros::NodeHandle("~");
 	    n_ = ros::NodeHandle();
 
-	    map_publisher_ = nh_.advertise<simple_occ_map::SimpleOccMapMsg> ("map_topic",10);
-	    object_map_publisher_ = nh_.advertise<simple_occ_map::SimpleOccMapMsg> ("object_map_topic",10);
+	    map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> ("map_topic",10);
+	    object_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> ("object_map_topic",10);
 	    map = new ConstraintMap();
 	    //nh_.param<std::string>("gripper_file",fname,"test_small.cons");
 	    nh_.param<std::string>("gripper_file",fname,"full.cons");
@@ -45,12 +45,12 @@ class SimpleOccNode {
 	}
 
 	void publishMap() {
-	    simple_occ_map::SimpleOccMapMsg msg;
+	    constraint_map::SimpleOccMapMsg msg;
 	    object_map->toMessage(msg);
 	    msg.header.frame_id = "/map_frame";
 	    object_map_publisher_.publish(msg);
 	    
-	    simple_occ_map::SimpleOccMapMsg msg2;
+	    constraint_map::SimpleOccMapMsg msg2;
 	    map->toMessage(msg2);
 	    msg2.header.frame_id = "/gripper_frame";
 	    map_publisher_.publish(msg2);

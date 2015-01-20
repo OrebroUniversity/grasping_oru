@@ -1,4 +1,4 @@
-#include <simple_occ_map/RegionExtraction.hh>
+#include <constraint_map/RegionExtraction.hh>
 #include <algorithm>
 
 SegmentTree::SegmentTree (int minx_, int maxx_, int miny_, int maxy_, int xdir_, int ydir_) {

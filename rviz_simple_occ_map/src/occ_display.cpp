@@ -11,7 +11,7 @@
 
 #include "occ_visual.hpp"
 #include "occ_display.hpp"
-#include <simple_occ_map/SimpleOccMap.hh>
+#include <constraint_map/SimpleOccMap.hh>
 
 OCCDisplay::OCCDisplay(){
     color_property_ = new rviz::ColorProperty( "Color", QColor( 200, 20, 20 ),
@@ -64,7 +64,7 @@ void OCCDisplay::updateColorAndAlpha(){
 }
 
 //FIXME
-void OCCDisplay::processMessage( const simple_occ_map::SimpleOccMapMsg::ConstPtr& msg ){
+void OCCDisplay::processMessage( const constraint_map::SimpleOccMapMsg::ConstPtr& msg ){
     Ogre::Quaternion orientation;
     Ogre::Vector3 position;
     if( !context_->getFrameManager()->getTransform( msg->header.frame_id,msg->header.stamp,position, orientation)){

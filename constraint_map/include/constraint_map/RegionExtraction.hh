@@ -1,7 +1,7 @@
 #ifndef _REGION_EXTRACTION_HH
 #define _REGION_EXTRACTION_HH
 /**The classes in this header implement the method for maximal empty hyper rectangle extraction by Datta, with some simplifications */
-#include <simple_occ_map/SimpleOccMap.hh>
+#include <constraint_map/SimpleOccMap.hh>
 #include <boost/intrusive/rbtree.hpp>
 
 class SegmentNode : public boost::intrusive::set_base_hook< >{

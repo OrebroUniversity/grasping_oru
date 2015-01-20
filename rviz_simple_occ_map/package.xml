@@ -42,8 +42,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rviz</build_depend>
   <run_depend>rviz</run_depend>
-  <build_depend>simple_occ_map</build_depend>
-  <run_depend>simple_occ_map</run_depend>
+  <build_depend>constraint_map</build_depend>
+  <run_depend>constraint_map</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

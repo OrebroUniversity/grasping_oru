@@ -1,4 +1,4 @@
-#include <simple_occ_map/ConstraintMap.hh>
+#include <constraint_map/ConstraintMap.hh>
 
 int main(int argc, char **argv) {
 

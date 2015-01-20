@@ -3,7 +3,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <simple_occ_map/SimpleOccMapMsg.h>
+#include <constraint_map/SimpleOccMapMsg.h>
 
 struct CellIndex {
     int i;
@@ -180,8 +180,8 @@ class SimpleOccMap {
 		}
 	    }
 	}
-	void toMessage(simple_occ_map::SimpleOccMapMsg &msg);
-	void fromMessage(const simple_occ_map::SimpleOccMapMsg &msg);
+	void toMessage(constraint_map::SimpleOccMapMsg &msg);
+	void fromMessage(const constraint_map::SimpleOccMapMsg &msg);
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

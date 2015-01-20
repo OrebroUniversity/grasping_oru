@@ -1,8 +1,8 @@
 #ifndef CONSTRAINT_MAP_HH
 #define CONSTRAINT_MAP_HH
 
-#include <simple_occ_map/SimpleOccMap.hh>
-#include <simple_occ_map/RegionExtraction.hh>
+#include <constraint_map/SimpleOccMap.hh>
+#include <constraint_map/RegionExtraction.hh>
 #include <sys/time.h>
 #include <cstdio>
 

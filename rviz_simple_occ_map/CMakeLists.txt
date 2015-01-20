@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(occ_rviz_visualisation)
 
-find_package(catkin REQUIRED COMPONENTS rviz simple_occ_map)
+find_package(catkin REQUIRED COMPONENTS rviz constraint_map)
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})

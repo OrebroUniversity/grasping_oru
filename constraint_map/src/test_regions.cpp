@@ -1,6 +1,6 @@
-#include <simple_occ_map/RegionExtraction.hh>
+#include <constraint_map/RegionExtraction.hh>
 #include <iostream>
-#include <simple_occ_map/ConstraintMap.hh>
+#include <constraint_map/ConstraintMap.hh>
 using namespace std;
 
 double getDoubleTime()
