@@ -11,6 +11,8 @@
 #include <Eigen/StdVector>
 #include <time.h>
 
+#include <constraint_map/MapInterface.hh>
+
 #define EIGEN_USE_NEW_STDVECTOR
 
 #ifndef SDF_TRACKER
@@ -47,7 +49,7 @@ public:
 
 typedef Eigen::Matrix<double,6,1> Vector6d; 
 
-class SDFTracker
+class SDFTracker : public SimpleOccMapIfce
 {
   protected:
   // variables
@@ -65,6 +67,7 @@ class SDFTracker
   boost::mutex depth_mutex_;
   boost::mutex points_mutex_;
   boost::mutex depthDenoised_mutex_;
+  boost::mutex grid_mutex_;
   std::string camera_name_;
   
   bool** validityMask_;
@@ -170,6 +173,12 @@ class SDFTracker
   /// Constructor with custom parameters
   SDFTracker(SDF_Parameters &parameters);
   virtual ~SDFTracker();   
+
+  ///methods inherited from OccMap Interface
+  public:
+  virtual void toMessage(constraint_map::SimpleOccMapMsg &msg);
+  virtual bool isOccupied(const Eigen::Vector3f &point) const;
+
 
 };
 

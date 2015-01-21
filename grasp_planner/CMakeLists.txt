@@ -5,8 +5,10 @@ project(grasp_planner)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  eigen_conversions 
   cmake_modules
   constraint_map
+  geometry_msgs
   message_generation
   sdf_tracker
   std_msgs
@@ -15,7 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS thread)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -55,11 +57,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
+ add_service_files(
+   FILES
+   PlanGrasp.srv
 #   Service2.srv
-# )
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -69,10 +71,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   std_msgs geometry_msgs 
+ )
 
 ###################################
 ## catkin specific configuration ##
@@ -86,7 +88,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES grasp_planner
-  CATKIN_DEPENDS constraint_map message_runtime sdf_tracker std_msgs std_srvs tf
+  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker std_msgs std_srvs tf eigen_conversions
 #  DEPENDS system_lib
 )
 
@@ -100,6 +102,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS} include
 )
+include_directories(${Boost_INCLUDE_DIRS})
 
 ## Declare a cpp library
 # add_library(grasp_planner
@@ -111,11 +114,11 @@ add_executable(grasp_planner_node src/grasp_planner_node.cc)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(grasp_planner_node grasp_planner_generate_messages_cpp)
+add_dependencies(grasp_planner_node grasp_planner_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(grasp_planner_node
-   ${catkin_LIBRARIES}
+   ${catkin_LIBRARIES} ${Boost_LIBRARIES} 
  )
 
 #############

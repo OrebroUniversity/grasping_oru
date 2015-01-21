@@ -364,7 +364,7 @@ class ConstraintMap : public SimpleOccMap {
 	void updateMap();
 	void updateMapAndGripperLookup();
 
-	void computeValidConfigs(SimpleOccMap *object_map, CylinderConstraint &cylinder);
+	void computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);

@@ -8,13 +8,13 @@ project(sdf_tracker)
 
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs cv_bridge)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs cv_bridge constraint_map)
 
 catkin_package(
     DEPENDS eigen opencv2 libvtk
-    CATKIN_DEPENDS roscpp std_msgs cv_bridge
+    CATKIN_DEPENDS roscpp std_msgs cv_bridge constraint_map
     INCLUDE_DIRS include
-    LIBRARIES # TODO
+    LIBRARIES ${PROJECT_NAME}
 )
 find_package(VTK REQUIRED)
 add_executable(sdf_tracker_node src/sdf_tracker_node.cpp)

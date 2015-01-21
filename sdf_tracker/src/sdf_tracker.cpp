@@ -845,6 +845,7 @@ SDFTracker::FuseDepth(void)
   Eigen::Vector4d camera = worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
   
   //Main 3D reconstruction loop
+  grid_mutex_.lock();
   for(int x = 0; x<parameters_.XSize; ++x)
   { 
   #pragma omp parallel for \
@@ -893,6 +894,7 @@ SDFTracker::FuseDepth(void)
       }//z   
     }//y
   }//x
+  grid_mutex_.unlock();
   return;
 };
 
@@ -907,6 +909,7 @@ SDFTracker::FusePoints()
   const double max_ray_length = 50.0;
 
   //3D reconstruction loop
+  grid_mutex_.lock();
   #pragma omp parallel for 
   for(int i = 0; i < Points_.size(); ++i)
   {
@@ -1013,6 +1016,7 @@ SDFTracker::FusePoints()
       ++steps;        
     }//ray
   }//points
+  grid_mutex_.unlock();
   return;
 };
 
@@ -1048,7 +1052,8 @@ SDFTracker::FuseDepth(const cv::Mat& depth)
   Eigen::Matrix4d worldToCam = Transformation_.inverse();
   Eigen::Vector4d camera = worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
   //Main 3D reconstruction loop
-  
+ 
+  grid_mutex_.lock();
   for(int x = 0; x<parameters_.XSize; ++x)
   { 
   #pragma omp parallel for \
@@ -1099,6 +1104,7 @@ SDFTracker::FuseDepth(const cv::Mat& depth)
       }//z   
     }//y
   }//x
+  grid_mutex_.unlock();
   Render();
   return;
 };
@@ -1687,5 +1693,57 @@ Eigen::Vector3d SDFTracker::ShootSingleRay(Eigen::Vector3d &start, Eigen::Vector
 	++steps;        
     }
     return Eigen::Vector3d(1,1,1)*std::numeric_limits<double>::infinity();
+
+}
+  
+void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
+    
+    msg.header.frame_id = "my_frame";
+    msg.cell_size = parameters_.resolution;
+    msg.x_cen = parameters_.XSize*parameters_.resolution/2;
+    msg.y_cen = parameters_.YSize*parameters_.resolution/2;
+    msg.z_cen = parameters_.ZSize*parameters_.resolution/2;
+    msg.x_size = parameters_.XSize;
+    msg.y_size = parameters_.YSize;
+    msg.z_size = parameters_.ZSize;
+
+    grid_mutex_.lock();
+    for(int x = 0; x<parameters_.XSize; ++x)
+    { 
+	for(int y = 0; y<parameters_.YSize;++y)
+	{ 
+	    float* previousD = &myGrid_[x][y][0];
+	    float* previousW = &myGrid_[x][y][1];      
+	    for(int z = 0; z<parameters_.ZSize; ++z)
+	    {           
+		int occ_val = -1;
+		//we are at Dmax and weight is initialized -> free
+		if(previousD[z*2] > parameters_.Dmax-1e-6 && previousW[z*2] > 0) {
+		    occ_val = 0;
+		}
+		if(previousD[z*2] < 0) {
+		    occ_val = 100;
+		}
+		msg.data.push_back(occ_val);
+
+	    }//z   
+	}//y
+    }//x
+    grid_mutex_.unlock();
+}
+
+bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
+   int i = point(0)/parameters_.resolution; 
+   int j = point(1)/parameters_.resolution; 
+   int k = point(2)/parameters_.resolution;
+
+   if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
+	return true; //outside is considered occupied everywhere
+   }
+   //treat unknown as occupied!!
+   if(myGrid_[i][j][k*2] > parameters_.Dmax-1e-6 && myGrid_[i][j][k*2+1] > 0) {
+       return false;
+   }
+   return true;
 
 }

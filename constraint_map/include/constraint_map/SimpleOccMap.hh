@@ -3,15 +3,9 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <constraint_map/SimpleOccMapMsg.h>
+#include <constraint_map/MapInterface.hh>
 
-struct CellIndex {
-    int i;
-    int j;
-    int k;
-};
-
-class SimpleOccMap {
+class SimpleOccMap : public SimpleOccMapIfce {
 
     protected:
 	Eigen::Vector3f center;
@@ -30,6 +24,8 @@ class SimpleOccMap {
 	SimpleOccMap(const SimpleOccMap& other);
 	virtual ~SimpleOccMap();
 	void initialize();
+
+	inline float getResolution() const { return resolution; }
 
 	///setters and getters per cell
 	inline void setOccupied (int i, int j, int k) {
@@ -97,6 +93,8 @@ class SimpleOccMap {
 	    return (grid[idx.i][idx.j][idx.k] == SimpleOccMap::OCC);
 
 	}
+	
+	virtual bool isOccupied(const Eigen::Vector3f &point) const;
 
 	inline bool isFree(const CellIndex &idx) const {
 	    if(!isInitialized) return false;
@@ -118,8 +116,8 @@ class SimpleOccMap {
 	void getUnknown(std::vector<CellIndex> &idx) const;
 
 	///intersection methods
-	void getIntersection(const SimpleOccMap *other, std::vector<CellIndex> &idx_this) const;
-	void getIntersectionWithPose(const SimpleOccMap *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const;
+	void getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this) const;
+	void getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const;
 
 	///helpers
 	inline bool isInside(const int &i, const int &j, const int &k) const {

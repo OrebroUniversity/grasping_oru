@@ -143,7 +143,14 @@ void SimpleOccMap::getUnknown(std::vector<CellIndex> &idx) const {
 
 }
 
-void SimpleOccMap::getIntersection(const SimpleOccMap *other, std::vector<CellIndex> &idx_this) const {
+	
+bool SimpleOccMap::isOccupied(const Eigen::Vector3f &point) const {
+    CellIndex id;
+    if(!this->getIdxPoint(point,id)) return false;
+    return this->isOccupied(id);
+}
+
+void SimpleOccMap::getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this) const {
 
     //go through this map, compute corresponding index for other map and check if both occupied
     CellIndex id;
@@ -152,11 +159,8 @@ void SimpleOccMap::getIntersection(const SimpleOccMap *other, std::vector<CellIn
 	    for (id.k=0; id.k<size_z; ++id.k) {
 		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC) {
 		    Eigen::Vector3f this_point;
-		    CellIndex other_idx;
 		    if(!this->getCenterCell(id,this_point)) continue;
-		    if(other->getIdxPoint(this_point,other_idx)) {
-			if(other->isOccupied(other_idx)) idx_this.push_back(id);
-		    }
+		    if(other->isOccupied(this_point)) idx_this.push_back(id);
 		}	   
 	    }
 	}
@@ -164,7 +168,7 @@ void SimpleOccMap::getIntersection(const SimpleOccMap *other, std::vector<CellIn
     
 }
 
-void SimpleOccMap::getIntersectionWithPose(const SimpleOccMap *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const {
+void SimpleOccMap::getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const {
 
     CellIndex id;
     for (id.i=0; id.i<size_x; ++id.i) {
@@ -172,12 +176,9 @@ void SimpleOccMap::getIntersectionWithPose(const SimpleOccMap *other, Eigen::Aff
 	    for (id.k=0; id.k<size_z; ++id.k) {
 		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC) {
 		    Eigen::Vector3f this_point;
-		    CellIndex other_idx;
 		    if(!this->getCenterCell(id,this_point)) continue;
 		    this_point = this_to_map*this_point;
-		    if(other->getIdxPoint(this_point,other_idx)) {
-			if(other->isOccupied(other_idx)) idx_this.push_back(id);
-		    }
+		    if(other->isOccupied(this_point)) idx_this.push_back(id);
 		}	   
 	    }
 	}

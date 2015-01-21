@@ -176,7 +176,7 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
     }
 }
 	
-void ConstraintMap::computeValidConfigs(SimpleOccMap *object_map, CylinderConstraint &cylinder) {
+void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder) {
 
     double t1 = getDoubleTime();
     //pass through valid_configs and remove the crazy ones
