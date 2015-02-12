@@ -9,18 +9,15 @@ int main(int argc, char **argv) {
     
     SDF_Parameters param;
 
-     //Pose Offset as a transformation matrix
+    //Pose Offset as a transformation matrix
     Eigen::Matrix4d initialTransformation = 
     Eigen::MatrixXd::Identity(4,4);
 
-    //define translation offsets in x y z
-    initialTransformation(0,3) = 0.0;  //x 
-    initialTransformation(1,3) = 0.0;  //y
-    initialTransformation(2,3) = -0.7; //z
-
     param.pose_offset = initialTransformation;
     GraspPlannerNode nd(param);
+    ros::AsyncSpinner spinner(4); // Use 4 threads
+    spinner.start();
+    ros::waitForShutdown();
 
-    ros::spin();
     return 0;
 }

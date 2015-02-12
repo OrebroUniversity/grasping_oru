@@ -13,11 +13,16 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sdf_tracker/sdf_tracker.h>
 
 #include <boost/thread/mutex.hpp>
 #include <grasp_planner/PlanGrasp.h>
+
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 class GraspPlannerNode {
 
@@ -33,8 +38,10 @@ class GraspPlannerNode {
 	
 	ros::Publisher gripper_map_publisher_;
 	ros::Publisher object_map_publisher_;
+	ros::Publisher fused_pc_publisher_;
 	ros::Subscriber depth_subscriber_;
 	ros::Timer heartbeat_tf_;
+	ros::Timer heartbeat_pc_;
 
 	ros::ServiceServer publish_maps_;
 	ros::ServiceServer plan_grasp_serrver_;
@@ -50,9 +57,10 @@ class GraspPlannerNode {
 	std::string object_map_topic;
 	std::string depth_topic_name_;
 	std::string camera_link_;
+	std::string fused_pc_topic;
   
 	int skip_frames_, frame_counter_;
-	bool use_tf_;
+	bool use_tf_, grasp_frame_set;
 
 	//void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
     public:
@@ -62,10 +70,11 @@ class GraspPlannerNode {
 	    n_ = ros::NodeHandle();
 
 	    nh_.param<std::string>("gripper_file",gripper_fname,"full.cons");
-	    nh_.param<std::string>("gripper_frame_name",gripper_frame_name,"gripper_frame");
+	    nh_.param<std::string>("grasp_frame_name",gripper_frame_name,"planned_grasp");
 	    nh_.param<std::string>("map_frame_name",object_map_frame_name,"map_frame");
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
+	    nh_.param<std::string>("fused_pc_topic",fused_pc_topic,"fused_pc");
 	    
 	    gripper_map = new ConstraintMap();
 	    bool success = gripper_map->loadGripperConstraints(gripper_fname.c_str());
@@ -111,13 +120,17 @@ class GraspPlannerNode {
 	    //subscribe / advertise
 	    gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
 	    object_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (object_map_topic,10);
+	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
+
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    publish_maps_ = nh_.advertiseService("publish_maps", &GraspPlannerNode::publish_map_callback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    
 	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.1), &GraspPlannerNode::publishTF, this);
+	    heartbeat_pc_ = nh_.createTimer(ros::Duration(10), &GraspPlannerNode::publishPC, this);
 
 	    frame_counter_ = 0;
+	    grasp_frame_set=false;
 	}
 	~GraspPlannerNode() {
 	    if( gripper_map != NULL ) {
@@ -130,12 +143,48 @@ class GraspPlannerNode {
 	}
 
         void publishTF(const ros::TimerEvent& event) {
-	    br.sendTransform(tf::StampedTransform(gripper2map, ros::Time::now(), object_map_frame_name, gripper_frame_name));
+	    if(grasp_frame_set) {
+		br.sendTransform(tf::StampedTransform(gripper2map, ros::Time::now(), object_map_frame_name, gripper_frame_name));
+	    }
+	}
+        void publishPC(const ros::TimerEvent& event) {
+	    ROS_INFO("Generating Triangles");
+	    pcl::PointCloud<pcl::PointXYZ> pc;
+	    pcl::PointXYZ pt;
+	    tracker_m.lock();
+	    myTracker_->triangles_.clear();
+	    myTracker_->MakeTriangles();
+	    for(int i=0; i<myTracker_->triangles_.size(); ++i) {
+		pt.x = myTracker_->triangles_[i](0);
+		pt.y = myTracker_->triangles_[i](1);
+		pt.z = myTracker_->triangles_[i](2);
+		pc.points.push_back(pt);
+	    }
+	    tracker_m.unlock();    
+	    pc.is_dense = false;
+	    pc.height = pc.points.size();
+	    pc.width = 1;
+	    ROS_INFO("Publishing PC");
+	    sensor_msgs::PointCloud2 cloud;
+	    pcl::toROSMsg(pc,cloud);
+	    cloud.header.frame_id = object_map_frame_name;
+	    cloud.header.stamp = ros::Time::now();
+	    fused_pc_publisher_.publish(cloud);
 	}
 
 	void depthCallback(const sensor_msgs::Image::ConstPtr& msg)
 	{
-	    //TODO: listen to tf for camera pose
+	    tf::StampedTransform camera_frame_to_map;
+	    try {
+		tl.waitForTransform(object_map_frame_name, camera_link_, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform(object_map_frame_name,camera_link_, ros::Time(0), camera_frame_to_map);
+	    } catch (tf::TransformException ex) {
+		ROS_ERROR("%s",ex.what());
+		return;
+	    }
+	    Eigen::Affine3d cam2map;
+	    tf::transformTFToEigen(camera_frame_to_map,cam2map);
+	    
 	    cv_bridge::CvImageConstPtr bridge;
 	    try
 	    {
@@ -152,7 +201,9 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
-		myTracker_->FuseDepth(bridge->image);
+		myTracker_->SetCurrentTransformation(cam2map.matrix());
+		myTracker_->UpdateDepth(bridge->image);
+		myTracker_->FuseDepth();
 	    }
 	    else 
 	    {
@@ -177,10 +228,11 @@ class GraspPlannerNode {
 	    Eigen::Affine3f obj2map_f;
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
-	    obj2obj_fr = obj2obj_fr*Eigen::AngleAxisd(2.,Eigen::Vector3d::UnitX());
+	    //obj2obj_fr = obj2obj_fr*Eigen::AngleAxisd(2.,Eigen::Vector3d::UnitX());
 	    obj2map = obj2obj_fr*obj_fr2map_fr;
 	    obj2map_f = obj2map.cast<float>();
 	    tf::transformEigenToTF(obj2map, gripper2map);
+	    grasp_frame_set=true;
 
 	    CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    tracker_m.lock();
@@ -202,7 +254,8 @@ class GraspPlannerNode {
 
 	    constraint_map::SimpleOccMapMsg msg2;
 	    gripper_map->resetMap();
-	    gripper_map->drawValidConfigsSmall();
+	    //gripper_map->drawValidConfigsSmall();
+	    gripper_map->drawValidConfigs();
 	    gripper_map->toMessage(msg2);
 	    msg2.header.frame_id = gripper_frame_name;
 	    gripper_map_publisher_.publish(msg2);

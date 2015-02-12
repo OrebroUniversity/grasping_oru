@@ -816,7 +816,7 @@ SDFTracker::UpdateDepth(const cv::Mat &depth)
     #pragma omp parallel for 
     for(int col=0; col<depthImage_->cols-0; ++col)
     { 
-      if(!std::isnan(Drow[col]) && Drow[col]>0.4)
+      if(!std::isnan(Drow[col]) && Drow[col]>0.1)
       {
       validityMask_[row][col]=true;
       }else
@@ -1352,6 +1352,7 @@ SDFTracker::EstimatePoseFromPoints(void)
 void 
 SDFTracker::Render(void)
 {
+  render_mutex.lock();
   //double minStep = parameters_.resolution/4;
   cv::Mat depthImage_out(parameters_.image_height,parameters_.image_width,CV_32FC1);
   cv::Mat preview(parameters_.image_height,parameters_.image_width,CV_8UC3);
@@ -1432,10 +1433,11 @@ SDFTracker::Render(void)
   if(parameters_.interactive_mode)
   {
  
-    cv::imshow(parameters_.render_window, preview);//depthImage_denoised);
-    char q = cv::waitKey(3);
+      cv::imshow(parameters_.render_window, preview);//depthImage_denoised);
+      char q = cv::waitKey(3);
     if(q == 'q' || q  == 27 || q  == 71 ) { quit_ = true; }//int(key)
   }
+  render_mutex.unlock();
   return;
 };
 
@@ -1700,13 +1702,64 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
     
     msg.header.frame_id = "my_frame";
     msg.cell_size = parameters_.resolution;
-    msg.x_cen = parameters_.XSize*parameters_.resolution/2;
-    msg.y_cen = parameters_.YSize*parameters_.resolution/2;
-    msg.z_cen = parameters_.ZSize*parameters_.resolution/2;
+    msg.x_cen = 0;//parameters_.XSize*parameters_.resolution/2;
+    msg.y_cen = 0;//parameters_.YSize*parameters_.resolution/2;
+    msg.z_cen = 0;//parameters_.ZSize*parameters_.resolution/2;
     msg.x_size = parameters_.XSize;
     msg.y_size = parameters_.YSize;
     msg.z_size = parameters_.ZSize;
 
+    grid_mutex_.lock();
+    for(int x = 0; x<parameters_.XSize; ++x)
+    { 
+	for(int y = 0; y<parameters_.YSize;++y)
+	{ 
+	    float* previousD = &myGrid_[x][y][0];
+	    float* previousW = &myGrid_[x][y][1];      
+	    for(int z = 0; z<parameters_.ZSize; ++z)
+	    {           
+		int occ_val = -1;
+		//we are at Dmax and weight is initialized -> free
+		if(previousD[z*2] < parameters_.Dmax-1e-6 && previousW[z*2] > 0) {
+		    occ_val = 0;
+		}
+		if(previousD[z*2] < 0) {
+		    occ_val = 100;
+		}
+		msg.data.push_back(occ_val);
+
+	    }//z   
+	}//y
+    }//x
+    grid_mutex_.unlock();
+}
+
+bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
+//   int i = point(0)/parameters_.resolution; 
+//   int j = point(1)/parameters_.resolution; 
+//   int k = point(2)/parameters_.resolution;
+  
+   double I,J,K;
+   modf(point(0)/parameters_.resolution + parameters_.XSize/2, &I);
+   modf(point(1)/parameters_.resolution + parameters_.YSize/2, &J);  
+   modf(point(2)/parameters_.resolution + parameters_.ZSize/2, &K);
+   if(std::isnan(I) || std::isnan(J) || std::isnan(K)) return true;
+   int i = (int)I,  j = (int)J, k= (int)K; 
+
+   if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
+	return true; //outside is considered occupied everywhere
+   }
+   //treat unknown as occupied!!
+   if(myGrid_[i][j][k*2] < parameters_.Dmax-1e-6 && myGrid_[i][j][k*2+1] > 0) {
+       return false;
+   }
+   return true;
+
+}
+ 
+/*
+void SDFTracker::RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc) {
+    
     grid_mutex_.lock();
     for(int x = 0; x<parameters_.XSize; ++x)
     { 
@@ -1724,26 +1777,11 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
 		if(previousD[z*2] < 0) {
 		    occ_val = 100;
 		}
-		msg.data.push_back(occ_val);
 
 	    }//z   
 	}//y
     }//x
     grid_mutex_.unlock();
-}
-
-bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
-   int i = point(0)/parameters_.resolution; 
-   int j = point(1)/parameters_.resolution; 
-   int k = point(2)/parameters_.resolution;
-
-   if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
-	return true; //outside is considered occupied everywhere
-   }
-   //treat unknown as occupied!!
-   if(myGrid_[i][j][k*2] > parameters_.Dmax-1e-6 && myGrid_[i][j][k*2+1] > 0) {
-       return false;
-   }
-   return true;
 
 }
+*/

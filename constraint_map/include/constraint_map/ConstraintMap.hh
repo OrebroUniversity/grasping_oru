@@ -292,8 +292,8 @@ class ConstraintMap : public SimpleOccMap {
 		float _resolution, int _size_x, int _size_y, int _size_z):SimpleOccMap(_cen_x,_cen_y,_cen_z,_resolution,_size_x,_size_y,_size_z) { 
 
 	    //FIXME: these should be read in somewhere
-	    Eigen::Vector3f finger_size(0.05,0.3,0.05);
-	    Eigen::Vector3f palm_size(0.1,0.1,0.1);
+	    Eigen::Vector3f finger_size(0.05,0.129,0.025);
+	    Eigen::Vector3f palm_size(0.18,0.13,0.1);
 	    Eigen::Affine3f palm2left;
 	    palm2left.setIdentity();
 	    palm2left.translation() = Eigen::Vector3f(-0.025,0.1,0);

@@ -65,6 +65,7 @@ class SDFTracker : public SimpleOccMapIfce
 
   boost::mutex transformation_mutex_;
   boost::mutex depth_mutex_;
+  boost::mutex render_mutex;
   boost::mutex points_mutex_;
   boost::mutex depthDenoised_mutex_;
   boost::mutex grid_mutex_;
@@ -178,7 +179,7 @@ class SDFTracker : public SimpleOccMapIfce
   public:
   virtual void toMessage(constraint_map::SimpleOccMapMsg &msg);
   virtual bool isOccupied(const Eigen::Vector3f &point) const;
-
+//  void RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc);
 
 };
 
