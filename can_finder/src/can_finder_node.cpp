@@ -47,6 +47,7 @@ class CanFinderNode {
 	double eps;
 	double angle_thresh;
 	double eval_thresh;
+	double max_dist;
 	int min_number_pts;
 	//boost::mutex::cloud_mutex;
 	double grow_cylinder_m, inner2outer, grow_plane_m;
@@ -60,6 +61,7 @@ class CanFinderNode {
 	    nh_.param<std::string>("world_frame", world_frame,"world");
 	    nh_.param("floor_height", expected_floor_height  ,0.0);
 	    nh_.param("pallet_height", expected_pallet_height ,0.1);
+	    nh_.param("max_dist", max_dist ,2.0);
 	    
 	    nh_.param("min_pts_cluster",min_number_pts,250);
 	    nh_.param("pallet_height_tolerance",eps,0.03); 
@@ -106,8 +108,20 @@ class CanFinderNode {
 	    Eigen::Affine3d cam2world;
 	    tf::transformTFToEigen(to_world_tf,cam2world);
 	    //std::cerr<<"cam2world: "<<cam2world.matrix()<<std::endl;
+	    pcl::PointCloud<pcl::PointXYZ> temp_cloud;
+	    for(int i=0; i<my_cloud.points.size(); ++i) {
+		Eigen::Vector3d pt;
+		pt<<my_cloud.points[i].x,my_cloud.points[i].y,my_cloud.points[i].z;
+		if(pt.norm()<max_dist) {
+		    temp_cloud.points.push_back(my_cloud.points[i]);
+		}
+	    }
+	    temp_cloud.is_dense=false;
+	    temp_cloud.width =1;
+	    temp_cloud.height = temp_cloud.points.size();
+	    my_cloud = temp_cloud;
 	    this->transformPointCloudInPlace(cam2world, my_cloud);
-
+	
 	}
 
 	bool find_cans(hqp_controllers_msgs::FindCanTask::Request  &req,
@@ -168,7 +182,7 @@ class CanFinderNode {
 			bottom_plane.data.push_back(normal(0));
 			bottom_plane.data.push_back(normal(1));
 			bottom_plane.data.push_back(normal(2));
-			bottom_plane.data.push_back(-coefficients->values[3]+grow_plane_m);
+			bottom_plane.data.push_back(0.29);
 			
 			top_plane.type = hqp_controllers_msgs::TaskGeometry::PLANE;
 			top_plane.data.push_back(normal(0));
@@ -376,7 +390,7 @@ class CanFinderNode {
 			resultCloud.push_back(pt);
 		    }
 		    //////
-		    top_plane.data.push_back(max_z);
+		    top_plane.data.push_back(0.30);
 		    inner_cylinder.type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
 		    outer_cylinder.type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
 		    
@@ -404,6 +418,7 @@ class CanFinderNode {
 
 		    res.success = true;
 		    res.reference_frame = world_frame;
+		    std::cerr<<"found can: "<<normal.transpose()<<" "<<mean.transpose()<<std::endl;
 		    break;
 		    /////
 		    j++;

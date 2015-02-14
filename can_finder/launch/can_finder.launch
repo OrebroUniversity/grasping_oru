@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
 <launch>
   <node name="find_beer" pkg="can_finder" type="can_finder_node" output="screen">
-    <param name="floor_height" value="-0.1" />
-    <param name="pallet_height" value="0.0" />
+    <param name="floor_height" value="0.0" />
+    <param name="pallet_height" value="0.15" />
     <param name="pcloud_topic" value="/camera/depth/points"  />
     <param name="world_frame" value="world"                  />
     <param name="min_pts_cluster" value="250"                />
-    <param name="pallet_height_tolerance" value="0.03"       />
+    <param name="pallet_height_tolerance" value="0.05"       />
     <param name="plane_angle_tolerance" value="10*M_PI/180"  />
     <param name="objects_max_height" value="0.3"             />
-    <param name="cylinder_evals_thresh" value="0.3"          />
-    <param name="grow_cylinder_m" value="0.25"               />
-    <param name="cyl2cyl_m" value="0.2"                      />
+    <param name="cylinder_evals_thresh" value="0.8"          />
+    <param name="grow_cylinder_m" value="0.06"               />
+    <param name="cyl2cyl_m" value="0.03"                      />
     <param name="grow_plane_m" value="0.05"                  />
   </node>
 
