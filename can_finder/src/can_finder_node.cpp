@@ -180,16 +180,16 @@ class CanFinderNode {
 		    if(fabsf(plane_z - expected_pallet_height) < eps ) {
 			ROS_INFO("Plane matches ours");
 			///////
-			bottom_plane.type = hqp_controllers_msgs::TaskGeometry::PLANE;
-			bottom_plane.data.push_back(normal(0));
-			bottom_plane.data.push_back(normal(1));
-			bottom_plane.data.push_back(normal(2));
-			bottom_plane.data.push_back(0.29);
+			bottom_plane.g_type = hqp_controllers_msgs::TaskGeometry::PLANE;
+			bottom_plane.g_data.push_back(normal(0));
+			bottom_plane.g_data.push_back(normal(1));
+			bottom_plane.g_data.push_back(normal(2));
+			bottom_plane.g_data.push_back(0.29);
 			
-			top_plane.type = hqp_controllers_msgs::TaskGeometry::PLANE;
-			top_plane.data.push_back(normal(0));
-			top_plane.data.push_back(normal(1));
-			top_plane.data.push_back(normal(2));
+			top_plane.g_type = hqp_controllers_msgs::TaskGeometry::PLANE;
+			top_plane.g_data.push_back(-normal(0));
+			top_plane.g_data.push_back(-normal(1));
+			top_plane.g_data.push_back(-normal(2));
 			///////
 			//we found our plane
 			Eigen::MatrixXd planeM (inliers->indices.size (),2);
@@ -396,26 +396,26 @@ class CanFinderNode {
 			resultCloud.push_back(pt);
 		    }
 		    //////
-		    top_plane.data.push_back(0.30);
-		    inner_cylinder.type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
-		    outer_cylinder.type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
+		    top_plane.g_data.push_back(-0.30);
+		    inner_cylinder.g_type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
+		    outer_cylinder.g_type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
 		    
-		    inner_cylinder.data.push_back(mean(0));
-		    inner_cylinder.data.push_back(mean(1));
-		    inner_cylinder.data.push_back(mean(2));
-		    outer_cylinder.data.push_back(mean(0));
-		    outer_cylinder.data.push_back(mean(1));
-		    outer_cylinder.data.push_back(mean(2));
+		    inner_cylinder.g_data.push_back(mean(0));
+		    inner_cylinder.g_data.push_back(mean(1));
+		    inner_cylinder.g_data.push_back(mean(2));
+		    outer_cylinder.g_data.push_back(mean(0));
+		    outer_cylinder.g_data.push_back(mean(1));
+		    outer_cylinder.g_data.push_back(mean(2));
 		    
-		    inner_cylinder.data.push_back(normal(0));
-		    inner_cylinder.data.push_back(normal(1));
-		    inner_cylinder.data.push_back(normal(2));
-		    outer_cylinder.data.push_back(normal(0));
-		    outer_cylinder.data.push_back(normal(1));
-		    outer_cylinder.data.push_back(normal(2));
+		    inner_cylinder.g_data.push_back(normal(0));
+		    inner_cylinder.g_data.push_back(normal(1));
+		    inner_cylinder.g_data.push_back(normal(2));
+		    outer_cylinder.g_data.push_back(normal(0));
+		    outer_cylinder.g_data.push_back(normal(1));
+		    outer_cylinder.g_data.push_back(normal(2));
 		    
-		    inner_cylinder.data.push_back(3*sqrt(eig.eigenvalues()(1)) + grow_cylinder_m);
-		    outer_cylinder.data.push_back(3*sqrt(eig.eigenvalues()(1)) + grow_cylinder_m + inner2outer);
+		    inner_cylinder.g_data.push_back(3*sqrt(eig.eigenvalues()(1)) + grow_cylinder_m);
+		    outer_cylinder.g_data.push_back(3*sqrt(eig.eigenvalues()(1)) + grow_cylinder_m + inner2outer);
 
 		    res.CanTask.push_back(bottom_plane);
 		    res.CanTask.push_back(top_plane);
