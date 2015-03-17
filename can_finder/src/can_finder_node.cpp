@@ -48,6 +48,7 @@ class CanFinderNode {
 	double angle_thresh;
 	double eval_thresh;
 	double max_dist;
+	double max_x;
 	int min_number_pts;
 	//boost::mutex::cloud_mutex;
 	double grow_cylinder_m, inner2outer, grow_plane_m;
@@ -62,6 +63,7 @@ class CanFinderNode {
 	    nh_.param("floor_height", expected_floor_height  ,0.0);
 	    nh_.param("pallet_height", expected_pallet_height ,0.1);
 	    nh_.param("max_dist", max_dist ,2.0);
+	    nh_.param("max_x", max_x ,1.3);
 	    
 	    nh_.param("min_pts_cluster",min_number_pts,250);
 	    nh_.param("pallet_height_tolerance",eps,0.03); 
@@ -145,7 +147,7 @@ class CanFinderNode {
 	    // Mandatory
 	    seg.setModelType (pcl::SACMODEL_PLANE);
 	    seg.setMethodType (pcl::SAC_RANSAC);
-	    seg.setDistanceThreshold (0.02); //threshold on distance to plane
+	    seg.setDistanceThreshold (0.01); //threshold on distance to plane
 
 	    bool foundPalletPlane = false;
 
@@ -345,7 +347,11 @@ class CanFinderNode {
 			mean += tmp;
 		    }
 		    mean /= (it->indices.size ());
-		    
+		   
+		    if(mean(0) > max_x) {
+		       ROS_WARN("Ignoring far away cluster\n");
+		       continue;
+		    }	       
 		    double max_z = -INT_MAX;
 		    for (size_t i = 0; i < it->indices.size (); ++i) {
 			Eigen::Vector3d tmp;
