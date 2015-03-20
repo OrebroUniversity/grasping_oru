@@ -456,7 +456,7 @@ class CanFinderNode {
 		std::vector<pcl::PointIndices> cluster_indices;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
 		ec.setClusterTolerance (0.04); // 2cm
-		ec.setMinClusterSize (5000);
+		ec.setMinClusterSize (1000);
 		ec.setMaxClusterSize (55000);
 		ec.setSearchMethod (tree);
 		ec.setInputCloud (cloud);
@@ -464,13 +464,17 @@ class CanFinderNode {
 
 		//find largest cluster within reach
 		std::vector<pcl::PointIndices>::const_iterator jt;
-		int n_pts = -1;
+		size_t n_pts = 0;
 		int j=0;
 		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 		{
-		    if(n_pts > it->indices.size ()) {
-			ROS_WARN("small cluster, skipping");
+		    std::cout << "PointCloud representing the Cluster: " << it->indices.size() << " data points." << std::endl;
+		    if(n_pts > it->indices.size()) {
+			ROS_WARN("small cluster, skipping. npts is %lu",n_pts);
 			continue;
+		    } else {
+			    std::cout << "Check Cluster: " << it->indices.size () << " data points." << std::endl;
+
 		    }
 		    Eigen::MatrixXd planeM (it->indices.size (),3);
 		    Eigen::Vector3d mean;
@@ -490,14 +494,15 @@ class CanFinderNode {
 			mean += tmp;
 		    }
 		    mean /= (it->indices.size ());
-		   
+		  
+		    std::cerr<<"Found cluster at "<<mean.transpose()<<std::endl; 
 		    if(mean(0) > max_x) {
 		       ROS_WARN("Ignoring far away cluster\n");
 		       continue;
 		    }
+		    n_pts = it->indices.size();
 		    jt = it;
 		    //For display...
-		    std::cout << "PointCloud representing the Cluster: " << it->indices.size () << " data points." << std::endl;
 		    for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
 			pt.x = cloud->points[*pit].x;
 			pt.y = cloud->points[*pit].y;
@@ -507,10 +512,10 @@ class CanFinderNode {
 		}
 
 		if(n_pts > 0) {
-		    ROS_INFO("Found largest cluster with %d points",n_pts);
+		    ROS_INFO("Found largest cluster with %lu points",n_pts);
 		    double min_dist = INT_MAX;
 		    Eigen::Vector3d closest_point;
-		    uint8_t r = 200, g = 55, b = 0; // Example: Red color
+		    uint8_t r = 200, g = 25, b = 20; // Example: Red color
 		    uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
 		    float col = *reinterpret_cast<float*>(&rgb);
 		    pcl::PointXYZRGB pt;
@@ -519,7 +524,6 @@ class CanFinderNode {
 			pt.x = cloud->points[*pit].x;
 			pt.y = cloud->points[*pit].y;
 			pt.z = cloud->points[*pit].z;
-			resultCloud.push_back(pt);
 			Eigen::Vector3d tmp;
 			tmp<<pt.x,pt.y,pt.z;
 			if((tmp-world2palm.translation()).norm() < min_dist) {
@@ -531,6 +535,10 @@ class CanFinderNode {
 		    Eigen::Vector3d approach = closest_point - world2palm.translation();
 		    approach.normalize();
 		    closest_point = closest_point - dist_factor*approach; 
+		    pt.x = closest_point(0);
+		    pt.y = closest_point(1);
+		    pt.z = closest_point(2);
+		    resultCloud.push_back(pt);
 		    /////
 		    contact_point.g_data.push_back(closest_point(0));
 		    contact_point.g_data.push_back(closest_point(1));

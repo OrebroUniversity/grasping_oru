@@ -13,7 +13,8 @@
     <param name="grow_cylinder_m" value="0.07"               />
     <param name="cyl2cyl_m" value="0.04"                      />
     <param name="grow_plane_m" value="0.05"                  />
-    <param name="max_x" value="1.4"                  />
+    <!--param name="max_x" value="1.4"                  /-->
+    <param name="max_x" value="2.4"                  />
   </node>
 
 </launch>
