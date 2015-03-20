@@ -26,6 +26,8 @@
 #include <Eigen/Core>
 //#include <boost/thread/mutex.hpp>
 
+//#define VANILLA_CANS
+
 class CanFinderNode {
 
     private:
@@ -41,6 +43,7 @@ class CanFinderNode {
 	std::string pcloud_topic;
 	std::string pcloud_frame_name;
 	std::string world_frame;
+	std::string palm_frame;
 	double expected_floor_height;
 	double expected_pallet_height;
 	double height_cutoff;
@@ -53,6 +56,8 @@ class CanFinderNode {
 	//boost::mutex::cloud_mutex;
 	double grow_cylinder_m, inner2outer, grow_plane_m;
 
+	double dist_factor;
+	Eigen::Affine3d world2palm;
     public:
 
 	CanFinderNode() {
@@ -60,10 +65,12 @@ class CanFinderNode {
 	    n_ = ros::NodeHandle();
 	    nh_.param<std::string>("pcloud_topic", pcloud_topic,"/camera/depth/points");
 	    nh_.param<std::string>("world_frame", world_frame,"world");
+	    nh_.param<std::string>("palm_frame", palm_frame,"velvet_fingers_palm");
 	    nh_.param("floor_height", expected_floor_height  ,0.0);
 	    nh_.param("pallet_height", expected_pallet_height ,0.1);
 	    nh_.param("max_dist", max_dist ,2.0);
 	    nh_.param("max_x", max_x ,1.3);
+	    nh_.param("dist_factor", dist_factor ,0.02);
 	    
 	    nh_.param("min_pts_cluster",min_number_pts,250);
 	    nh_.param("pallet_height_tolerance",eps,0.03); 
@@ -123,6 +130,17 @@ class CanFinderNode {
 	    temp_cloud.height = temp_cloud.points.size();
 	    my_cloud = temp_cloud;
 	    this->transformPointCloudInPlace(cam2world, my_cloud);
+	    
+	    tf::StampedTransform palm_world_tf;
+	    try {
+		tl.waitForTransform(palm_frame, world_frame, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform(palm_frame, world_frame, ros::Time(0), palm_world_tf);
+	    } catch (tf::TransformException ex) {
+		ROS_ERROR("%s",ex.what());
+		return;
+	    }
+	    //ROS_INFO("got pointcloud in world frame, points: %ld",my_cloud.points.size());
+	    tf::transformTFToEigen(palm_world_tf,world2palm);
 	
 	}
 
@@ -318,6 +336,7 @@ class CanFinderNode {
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
 		tree->setInputCloud (cloud);
 
+#ifdef VANILLA_CANS
 		std::vector<pcl::PointIndices> cluster_indices;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
 		ec.setClusterTolerance (0.02); // 2cm
@@ -429,7 +448,108 @@ class CanFinderNode {
 		    /////
 		    j++;
 		}
+#else
+
+		hqp_controllers_msgs::TaskGeometry contact_point, approach_vector;
+		contact_point.g_type = hqp_controllers_msgs::TaskGeometry::POINT;
+		approach_vector.g_type = hqp_controllers_msgs::TaskGeometry::LINE;
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance (0.04); // 2cm
+		ec.setMinClusterSize (5000);
+		ec.setMaxClusterSize (55000);
+		ec.setSearchMethod (tree);
+		ec.setInputCloud (cloud);
+		ec.extract (cluster_indices);
+
+		//find largest cluster within reach
+		std::vector<pcl::PointIndices>::const_iterator jt;
+		int n_pts = -1;
+		int j=0;
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+		{
+		    if(n_pts > it->indices.size ()) {
+			ROS_WARN("small cluster, skipping");
+			continue;
+		    }
+		    Eigen::MatrixXd planeM (it->indices.size (),3);
+		    Eigen::Vector3d mean;
+		    mean<<0,0,0;
+		    uint8_t r = 0, g = 55 + ((double)j/cluster_indices.size())*200., b = 0; // Example: Red color
+		    j++;
+		    uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+		    float col = *reinterpret_cast<float*>(&rgb);
+		    pcl::PointXYZRGB pt;
+		    pt.rgb = col;
+		    for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
+			pt.x = cloud->points[*pit].x;
+			pt.y = cloud->points[*pit].y;
+			pt.z = cloud->points[*pit].z;
+			Eigen::Vector3d tmp;
+			tmp<<pt.x,pt.y,pt.z;
+			mean += tmp;
+		    }
+		    mean /= (it->indices.size ());
+		   
+		    if(mean(0) > max_x) {
+		       ROS_WARN("Ignoring far away cluster\n");
+		       continue;
+		    }
+		    jt = it;
+		    //For display...
+		    std::cout << "PointCloud representing the Cluster: " << it->indices.size () << " data points." << std::endl;
+		    for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
+			pt.x = cloud->points[*pit].x;
+			pt.y = cloud->points[*pit].y;
+			pt.z = cloud->points[*pit].z;
+			resultCloud.push_back(pt);
+		    }
+		}
+
+		if(n_pts > 0) {
+		    ROS_INFO("Found largest cluster with %d points",n_pts);
+		    double min_dist = INT_MAX;
+		    Eigen::Vector3d closest_point;
+		    uint8_t r = 200, g = 55, b = 0; // Example: Red color
+		    uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+		    float col = *reinterpret_cast<float*>(&rgb);
+		    pcl::PointXYZRGB pt;
+		    pt.rgb = col;
+		    for (std::vector<int>::const_iterator pit = jt->indices.begin (); pit != jt->indices.end (); ++pit) {
+			pt.x = cloud->points[*pit].x;
+			pt.y = cloud->points[*pit].y;
+			pt.z = cloud->points[*pit].z;
+			resultCloud.push_back(pt);
+			Eigen::Vector3d tmp;
+			tmp<<pt.x,pt.y,pt.z;
+			if((tmp-world2palm.translation()).norm() < min_dist) {
+			    min_dist = tmp.norm();
+			    closest_point = tmp;
+			}
+		    }
+		    //approach direction always points towards the the closest point
+		    Eigen::Vector3d approach = closest_point - world2palm.translation();
+		    approach.normalize();
+		    closest_point = closest_point - dist_factor*approach; 
+		    /////
+		    contact_point.g_data.push_back(closest_point(0));
+		    contact_point.g_data.push_back(closest_point(1));
+		    contact_point.g_data.push_back(closest_point(2));
+		    approach_vector.g_data.push_back(closest_point(0));
+		    approach_vector.g_data.push_back(closest_point(1));
+		    approach_vector.g_data.push_back(closest_point(2));
+		    approach_vector.g_data.push_back(approach(0));
+		    approach_vector.g_data.push_back(approach(1));
+		    approach_vector.g_data.push_back(approach(2));
+		    res.CanTask.push_back(contact_point);
+		    res.CanTask.push_back(approach_vector);
+		    res.success = true;
+		    res.reference_frame = world_frame;
+		    std::cerr<<"found can: "<<closest_point.transpose()<<" "<<approach.transpose()<<std::endl;
+		}
+		    		    
 		
+#endif	
 	    }
 
 	    resultCloud.is_dense = false;
