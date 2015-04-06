@@ -133,8 +133,8 @@ class CanFinderNode {
 	    
 	    tf::StampedTransform palm_world_tf;
 	    try {
-		tl.waitForTransform(palm_frame, world_frame, ros::Time(0), ros::Duration(1.0) );
-		tl.lookupTransform(palm_frame, world_frame, ros::Time(0), palm_world_tf);
+		tl.waitForTransform(world_frame, palm_frame, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform(world_frame, palm_frame, ros::Time(0), palm_world_tf);
 	    } catch (tf::TransformException ex) {
 		ROS_ERROR("%s",ex.what());
 		return;
@@ -187,13 +187,14 @@ class CanFinderNode {
 		}
 
 		normal<<coefficients->values[0],coefficients->values[1],coefficients->values[2];
+		double norm = normal.norm();
 		normal.normalize();
 
 		double alpha = acos(normal.dot(Eigen::Vector3d::UnitZ()));
 		if(fabsf(alpha) < angle_thresh) {
 		    //we have a plane parallel to the floor
 		    //check z intercept
-		    double plane_z = -coefficients->values[3]/coefficients->values[2];
+		    double plane_z = (-coefficients->values[3]/coefficients->values[2])/norm;
 		    ROS_INFO("Found a horizontal plane at height %lf",plane_z);
 		    if(fabsf(plane_z - expected_pallet_height) < eps ) {
 			ROS_INFO("Plane matches ours");
@@ -456,7 +457,7 @@ class CanFinderNode {
 		std::vector<pcl::PointIndices> cluster_indices;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
 		ec.setClusterTolerance (0.04); // 2cm
-		ec.setMinClusterSize (1000);
+		ec.setMinClusterSize (500);
 		ec.setMaxClusterSize (55000);
 		ec.setSearchMethod (tree);
 		ec.setInputCloud (cloud);
@@ -520,21 +521,32 @@ class CanFinderNode {
 		    float col = *reinterpret_cast<float*>(&rgb);
 		    pcl::PointXYZRGB pt;
 		    pt.rgb = col;
+		    Eigen::Vector3d mean;
 		    for (std::vector<int>::const_iterator pit = jt->indices.begin (); pit != jt->indices.end (); ++pit) {
 			pt.x = cloud->points[*pit].x;
 			pt.y = cloud->points[*pit].y;
 			pt.z = cloud->points[*pit].z;
 			Eigen::Vector3d tmp;
 			tmp<<pt.x,pt.y,pt.z;
+			mean += tmp;
 			if((tmp-world2palm.translation()).norm() < min_dist) {
-			    min_dist = tmp.norm();
+			    min_dist = (tmp-world2palm.translation()).norm();
 			    closest_point = tmp;
 			}
 		    }
+		    mean /= (jt->indices.size ());
+	            std::cerr<<"Gripper is at "<<world2palm.translation().transpose()<<std::endl;
+		    closest_point(2) = 0.25;
+		    pt.x = closest_point(0);
+		    pt.y = closest_point(1);
+		    pt.z = closest_point(2);
+		    resultCloud.push_back(pt);
 		    //approach direction always points towards the the closest point
-		    Eigen::Vector3d approach = closest_point - world2palm.translation();
+		    //Eigen::Vector3d approach = closest_point - world2palm.translation();
+		    Eigen::Vector3d approach = mean - world2palm.translation();
 		    approach.normalize();
 		    closest_point = closest_point - dist_factor*approach; 
+		    closest_point(2) = 0.25;
 		    pt.x = closest_point(0);
 		    pt.y = closest_point(1);
 		    pt.z = closest_point(2);
