@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 set(CMAKE_BUILD_TYPE Release) 
-project(sdf_tracker)
+project(sdf_tracker_grasping)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -17,7 +17,7 @@ catkin_package(
     LIBRARIES ${PROJECT_NAME}
 )
 find_package(VTK REQUIRED)
-add_executable(sdf_tracker_node src/sdf_tracker_node.cpp)
+add_executable(sdf_tracker_grasping_node src/sdf_tracker_node.cpp)
 add_library(${PROJECT_NAME} src/sdf_tracker.cpp)
 
 find_package(OpenMP)
@@ -38,7 +38,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 include_directories(${EIGEN_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS} ${VTK_INCLUDE_DIRS} include)
 add_definitions(${EIGEN_DEFINITIONS})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${VTK_LIBRARIES})
-target_link_libraries(sdf_tracker_node ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(sdf_tracker_grasping_node ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #target_link_libraries(example ${PROJECT_NAME})
 ## Generate added messages and services with any dependencies listed here
@@ -48,7 +48,7 @@ target_link_libraries(sdf_tracker_node ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${
 
 # catkin_package parameters: http://ros.org/doc/groovy/api/catkin/html/dev_guide/generated_cmake_api.html#catkin-package
 # TODO: fill in what other packages will need to use this package
-install(TARGETS sdf_tracker_node ${PROJECT_NAME}
+install(TARGETS sdf_tracker_grasping_node ${PROJECT_NAME}
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

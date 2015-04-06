@@ -10,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   constraint_map
   geometry_msgs
   message_generation
-  sdf_tracker
+  sdf_tracker_grasping
   std_msgs
   std_srvs
   tf
@@ -92,7 +92,7 @@ find_package(Boost REQUIRED COMPONENTS thread)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES grasp_planner
-  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
+  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker_grasping std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
   DEPENDS libpcl-all-dev
 )
 
