@@ -4,7 +4,7 @@
     <param name="floor_height" value="0.0" />
     <param name="pallet_height" value="0.13" />
     <param name="pcloud_topic" value="/camera/depth/points"  />
-    <param name="world_frame" value="world"                  />
+    <param name="world_frame" value="citi_truck_base"                  />
     <param name="min_pts_cluster" value="250"                />
     <param name="pallet_height_tolerance" value="0.05"       />
     <param name="plane_angle_tolerance" value="10*M_PI/180"  />

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>sdf_tracker</name>
+  <name>sdf_tracker_grasping</name>
   <version>1.0.28</version>
   <description>The sdf_tracker package</description>
 
