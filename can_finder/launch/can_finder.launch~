@@ -4,9 +4,9 @@
     <param name="floor_height" value="0.0" />
     <param name="pallet_height" value="0.13" />
     <param name="pcloud_topic" value="/camera/depth/points"  />
-    <param name="world_frame" value="world"                  />
+    <param name="world_frame" value="citi_truck_base"                  />
     <param name="min_pts_cluster" value="250"                />
-    <param name="pallet_height_tolerance" value="0.05"       />
+    <param name="pallet_height_tolerance" value="0.08"       />
     <param name="plane_angle_tolerance" value="10*M_PI/180"  />
     <param name="objects_max_height" value="0.3"             />
     <param name="cylinder_evals_thresh" value="0.8"          />
@@ -15,7 +15,7 @@
     <param name="grow_plane_m" value="0.05"                  />
     <!--param name="max_x" value="1.4"                  /-->
     <param name="max_x" value="1.6"                  />
-    <param name="max_dist" value="1.5"                  />
+    <param name="max_dist" value="1"                  />
     <param name="dist_factor" value="0.18"                  />
   </node>
 
