@@ -2,27 +2,27 @@
 <launch>
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen">
     
-    <param name="gripper_file" value="$(find grasp_planner)/cfg/v2.cons"/>
+    <param name="gripper_file" value="$(find grasp_planner)/cfg/full.cons"/>
     <param name="map_frame_name" value="roi_frame"/>
     <param name="use_tf" value="true"/>
-    <param name="gripper_file" value="$(find grasp_planner)/cfg/full.cons"/>
     <param name="camera_link" value="camera_depth_optical_frame"/>
     
     <param name="depth_topic_name" value="/camera/depth/image"/>
 
     <!-- SDF related parameters -->
-    <param name="offsetZ" value="-0.40"/>
-    <param name="GridSizeX" value= "200"/>
-    <param name="GridSizeY" value= "200"/>
-    <param name="GridSizeZ" value= "150"/>
-    <param name="PositiveTruncationDistance" value= "1.0" />
-    <param name="NegativeTruncationDistance" value= "-0.02" />
+    <param name="offsetZ" value="-0.50"/>
+    <param name="GridSizeX" value= "300"/>
+    <param name="GridSizeY" value= "300"/>
+    <param name="GridSizeZ" value= "300"/>
+    <param name="PositiveTruncationDistance" value= "0.08" />
+    <param name="NegativeTruncationDistance" value= "-0.04" />
     <param name="RobustStatisticCoefficient" value= "0.02" />
     <param name="OutputVolume" value= "false" />
+    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/test.vti" />
     <param name="InteractiveMode" value= "false" />
     <param name="depth_registered" value= "false"/>
     <param name="MaximumRaycastSteps" value= "360" /> 
-    <param name="OutputTriangles" value= "true" />
+    <param name="OutputTriangles" value= "false" />
 
 <!-- full list of SDF parameters and their default values -->
 <!-- 

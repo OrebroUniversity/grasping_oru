@@ -4,6 +4,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <constraint_map/MapInterface.hh>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 class SimpleOccMap : public SimpleOccMapIfce {
 
@@ -179,6 +181,7 @@ class SimpleOccMap : public SimpleOccMapIfce {
 	    }
 	}
 	void toMessage(constraint_map::SimpleOccMapMsg &msg);
+	void toPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc);
 	void fromMessage(const constraint_map::SimpleOccMapMsg &msg);
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW

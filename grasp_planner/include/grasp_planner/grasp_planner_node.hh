@@ -58,7 +58,8 @@ class GraspPlannerNode {
 	std::string depth_topic_name_;
 	std::string camera_link_;
 	std::string fused_pc_topic;
-  
+	std::string loadVolume_;
+
 	int skip_frames_, frame_counter_;
 	bool use_tf_, grasp_frame_set;
 
@@ -75,7 +76,8 @@ class GraspPlannerNode {
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
 	    nh_.param<std::string>("fused_pc_topic",fused_pc_topic,"fused_pc");
-	    
+	    nh_.param<std::string>("LoadVolume", loadVolume_,"none");
+
 	    gripper_map = new ConstraintMap();
 	    bool success = gripper_map->loadGripperConstraints(gripper_fname.c_str());
 	
@@ -116,6 +118,11 @@ class GraspPlannerNode {
 
 	    myParameters_.resolution = gripper_map->getResolution();
 	    myTracker_ = new SDFTracker(myParameters_);
+
+	    if(loadVolume_.compare(std::string("none"))!=0)
+	    {
+		myTracker_->LoadSDF(loadVolume_);
+	    }
 	    
 	    //subscribe / advertise
 	    gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
@@ -228,16 +235,28 @@ class GraspPlannerNode {
 	    Eigen::Affine3f obj2map_f;
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
-	    //obj2obj_fr = obj2obj_fr*Eigen::AngleAxisd(2.,Eigen::Vector3d::UnitX());
-	    obj2map = obj2obj_fr*obj_fr2map_fr;
-	    obj2map_f = obj2map.cast<float>();
+	    //obj2obj_fr = *obj2obj_fr;
+	    obj2map = obj2obj_fr*obj_fr2map_fr*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX());
+	    obj2map_f = obj2map.cast<float>(); //.setIdentity(); //
 	    tf::transformEigenToTF(obj2map, gripper2map);
 	    grasp_frame_set=true;
 
 	    CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    tracker_m.lock();
 	    gripper_map->computeValidConfigs(myTracker_, cc);
+
+	    //drawing
+	    constraint_map::SimpleOccMapMsg msg2;
+	    gripper_map->resetMap();
+	    gripper_map->drawValidConfigsSmall();
+	    //obj2map_f.setIdentity();
+	    //gripper_map->drawCylinder(obj2map_f,req.object_radius,req.object_height);
+	    gripper_map->updateMap();
+	    gripper_map->toMessage(msg2);
+	    msg2.header.frame_id = gripper_frame_name;
+	    gripper_map_publisher_.publish(msg2);
 	    tracker_m.unlock();
+
 
 	}
 
@@ -245,17 +264,18 @@ class GraspPlannerNode {
 		std_srvs::Empty::Response &res ) {
 	    
 	    ROS_INFO("Publishing maps");
+#if 0
 	    constraint_map::SimpleOccMapMsg msg;
 	    tracker_m.lock();
 	    myTracker_->toMessage(msg);
 	    tracker_m.unlock();
 	    msg.header.frame_id = object_map_frame_name;
 	    object_map_publisher_.publish(msg); 
-
+#endif
 	    constraint_map::SimpleOccMapMsg msg2;
 	    gripper_map->resetMap();
-	    //gripper_map->drawValidConfigsSmall();
-	    gripper_map->drawValidConfigs();
+	    gripper_map->drawValidConfigsSmall();
+	    gripper_map->updateMap();
 	    gripper_map->toMessage(msg2);
 	    msg2.header.frame_id = gripper_frame_name;
 	    gripper_map_publisher_.publish(msg2);

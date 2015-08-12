@@ -265,6 +265,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
     std::cerr<<"Had "<<valid_configs.size()<<" configs, now we have "<<valid_configs2.size()<<" and it took "<<t2-t1<<" seconds\n";
     std::cout<<"extract took :"<<t2-t1i<<" sec\n";
     std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
+
 //    valid_configs = valid_configs2;
 }
 	

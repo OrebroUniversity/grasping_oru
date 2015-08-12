@@ -57,7 +57,7 @@ class CylinderConstraint {
     public:
 	Eigen::Matrix<float,2,3> A;
 	Eigen::Matrix<float,2,1> b;
-	float radius_;
+	float radius_, height_;
 	Eigen::Affine3f pose;
 	CylinderConstraint(Eigen::Affine3f &pose_, float radius, float height) {
 	    calculateConstraints(pose_,radius,height);
@@ -70,7 +70,12 @@ class CylinderConstraint {
 	    b(0) = tr.dot(A.block<1,3>(0,0));
 	    b(1) = tr.dot(A.block<1,3>(1,0))-height;
 	    radius_ = radius;
+	    height_ = height;
 	}
+	float getHeight() {
+	    return height_;
+	    //return pose.translation().dot(A.block<1,3>(1,0)) - b(1);
+	} 
 	inline bool operator()(Eigen::Vector3f &x) {
 	    Eigen::Matrix<float,2,1> bp = A*x-b;
 	    if(bp(0)<0) return false;

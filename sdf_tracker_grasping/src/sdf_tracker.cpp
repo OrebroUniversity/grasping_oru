@@ -1749,11 +1749,17 @@ bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
    if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
 	return true; //outside is considered occupied everywhere
    }
+   if(myGrid_[i][j][k*2] < 0 && myGrid_[i][j][k*2+1] != 0) {
+       return true;
+   }
+   return false;
+#if 0
    //treat unknown as occupied!!
    if(myGrid_[i][j][k*2] < parameters_.Dmax-1e-6 && myGrid_[i][j][k*2+1] > 0) {
        return false;
    }
    return true;
+#endif
 
 }
  
