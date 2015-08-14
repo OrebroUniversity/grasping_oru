@@ -23,6 +23,8 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 
 class GraspPlannerNode {
 
@@ -36,14 +38,13 @@ class GraspPlannerNode {
 	SDF_Parameters myParameters_;
 	ConstraintMap *gripper_map;
 	
-	ros::Publisher gripper_map_publisher_;
-	ros::Publisher object_map_publisher_;
+	//ros::Publisher gripper_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
+	ros::Publisher vis_pub_;
 	ros::Subscriber depth_subscriber_;
 	ros::Timer heartbeat_tf_;
 	ros::Timer heartbeat_pc_;
 
-	ros::ServiceServer publish_maps_;
 	ros::ServiceServer plan_grasp_serrver_;
 
 	tf::TransformBroadcaster br;
@@ -61,12 +62,13 @@ class GraspPlannerNode {
 	std::string loadVolume_;
 
 	int skip_frames_, frame_counter_;
-	bool use_tf_, grasp_frame_set;
+	bool use_tf_, grasp_frame_set, publish_pc;
 
 	//void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
     public:
 	GraspPlannerNode(SDF_Parameters &parameters) {
 
+	    publish_pc = false;
 	    nh_ = ros::NodeHandle("~");
 	    n_ = ros::NodeHandle();
 
@@ -125,13 +127,12 @@ class GraspPlannerNode {
 	    }
 	    
 	    //subscribe / advertise
-	    gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
-	    object_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (object_map_topic,10);
+	    //gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
 	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
-	    publish_maps_ = nh_.advertiseService("publish_maps", &GraspPlannerNode::publish_map_callback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
+	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
 	    
 	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.1), &GraspPlannerNode::publishTF, this);
 	    heartbeat_pc_ = nh_.createTimer(ros::Duration(10), &GraspPlannerNode::publishPC, this);
@@ -156,27 +157,88 @@ class GraspPlannerNode {
 	}
         void publishPC(const ros::TimerEvent& event) {
 	    ROS_INFO("Generating Triangles");
-	    pcl::PointCloud<pcl::PointXYZ> pc;
-	    pcl::PointXYZ pt;
-	    tracker_m.lock();
-	    myTracker_->triangles_.clear();
-	    myTracker_->MakeTriangles();
-	    for(int i=0; i<myTracker_->triangles_.size(); ++i) {
-		pt.x = myTracker_->triangles_[i](0);
-		pt.y = myTracker_->triangles_[i](1);
-		pt.z = myTracker_->triangles_[i](2);
-		pc.points.push_back(pt);
+
+	    if(publish_pc) {
+		pcl::PointCloud<pcl::PointXYZ> pc;
+		pcl::PointXYZ pt;
+		tracker_m.lock();
+		myTracker_->triangles_.clear();
+		myTracker_->MakeTriangles();
+		for(int i=0; i<myTracker_->triangles_.size(); ++i) {
+		    pt.x = myTracker_->triangles_[i](0);
+		    pt.y = myTracker_->triangles_[i](1);
+		    pt.z = myTracker_->triangles_[i](2);
+		    pc.points.push_back(pt);
+		}
+		tracker_m.unlock();    
+		pc.is_dense = false;
+		pc.height = pc.points.size();
+		pc.width = 1;
+		ROS_INFO("Publishing PC");
+		sensor_msgs::PointCloud2 cloud;
+		pcl::toROSMsg(pc,cloud);
+		cloud.header.frame_id = object_map_frame_name;
+		cloud.header.stamp = ros::Time::now();
+		fused_pc_publisher_.publish(cloud);
+	    } else {
+
+		//publish triangles instead	    
+		visualization_msgs::MarkerArray marker_array;
+		visualization_msgs::Marker marker;
+		marker.header.frame_id = object_map_frame_name;
+		marker.header.stamp = ros::Time::now();
+		marker.ns = "my_namespace";
+		marker.id = 0;
+		marker.type = visualization_msgs::Marker::TRIANGLE_LIST;
+		marker.action = visualization_msgs::Marker::ADD;
+		marker.pose.position.x = 0;
+		marker.pose.position.y = 0;
+		marker.pose.position.z = 0;
+		marker.pose.orientation.x = 0.0;
+		marker.pose.orientation.y = 0.0;
+		marker.pose.orientation.z = 0.0;
+		marker.pose.orientation.w = 1.0;
+		marker.scale.x = 1;
+		marker.scale.y = 1;
+		marker.scale.z = 1;
+		marker.color.a = 1.0;
+		marker.color.r = 0.0;
+		marker.color.g = 1.0;
+		marker.color.b = 0.0;
+
+		tracker_m.lock();
+		myTracker_->triangles_.clear();
+		myTracker_->MakeTriangles();
+		for (int i = 0; i < myTracker_->triangles_.size(); ++i)
+		{
+
+		    Eigen::Vector3d vcolor;
+		    vcolor << fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,0)),
+			   fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,1)),
+			   fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,2));
+
+		    std_msgs::ColorRGBA color;
+
+		    /* normal-mapped color */
+		     vcolor.normalize();
+		     color.r = float(fabs(vcolor(0)));
+		     color.g = float(fabs(vcolor(0)));
+		     color.b = float(fabs(vcolor(0)));
+
+		    color.a = 1.0f;
+
+		    geometry_msgs::Point vertex;
+		    vertex.x = myTracker_->triangles_[i](0);
+		    vertex.y = myTracker_->triangles_[i](1);
+		    vertex.z = myTracker_->triangles_[i](2);
+		    marker.points.push_back(vertex);
+		    marker.colors.push_back(color);
+		}
+		tracker_m.unlock();    
+		
+		marker_array.markers.push_back(marker);
+		vis_pub_.publish( marker_array );
 	    }
-	    tracker_m.unlock();    
-	    pc.is_dense = false;
-	    pc.height = pc.points.size();
-	    pc.width = 1;
-	    ROS_INFO("Publishing PC");
-	    sensor_msgs::PointCloud2 cloud;
-	    pcl::toROSMsg(pc,cloud);
-	    cloud.header.frame_id = object_map_frame_name;
-	    cloud.header.stamp = ros::Time::now();
-	    fused_pc_publisher_.publish(cloud);
 	}
 
 	void depthCallback(const sensor_msgs::Image::ConstPtr& msg)
@@ -242,9 +304,24 @@ class GraspPlannerNode {
 	    grasp_frame_set=true;
 
 	    CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
+	    GripperPoseConstraint out;
 	    tracker_m.lock();
-	    gripper_map->computeValidConfigs(myTracker_, cc);
+	    gripper_map->computeValidConfigs(myTracker_, cc, out);
+	    tracker_m.unlock();
 
+	    pcl::PointCloud<pcl::PointXYZRGB> pc;
+	    gripper_map->getConfigsForDisplay(pc);
+	    
+	    sensor_msgs::PointCloud2 cloud;
+	    pcl::toROSMsg(pc,cloud);
+	    cloud.header.frame_id = gripper_frame_name;
+	    cloud.header.stamp = ros::Time::now();
+	    fused_pc_publisher_.publish(cloud);
+    
+	    //get pointcloud of configs for display
+	    //get constraints
+	    
+	    /*
 	    //drawing
 	    constraint_map::SimpleOccMapMsg msg2;
 	    gripper_map->resetMap();
@@ -255,33 +332,10 @@ class GraspPlannerNode {
 	    gripper_map->toMessage(msg2);
 	    msg2.header.frame_id = gripper_frame_name;
 	    gripper_map_publisher_.publish(msg2);
-	    tracker_m.unlock();
-
+	    */
 
 	}
 
-	bool publish_map_callback(std_srvs::Empty::Request  &req,
-		std_srvs::Empty::Response &res ) {
-	    
-	    ROS_INFO("Publishing maps");
-#if 0
-	    constraint_map::SimpleOccMapMsg msg;
-	    tracker_m.lock();
-	    myTracker_->toMessage(msg);
-	    tracker_m.unlock();
-	    msg.header.frame_id = object_map_frame_name;
-	    object_map_publisher_.publish(msg); 
-#endif
-	    constraint_map::SimpleOccMapMsg msg2;
-	    gripper_map->resetMap();
-	    gripper_map->drawValidConfigsSmall();
-	    gripper_map->updateMap();
-	    gripper_map->toMessage(msg2);
-	    msg2.header.frame_id = gripper_frame_name;
-	    gripper_map_publisher_.publish(msg2);
-
-	    return true;
-	}
 
 };
 

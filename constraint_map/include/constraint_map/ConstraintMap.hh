@@ -6,6 +6,19 @@
 #include <sys/time.h>
 #include <cstdio>
 
+class PlaneConstraint {
+    public:
+	Eigen::Vector3f a;
+	float b;
+	PlaneConstraint() {
+	    a.setZero();
+	    b = 0;
+	}
+	inline bool operator()(Eigen::Vector3f& x) {
+	    return (a.dot(x) - b > 0);
+	}
+};
+
 class BoxConstraint {
     public:
 	Eigen::Matrix<float,6,3> A;
@@ -59,6 +72,12 @@ class CylinderConstraint {
 	Eigen::Matrix<float,2,1> b;
 	float radius_, height_;
 	Eigen::Affine3f pose;
+	CylinderConstraint() {
+	    A.setZero();
+	    b.setZero();
+	    radius_ = 0;
+	    height_ = 0;
+	}
 	CylinderConstraint(Eigen::Affine3f &pose_, float radius, float height) {
 	    calculateConstraints(pose_,radius,height);
 	}
@@ -128,6 +147,11 @@ class HalfCylinderConstraint {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+class GripperPoseConstraint {
+    public:
+	CylinderConstraint inner_cylinder, outer_cylinder;
+	PlaneConstraint upper_plane, lower_plane, left_bound_plane, right_bound_plane;
+};
 
 class GripperModel {
     public:
@@ -258,7 +282,7 @@ struct ConfigurationList {
 	std::vector<int> config_ids;
 };
 
-#define _FILE_VERSION_ "#F V0.1"
+#define _FILE_VERSION_ "#F V0.2"
 
 class ConstraintMap : public SimpleOccMap {
 
@@ -279,7 +303,8 @@ class ConstraintMap : public SimpleOccMap {
 	SimpleOccMap *config_sample_grid;
 	bool hasGripper;
 
-	int n_v,n_o,n_d;	
+	int n_v,n_o,n_d;
+	float min_z, max_z, min_dist, max_dist;	
 	std::vector<GripperConfiguration*> valid_configs;
 	ConfigurationList *** config_grid;
 
@@ -362,14 +387,18 @@ class ConstraintMap : public SimpleOccMap {
 
 	void drawValidConfigs();
 	void drawValidConfigsSmall();
-	
+
+	//returns a colored point cloud of configs. red are invalid, orange valid, green valid and selected
+	void getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs);
+
 	void sampleGripperGrid(int n_vert_slices, int n_orient, int n_dist_samples,
 		float min_z, float max_z, float min_dist, float max_dist);
 
 	void updateMap();
 	void updateMapAndGripperLookup();
 
-	void computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder);
+	//computes the valid gripper configurations when grasping a cylinder inside object map
+	void computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder, GripperPoseConstraint &output);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);
@@ -388,6 +417,8 @@ class ConstraintMap : public SimpleOccMap {
 	    }
 	    return true;
 	}
+	bool getPoseForConfig(CellIndex &config_index, Eigen::Affine3f &pose);
+
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

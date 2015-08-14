@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   sdf_tracker_grasping
   std_msgs
+  hqp_controllers_msgs
   std_srvs
   tf
   pcl_ros
@@ -77,7 +78,9 @@ find_package(Boost REQUIRED COMPONENTS thread)
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-   std_msgs geometry_msgs 
+   std_msgs 
+   geometry_msgs 
+   hqp_controllers_msgs
  )
 
 ###################################
@@ -92,7 +95,7 @@ find_package(Boost REQUIRED COMPONENTS thread)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES grasp_planner
-  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker_grasping std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
+  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker_grasping hqp_controllers_msgs std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
   DEPENDS libpcl-all-dev
 )
 

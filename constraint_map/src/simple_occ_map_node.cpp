@@ -112,7 +112,8 @@ int main(int argc, char **argv) {
     pose = Eigen::AngleAxisf(-0.57,Eigen::Vector3f::UnitX());
     //pose.translation()<<-0.25,-0.1,-0.1;
     CylinderConstraint cc(pose,0.115,0.5);
-    nd.map->computeValidConfigs(nd.object_map, cc);
+    GripperPoseConstraint out;
+    nd.map->computeValidConfigs(nd.object_map, cc,out);
 
     tf::Transform transform;
     tf::transformEigenToTF(pose.cast<double>(),transform);

@@ -110,6 +110,56 @@ void ConstraintMap::drawValidConfigs() {
 
 }
 	
+void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs_pc) {
+    
+    CellIndex id;
+    Eigen::Affine3f pose;
+    pcl::PointXYZRGB pc, valid, select, invalid;
+    // pack r/g/b into rgb
+    uint8_t r = 255, g = 0, b = 0;    // Red color
+    uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    invalid.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 0, g = 250, b = 0;    // Green color
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    select.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 100, g = 50, b = 20;    // Orange color
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    valid.rgb = *reinterpret_cast<float*>(&rgb);
+
+    //the non-selected valid configs in green...
+    for (id.i=0; id.i<n_v; ++id.i) {
+	for (id.j=0; id.j<n_o; ++id.j) {
+	    for (id.k=0; id.k<n_d; ++id.k) {
+		getPoseForConfig(id,pose);
+		pc.x = pose.translation()(0);
+		pc.y = pose.translation()(1);
+		pc.z = pose.translation()(2);
+		
+		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
+		if(valid_configs[config_index] != NULL) {
+		    //valid
+		    if(id.i >= cube.bl.i && id.i<=cube.ur.i &&
+			    id.j >= cube.bl.j && id.j<=cube.ur.j && 
+			    id.k >= cube.bl.k && id.k<=cube.ur.k) {
+			//selected
+			pc.rgb = select.rgb;
+		    } else {
+			//not selected
+			pc.rgb = valid.rgb;
+		    }	
+		    configs_pc.points.push_back(pc);
+		} else {
+		    //invalid
+		    pc.rgb = invalid.rgb;
+		}
+	    }
+	}
+    }
+    configs_pc.is_dense=false;
+    configs_pc.width = configs_pc.points.size();
+    configs_pc.height = 1;
+}
+
 void ConstraintMap::drawValidConfigsSmall() {
     CellIndex id, id2;
     Eigen::Vector3f pt;
@@ -145,12 +195,32 @@ void ConstraintMap::drawValidConfigsSmall() {
     }
 }
 	
+bool ConstraintMap::getPoseForConfig(CellIndex &id, Eigen::Affine3f &pose) {
+
+    if(id.i<0 || id.i >= n_v) return false;
+    if(id.j<0 || id.j >= n_o) return false;
+    if(id.k<0 || id.k >= n_d) return false;
+
+    pose = Eigen::AngleAxisf(2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
+    ori = pose*ori;
+    ori *=(min_dist + ((max_dist-min_dist)*id.k)/n_d);
+    ori(2) = min_z + ((max_z-min_z)*id.i)/n_v;
+    pose = Eigen::AngleAxisf(M_PI + 2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+    pose.translation() = ori;
+
+}
+
 void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dist_samples,
-		float min_z, float max_z, float min_dist, float max_dist) {
+		float min_z_, float max_z_, float min_dist_, float max_dist_) {
 
     n_v = n_vert_slices;
     n_o = n_orient;
     n_d = n_dist_samples;
+    min_z = min_z_;
+    max_z = max_z_;
+    min_dist = min_dist_;
+    max_dist = max_dist_;
 
     //generate new configs and add them to ValidConfigs 
     for(int i=0; i<n_vert_slices; ++i) {
@@ -176,10 +246,10 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
     }
 }
 	
-void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder) {
+void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder, GripperPoseConstraint &output) {
 
     double t1 = getDoubleTime();
-    //pass through valid_configs and remove the crazy ones
+    //pass through valid_configs and remove the crazy ones TODO: what is this?
 /*    for(int i=0; i<valid_configs.size(); ++i) {
 	
     }
@@ -266,6 +336,31 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
     std::cout<<"extract took :"<<t2-t1i<<" sec\n";
     std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
 
+    //FIXME fill up output
+    //bottom left gives bottom plane, left plane and outer cylinder
+    Eigen::Affine3f pose;
+    pose = Eigen::AngleAxisf(2*cube.bl.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
+    ori = pose*ori;
+    
+    output.lower_plane.a = Eigen::Vector3f::UnitZ();
+    output.lower_plane.b = min_z + ((max_z-min_z)*cube.bl.i)/n_v;
+    output.left_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
+    output.left_bound_plane.b = 0;
+    pose.setIdentity();
+    output.inner_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.bl.k)/n_d), max_z-min_z);
+
+    //upper right gives upper plane, right plane and inner cylinder
+    pose = Eigen::AngleAxisf(2*cube.ur.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
+    ori = pose*ori;
+    
+    output.upper_plane.a = Eigen::Vector3f::UnitZ();
+    output.upper_plane.b = min_z + ((max_z-min_z)*cube.ur.i)/n_v;
+    output.right_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
+    output.right_bound_plane.b = 0;
+    pose.setIdentity();
+    output.outer_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.ur.k)/n_d), max_z-min_z);
 //    valid_configs = valid_configs2;
 }
 	
@@ -324,6 +419,11 @@ bool ConstraintMap::saveGripperConstraints(const char *fname) const {
     fwrite(&n_v, sizeof(int), 1, fout);
     fwrite(&n_o, sizeof(int), 1, fout);
     fwrite(&n_d, sizeof(int), 1, fout);
+    
+    fwrite(&min_z, sizeof(float), 1, fout);
+    fwrite(&max_z, sizeof(float), 1, fout);
+    fwrite(&min_dist, sizeof(float), 1, fout);
+    fwrite(&max_dist, sizeof(float), 1, fout);
 
     fclose(fout);
     return true;
@@ -447,6 +547,23 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	return false;
     }
     if(fread(&n_d, sizeof(int), 1, fin)!=1) {
+	std::cerr<<"couldn't read\n";
+	return false;
+    }
+    
+    if(fread(&min_z, sizeof(float), 1, fin)!=1) {
+	std::cerr<<"couldn't read\n";
+	return false;
+    }
+    if(fread(&max_z, sizeof(float), 1, fin)!=1) {
+	std::cerr<<"couldn't read\n";
+	return false;
+    }
+    if(fread(&min_dist, sizeof(float), 1, fin)!=1) {
+	std::cerr<<"couldn't read\n";
+	return false;
+    }
+    if(fread(&max_dist, sizeof(float), 1, fin)!=1) {
 	std::cerr<<"couldn't read\n";
 	return false;
     }

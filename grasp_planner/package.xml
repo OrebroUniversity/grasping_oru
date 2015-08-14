@@ -45,6 +45,7 @@
   <build_depend>message_generation</build_depend>
   <build_depend>sdf_tracker_grasping</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>hqp_controllers_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>geometry_msgs</build_depend>
@@ -60,6 +61,7 @@
   <run_depend>constraint_map</run_depend>
   <run_depend>sdf_tracker_grasping</run_depend>
   <run_depend>std_msgs</run_depend>
+  <run_depend>hqp_controllers_msgs</run_depend>
   <run_depend>std_srvs</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>geometry_msgs</run_depend>
