@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
     GraspPlannerNode nd(param);
     ros::AsyncSpinner spinner(4); // Use 4 threads
     spinner.start();
+    nd.publishPC();
     ros::waitForShutdown();
 
     return 0;

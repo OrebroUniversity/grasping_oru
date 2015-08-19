@@ -4,4 +4,5 @@ geometry_msgs/Pose objectPose
 float32 object_radius
 float32 object_height
 ---
+string frame_id
 hqp_controllers_msgs/TaskGeometry[] constraints

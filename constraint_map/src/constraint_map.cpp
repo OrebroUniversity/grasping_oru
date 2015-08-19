@@ -76,6 +76,7 @@ void ConstraintMap::drawValidConfigs() {
     std::vector<GripperConfigurationSimple> simple_configs;
     for(int i=0; i<valid_configs.size(); ++i) {
 	if(valid_configs[i] == NULL) continue;
+	if(!valid_configs[i]->isValid) continue;
 	GripperConfigurationSimple sc (valid_configs[i]->pose, valid_configs[i]->min_oa, model);
 	sc.calculateConstraints();
 	simple_configs.push_back(sc);
@@ -126,6 +127,10 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
     rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
     valid.rgb = *reinterpret_cast<float*>(&rgb);
 
+    int lowY, highY;
+    lowY = (n_o+cube.bl.j)%n_o;
+    highY = (n_o+cube.ur.j)%n_o;
+    //printf("bounds were: %d,%d adjusted are: %d,%d no=%d",cube.bl.j,cube.ur.j,lowY,highY,n_o);
     //the non-selected valid configs in green...
     for (id.i=0; id.i<n_v; ++id.i) {
 	for (id.j=0; id.j<n_o; ++id.j) {
@@ -136,11 +141,11 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		pc.z = pose.translation()(2);
 		
 		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
-		if(valid_configs[config_index] != NULL) {
+		if(valid_configs[config_index] == NULL) continue;
+		if(valid_configs[config_index]->isValid) {
 		    //valid
-		    if(id.i >= cube.bl.i && id.i<=cube.ur.i &&
-			    id.j >= cube.bl.j && id.j<=cube.ur.j && 
-			    id.k >= cube.bl.k && id.k<=cube.ur.k) {
+		    if(id.i >= cube.bl.i && id.i<=cube.ur.i && id.k >= cube.bl.k && id.k<=cube.ur.k && //non-looped degreed
+			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
 			//selected
 			pc.rgb = select.rgb;
 		    } else {
@@ -150,7 +155,12 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		    configs_pc.points.push_back(pc);
 		} else {
 		    //invalid
-		    pc.rgb = invalid.rgb;
+		    if(id.i >= cube.bl.i && id.i<=cube.ur.i && id.k >= cube.bl.k && id.k<=cube.ur.k && //non-looped degreed
+			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
+			//selected
+			pc.rgb = invalid.rgb;
+			configs_pc.points.push_back(pc);
+		    }
 		}
 	    }
 	}
@@ -168,7 +178,8 @@ void ConstraintMap::drawValidConfigsSmall() {
 	for (id.j=0; id.j<n_o; ++id.j) {
 	    for (id.k=0; id.k<n_d; ++id.k) {
 		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
-		if(valid_configs[config_index] != NULL) {
+		if(valid_configs[config_index] == NULL) continue;
+		if(valid_configs[config_index]->isValid) {
 		    pt = valid_configs[config_index]->pose.translation();
 		    this->getIdxPoint(pt,id2);
 		    this->setFree(id2);
@@ -182,7 +193,11 @@ void ConstraintMap::drawValidConfigsSmall() {
 	    for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) { 
 		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
 		//std::cerr<<config_index<<" "<<valid_configs.size()<<std::endl;
-		if(valid_configs[config_index] != NULL) {
+		if(valid_configs[config_index] == NULL) {
+		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
+		    continue;
+		}
+		if(valid_configs[config_index]->isValid) {
 		    pt = valid_configs[config_index]->pose.translation();
 		    this->getIdxPoint(pt,id2);
 		    this->setOccupied(id2);
@@ -249,11 +264,13 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
 void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder, GripperPoseConstraint &output) {
 
     double t1 = getDoubleTime();
-    //pass through valid_configs and remove the crazy ones TODO: what is this?
-/*    for(int i=0; i<valid_configs.size(); ++i) {
-	
+    //reset grid to make all configs valid
+    for(int i=0; i<valid_configs.size(); ++i) {
+	valid_configs[i]->isValid = true;
+	valid_configs[i]->min_oa = 0; 
+	valid_configs[i]->max_oa = M_PI;
     }
-    */
+
     std::vector<CellIndex> overlap;
     this->getIntersectionWithPose(object_map,cylinder.pose,overlap);
     
@@ -267,6 +284,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
 	for(int j=0; j<config_grid[id.i][id.j][id.k].configs.size(); ++j) {
 	    if(config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
 		if(*config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
+		if((*config_grid[id.i][id.j][id.k].configs[j])->isValid) {
 		    //check if x inside cylinder
 		    if(cylinder(x_map)) {
 			//if yes, update min_oa
@@ -289,10 +307,13 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
 		    }
 		    if((*config_grid[id.i][id.j][id.k].configs[j])->max_oa <= (*config_grid[id.i][id.j][id.k].configs[j])->min_oa ||
 			   (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
-			//if max_oa < min_oa, delete config
-			delete *config_grid[id.i][id.j][id.k].configs[j];
-			*config_grid[id.i][id.j][id.k].configs[j] = NULL;
+			//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
+			(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
+
+			//delete *config_grid[id.i][id.j][id.k].configs[j];
+			//*config_grid[id.i][id.j][id.k].configs[j] = NULL;
 		    }
+		}
 		}
 	    }
 	}
@@ -309,25 +330,27 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
     for(int i=0; i<valid_configs.size(); ++i) {
 	if(valid_configs[i]!=NULL) {
 	    //check if we have something inside the gripper
-	    if(valid_configs[i]->min_oa > 0) {
+	    if(valid_configs[i]->isValid && valid_configs[i]->min_oa > 0) {
 		valid_configs2.push_back(valid_configs[i]);
 	    } else {
-		delete valid_configs[i];
-		valid_configs[i] = NULL;
+		valid_configs[i]->isValid = false;
+		//std::cerr<<"id "<<i<<" is "<<id.i<<","<<id.j<<","<<id.k<<" ?== "<<(i == id.k + n_d*id.j + n_d*n_o*id.i)<<std::endl;
+		CellIndex id;
+		id.k = i%n_d;
+		id.j = ((i-id.k)/n_d)%n_o;
+		id.i = (i-id.k-id.j*n_d)/(n_o*n_d);
+		config_sample_grid->setOccupied(id);
+		//delete valid_configs[i];
+		//valid_configs[i] = NULL;
 	    }
+	} else {
+	    std::cerr<<"Config is null, should not happen!\n";
+	    exit(-1);
 	}	    
-	//update config_sample_grid
-	if(valid_configs[i]==NULL) {
-	    CellIndex id;
-	    id.k = i%n_d;
-	    id.j = ((i-id.k)/n_d)%n_o;
-	    id.i = (i-id.k-id.j*n_d)/(n_o*n_d);
-	    config_sample_grid->setOccupied(id);
-	    //std::cerr<<"id "<<i<<" is "<<id.i<<","<<id.j<<","<<id.k<<" ?== "<<(i == id.k + n_d*id.j + n_d*n_o*id.i)<<std::endl;
-	}
     }
     double t1i = getDoubleTime();
     DfunMaxEmptyCubeExtractor extractor;
+    extractor.loopY = true;
     //MaxEmptyCubeExtractor extractor;
     cube = extractor.getMaxCube(config_sample_grid);
 
@@ -352,8 +375,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
 
     //upper right gives upper plane, right plane and inner cylinder
     pose = Eigen::AngleAxisf(2*cube.ur.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
-    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
-    ori = pose*ori;
+    ori = pose*Eigen::Vector3f::UnitY();
     
     output.upper_plane.a = Eigen::Vector3f::UnitZ();
     output.upper_plane.b = min_z + ((max_z-min_z)*cube.ur.i)/n_v;

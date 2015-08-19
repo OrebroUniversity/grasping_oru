@@ -12,14 +12,14 @@ double getDoubleTime()
 int main() {
 #if 0
 #endif
-    int map_size = 100;
+    int map_size = 50;
     float resolution = 1;
     SimpleOccMap sm(0,0,0,resolution,map_size,map_size,map_size);
     sm.setAllFree();
 
-    for(int j=0; j<20; ++j) {
+    for(int j=0; j<10; ++j) {
 
-	for(int i=0; i<100; ++i) {
+	for(int i=0; i<500; ++i) {
 	    int x = (float)rand()* map_size/RAND_MAX; 
 	    int y = (float)rand()* map_size/RAND_MAX; 
 	    int z = (float)rand()* map_size/RAND_MAX;
@@ -28,6 +28,9 @@ int main() {
 	double t1 = getDoubleTime();
 	//MaxEmptyCubeExtractor extractor;
 	DfunMaxEmptyCubeExtractor extractor;
+	extractor.loopX = true;
+	extractor.loopY = true;
+	extractor.loopZ = true;
 	CellIdxCube cube;
 	cube = extractor.getMaxCube(&sm);
 	double t2 = getDoubleTime();
@@ -36,12 +39,15 @@ int main() {
 	
 
 	bool isokay = true;
-	CellIndex id;
+	CellIndex id, id2;
 	for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
 		for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
 			for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) {
-				if(sm.isOccupied(id)) {
-					std::cout<<id.i<<","<<id.j<<","<<id.k<<" really? "<<sm.isOccupied(id)<<std::endl;
+				id2.i = (id.i + map_size)%map_size;
+				id2.j = (id.j + map_size)%map_size;
+				id2.k = (id.k + map_size)%map_size;
+				if(sm.isOccupied(id2)) {
+					std::cout<<id2.i<<","<<id2.j<<","<<id2.k<<" really? "<<sm.isOccupied(id2)<<std::endl;
 					isokay=false;
 				}
 			}

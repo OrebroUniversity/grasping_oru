@@ -26,6 +26,13 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
+#define POINT_SCALE  0.02
+#define LINE_SCALE   0.3
+#define PLANE_SCALE  4.8
+#define CONE_SCALE   0.3
+#define LINE_WIDTH   0.005
+
+
 class GraspPlannerNode {
 
     private:
@@ -41,9 +48,10 @@ class GraspPlannerNode {
 	//ros::Publisher gripper_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
 	ros::Publisher vis_pub_;
+	ros::Publisher constraint_pub_;
 	ros::Subscriber depth_subscriber_;
 	ros::Timer heartbeat_tf_;
-	ros::Timer heartbeat_pc_;
+//	ros::Timer heartbeat_pc_;
 
 	ros::ServiceServer plan_grasp_serrver_;
 
@@ -63,6 +71,7 @@ class GraspPlannerNode {
 
 	int skip_frames_, frame_counter_;
 	bool use_tf_, grasp_frame_set, publish_pc;
+	double cylinder_tolerance, plane_tolerance;
 
 	//void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
     public:
@@ -117,6 +126,8 @@ class GraspPlannerNode {
 	    nh_.getParam("CenterPointX", myParameters_.cx);
 	    nh_.getParam("CenterPointY", myParameters_.cy);
 
+	    cylinder_tolerance = 0.005;
+	    plane_tolerance = 0.005;
 
 	    myParameters_.resolution = gripper_map->getResolution();
 	    myTracker_ = new SDFTracker(myParameters_);
@@ -133,9 +144,10 @@ class GraspPlannerNode {
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
+	    constraint_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "constraint_marker", 10, true );
 	    
 	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.1), &GraspPlannerNode::publishTF, this);
-	    heartbeat_pc_ = nh_.createTimer(ros::Duration(10), &GraspPlannerNode::publishPC, this);
+	    //heartbeat_pc_ = nh_.createTimer(ros::Duration(60), &GraspPlannerNode::publishPC, this);
 
 	    frame_counter_ = 0;
 	    grasp_frame_set=false;
@@ -155,8 +167,7 @@ class GraspPlannerNode {
 		br.sendTransform(tf::StampedTransform(gripper2map, ros::Time::now(), object_map_frame_name, gripper_frame_name));
 	    }
 	}
-        void publishPC(const ros::TimerEvent& event) {
-	    ROS_INFO("Generating Triangles");
+        void publishPC() {
 
 	    if(publish_pc) {
 		pcl::PointCloud<pcl::PointXYZ> pc;
@@ -206,7 +217,9 @@ class GraspPlannerNode {
 		marker.color.g = 1.0;
 		marker.color.b = 0.0;
 
+		ROS_INFO("Generating Triangles");
 		tracker_m.lock();
+		ROS_INFO("Got lock");
 		myTracker_->triangles_.clear();
 		myTracker_->MakeTriangles();
 		for (int i = 0; i < myTracker_->triangles_.size(); ++i)
@@ -235,6 +248,7 @@ class GraspPlannerNode {
 		    marker.colors.push_back(color);
 		}
 		tracker_m.unlock();    
+		ROS_INFO("Publishing Markers");
 		
 		marker_array.markers.push_back(marker);
 		vis_pub_.publish( marker_array );
@@ -284,6 +298,7 @@ class GraspPlannerNode {
 	bool plan_grasp_callback(grasp_planner::PlanGrasp::Request  &req,
 		grasp_planner::PlanGrasp::Response &res ) {
 
+	    ROS_INFO("Got request");
 
 	    tf::StampedTransform object_frame_to_map;
 	    try {
@@ -298,7 +313,7 @@ class GraspPlannerNode {
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
 	    //obj2obj_fr = *obj2obj_fr;
-	    obj2map = obj2obj_fr*obj_fr2map_fr*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX());
+	    obj2map = obj2obj_fr*obj_fr2map_fr*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
 	    obj2map_f = obj2map.cast<float>(); //.setIdentity(); //
 	    tf::transformEigenToTF(obj2map, gripper2map);
 	    grasp_frame_set=true;
@@ -306,9 +321,73 @@ class GraspPlannerNode {
 	    CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    GripperPoseConstraint out;
 	    tracker_m.lock();
+	    ROS_INFO("[PLAN GRASP] Got lock");
 	    gripper_map->computeValidConfigs(myTracker_, cc, out);
 	    tracker_m.unlock();
+	    
+	    ROS_INFO("Publishing results");
 
+	    //fill in results
+	    //order is: bottom, top, left, right, inner, outer
+	    hqp_controllers_msgs::TaskGeometry task;
+	    task.g_type = hqp_controllers_msgs::TaskGeometry::PLANE;
+	    
+	    //bottom 
+	    task.g_data.clear();	    
+	    task.g_data.push_back(out.lower_plane.a(0));
+	    task.g_data.push_back(out.lower_plane.a(1));
+	    task.g_data.push_back(out.lower_plane.a(2));
+	    task.g_data.push_back(out.lower_plane.b+plane_tolerance);
+	    res.constraints.push_back(task);
+	    //top 
+	    task.g_data.clear();	    
+	    task.g_data.push_back(-out.upper_plane.a(0));
+	    task.g_data.push_back(-out.upper_plane.a(1));
+	    task.g_data.push_back(-out.upper_plane.a(2));
+	    task.g_data.push_back(-out.upper_plane.b-plane_tolerance);
+	    res.constraints.push_back(task);
+	    //left 
+	    task.g_data.clear();	    
+	    task.g_data.push_back(out.left_bound_plane.a(0));
+	    task.g_data.push_back(out.left_bound_plane.a(1));
+	    task.g_data.push_back(out.left_bound_plane.a(2));
+	    task.g_data.push_back(out.left_bound_plane.b+plane_tolerance);
+	    res.constraints.push_back(task);
+	    //right 
+	    task.g_data.clear();	    
+	    task.g_data.push_back(-out.right_bound_plane.a(0));
+	    task.g_data.push_back(-out.right_bound_plane.a(1));
+	    task.g_data.push_back(-out.right_bound_plane.a(2));
+	    task.g_data.push_back(-out.right_bound_plane.b-plane_tolerance);
+	    res.constraints.push_back(task);
+
+	    task.g_type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
+	    //inner
+	    Eigen::Vector3f zaxis = out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
+	    task.g_data.clear();	    
+	    task.g_data.push_back(out.inner_cylinder.pose.translation()(0));
+	    task.g_data.push_back(out.inner_cylinder.pose.translation()(1));
+	    task.g_data.push_back(out.inner_cylinder.pose.translation()(2));
+	    task.g_data.push_back(zaxis(0));
+	    task.g_data.push_back(zaxis(1));
+	    task.g_data.push_back(zaxis(2));
+	    task.g_data.push_back(out.inner_cylinder.radius_ - cylinder_tolerance);
+	    res.constraints.push_back(task);
+	    //outer
+	    zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
+	    task.g_data.clear();	    
+	    task.g_data.push_back(out.outer_cylinder.pose.translation()(0));
+	    task.g_data.push_back(out.outer_cylinder.pose.translation()(1));
+	    task.g_data.push_back(out.outer_cylinder.pose.translation()(2));
+	    task.g_data.push_back(zaxis(0));
+	    task.g_data.push_back(zaxis(1));
+	    task.g_data.push_back(zaxis(2));
+	    task.g_data.push_back(out.outer_cylinder.radius_ + cylinder_tolerance);
+	    res.constraints.push_back(task);
+
+	    res.frame_id = req.header.frame_id;
+
+	    //Display functions
 	    pcl::PointCloud<pcl::PointXYZRGB> pc;
 	    gripper_map->getConfigsForDisplay(pc);
 	    
@@ -318,23 +397,103 @@ class GraspPlannerNode {
 	    cloud.header.stamp = ros::Time::now();
 	    fused_pc_publisher_.publish(cloud);
     
-	    //get pointcloud of configs for display
-	    //get constraints
-	    
-	    /*
-	    //drawing
-	    constraint_map::SimpleOccMapMsg msg2;
-	    gripper_map->resetMap();
-	    gripper_map->drawValidConfigsSmall();
-	    //obj2map_f.setIdentity();
-	    //gripper_map->drawCylinder(obj2map_f,req.object_radius,req.object_height);
-	    gripper_map->updateMap();
-	    gripper_map->toMessage(msg2);
-	    msg2.header.frame_id = gripper_frame_name;
-	    gripper_map_publisher_.publish(msg2);
-	    */
-
+	    visualization_msgs::MarkerArray marker_array;
+	    addPlaneMarker(marker_array, out.lower_plane.a.cast<double>(), out.lower_plane.b+plane_tolerance, gripper_frame_name);
+	    addPlaneMarker(marker_array, -out.upper_plane.a.cast<double>(), -out.upper_plane.b-plane_tolerance, gripper_frame_name);
+	    addPlaneMarker(marker_array, -out.left_bound_plane.a.cast<double>(), -out.left_bound_plane.b-plane_tolerance, gripper_frame_name);
+	    addPlaneMarker(marker_array, out.right_bound_plane.a.cast<double>(), out.right_bound_plane.b+plane_tolerance, gripper_frame_name);
+	    zaxis = out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
+	    addCylinderMarker(marker_array, (out.inner_cylinder.pose.translation()).cast<double>(), zaxis.cast<double>(), out.inner_cylinder.radius_+cylinder_tolerance, gripper_frame_name);
+	    zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
+	    addCylinderMarker(marker_array, (out.outer_cylinder.pose.translation()).cast<double>(), zaxis.cast<double>(), out.outer_cylinder.radius_+cylinder_tolerance, gripper_frame_name);
+	    ROS_INFO("Publishing %lu markers",marker_array.markers.size());
+	    constraint_pub_.publish(marker_array);
 	}
+
+	void addPlaneMarker(visualization_msgs::MarkerArray& markers, Eigen::Vector3d n, double d, std::string frame_)
+	{
+
+	    //transformation which points x in the plane normal direction
+	    Eigen::Quaterniond q;
+	    q.setFromTwoVectors(Eigen::Vector3d::UnitX() , n);
+
+	    visualization_msgs::Marker marker;
+
+	    //normal
+	    marker.header.frame_id = frame_;
+	    marker.header.stamp = ros::Time::now();
+	    marker.ns = "normal";
+	    marker.type =  visualization_msgs::Marker::ARROW;
+	    marker.action = visualization_msgs::Marker::ADD;
+	    //marker.lifetime = ros::Duration(0.1);
+	    marker.id = markers.markers.size();
+	    marker.pose.position.x = n(0) * d;
+	    marker.pose.position.y = n(1) * d;
+	    marker.pose.position.z = n(2) * d;
+	    marker.pose.orientation.x = q.x();
+	    marker.pose.orientation.y = q.y();
+	    marker.pose.orientation.z = q.z();
+	    marker.pose.orientation.w = q.w();
+	    marker.scale.x = LINE_SCALE;
+	    marker.scale.y = 0.05 * LINE_SCALE;
+	    marker.scale.z = 0.05 * LINE_SCALE;
+	    marker.color.r = 1.0;
+	    marker.color.g = 0.0;
+	    marker.color.b = 1.0;
+	    marker.color.a = 1.0;
+	    markers.markers.push_back(marker);
+
+	    //plane
+	    q.setFromTwoVectors(Eigen::Vector3d::UnitZ() ,n);
+	    marker.ns = "plane";
+	    marker.type = visualization_msgs::Marker::CUBE;
+	    marker.id = markers.markers.size();
+	    marker.pose.orientation.x = q.x();
+	    marker.pose.orientation.y = q.y();
+	    marker.pose.orientation.z = q.z();
+	    marker.pose.orientation.w = q.w();
+	    marker.scale.x = PLANE_SCALE;
+	    marker.scale.y = PLANE_SCALE;
+	    marker.scale.z = 0.0001;
+	    marker.color.r = 1.0;
+	    marker.color.g = 0.0;
+	    marker.color.b = 1.0;
+	    marker.color.a = 0.4;
+	    markers.markers.push_back(marker);
+	}
+
+	void addCylinderMarker(visualization_msgs::MarkerArray& markers, Eigen::Vector3d p, Eigen::Vector3d v, double r, std::string frame_)
+	{
+	    Eigen::Quaterniond q;
+
+	    //transformation which points z in the cylinder direction
+	    q.setFromTwoVectors(Eigen::Vector3d::UnitZ(), v);
+
+	    visualization_msgs::Marker marker;
+	    marker.ns = "cylinder";
+	    marker.header.frame_id = frame_;
+	    marker.header.stamp = ros::Time::now();
+	    marker.type =  visualization_msgs::Marker::CYLINDER;
+	    marker.action = visualization_msgs::Marker::ADD;
+	    //marker.lifetime = ros::Duration(0.1);
+	    marker.id = markers.markers.size();
+	    marker.pose.position.x = p(0) + v(0) * 0.5 * LINE_SCALE;
+	    marker.pose.position.y = p(1) + v(1) * 0.5 * LINE_SCALE;
+	    marker.pose.position.z = p(2) + v(2) * 0.5 * LINE_SCALE;
+	    marker.pose.orientation.x = q.x();
+	    marker.pose.orientation.y = q.y();
+	    marker.pose.orientation.z = q.z();
+	    marker.pose.orientation.w = q.w();
+	    marker.scale.x = 2 * r;
+	    marker.scale.y = 2 * r;
+	    marker.scale.z = LINE_SCALE;
+	    marker.color.r = 0.0;
+	    marker.color.g = 1.0;
+	    marker.color.b = 1.0;
+	    marker.color.a = 0.8;
+	    markers.markers.push_back(marker);
+	}
+
 
 
 };

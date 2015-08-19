@@ -227,12 +227,13 @@ class GripperConfiguration {
     ///vector pointing from the gripper to the center of the target
     //Eigen::Vector3f approach_direction;
     public:
-	GripperConfiguration() {};
+	GripperConfiguration() {isValid = false;};
 	GripperConfiguration(Eigen::Affine3f &pose_, GripperModel *model_) {
 	    pose = pose_;
 	    min_oa = 0; 
 	    max_oa = M_PI; 
 	    model = model_;
+	    isValid = true;
 	};
 
 	GripperModel *model;
@@ -242,6 +243,8 @@ class GripperConfiguration {
 	float min_oa, max_oa;
 	BoxConstraint palm;
 	HalfCylinderConstraint fingerSweep;
+
+	bool isValid;
 
 	void calculateConstraints() {
 	    
