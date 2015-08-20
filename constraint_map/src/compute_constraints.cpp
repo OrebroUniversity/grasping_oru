@@ -11,7 +11,8 @@ int main(int argc, char **argv) {
     float map_size = atof(argv[3]);
     ConstraintMap *map;
     map = new ConstraintMap(0,0,0,resolution,map_size/resolution,map_size/resolution,map_size/resolution);
-    map->sampleGripperGrid(5, 100, 10, 0.0, 0.15, 0.01, 0.3);
+    //map->sampleGripperGrid(5, 100, 10, 0.0, 0.15, 0.01, 0.3);
+    map->sampleGripperGridSphere(15, 15, 10, 0.05, 0.3);
     //map->sampleGripperGrid(10, 100, 20, 0.0, 0.4, 0.15, 0.5);
     //map->sampleGripperGrid(3, 10, 20, 0.1, 0.5, 0.2, 0.8);
     map->updateMapAndGripperLookup(); 

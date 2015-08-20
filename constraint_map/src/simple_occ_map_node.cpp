@@ -113,15 +113,15 @@ int main(int argc, char **argv) {
     //pose.translation()<<-0.25,-0.1,-0.1;
     CylinderConstraint cc(pose,0.115,0.5);
     GripperPoseConstraint out;
-    nd.map->computeValidConfigs(nd.object_map, cc,out);
+    //nd.map->computeValidConfigs(nd.object_map,pose,0.115,0.5,out);
 
     tf::Transform transform;
     tf::transformEigenToTF(pose.cast<double>(),transform);
     nd.br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map_frame", "gripper_frame"));
 
     
-    nd.map->resetMap(); 
-    nd.map->drawValidConfigsSmall(); 
+    //nd.map->resetMap(); 
+    //nd.map->drawValidConfigsSmall(); 
     nd.publishMap();
     ros::spinOnce();
 

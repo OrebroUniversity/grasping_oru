@@ -130,6 +130,9 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
     int lowY, highY;
     lowY = (n_o+cube.bl.j)%n_o;
     highY = (n_o+cube.ur.j)%n_o;
+    int lowX, highX;
+    lowX = (n_v+cube.bl.i)%n_v;
+    highX = (n_v+cube.ur.i)%n_v;
     //printf("bounds were: %d,%d adjusted are: %d,%d no=%d",cube.bl.j,cube.ur.j,lowY,highY,n_o);
     //the non-selected valid configs in green...
     for (id.i=0; id.i<n_v; ++id.i) {
@@ -144,7 +147,8 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		if(valid_configs[config_index] == NULL) continue;
 		if(valid_configs[config_index]->isValid) {
 		    //valid
-		    if(id.i >= cube.bl.i && id.i<=cube.ur.i && id.k >= cube.bl.k && id.k<=cube.ur.k && //non-looped degreed
+		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
+			( isSphereGrid ? (lowX<highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
 			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
 			//selected
 			pc.rgb = select.rgb;
@@ -155,12 +159,12 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		    configs_pc.points.push_back(pc);
 		} else {
 		    //invalid
-		    if(id.i >= cube.bl.i && id.i<=cube.ur.i && id.k >= cube.bl.k && id.k<=cube.ur.k && //non-looped degreed
+		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
+			( isSphereGrid ? (lowX<highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
 			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
-			//selected
 			pc.rgb = invalid.rgb;
 			configs_pc.points.push_back(pc);
-		    }
+		      }
 		}
 	    }
 	}
@@ -216,13 +220,62 @@ bool ConstraintMap::getPoseForConfig(CellIndex &id, Eigen::Affine3f &pose) {
     if(id.j<0 || id.j >= n_o) return false;
     if(id.k<0 || id.k >= n_d) return false;
 
-    pose = Eigen::AngleAxisf(2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
-    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
-    ori = pose*ori;
-    ori *=(min_dist + ((max_dist-min_dist)*id.k)/n_d);
-    ori(2) = min_z + ((max_z-min_z)*id.i)/n_v;
-    pose = Eigen::AngleAxisf(M_PI + 2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
-    pose.translation() = ori;
+    if(!isSphereGrid) {
+	pose = Eigen::AngleAxisf(2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+	Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
+	ori = pose*ori;
+	ori *=(min_dist + ((max_dist-min_dist)*id.k)/n_d);
+	ori(2) = min_z + ((max_z-min_z)*id.i)/n_v;
+	pose = Eigen::AngleAxisf(M_PI + 2*id.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+	pose.translation() = ori;
+    } else {
+	float theta, phi, r;
+	theta = id.i*M_PI/n_v;
+	phi = 2*id.j*M_PI/n_o;
+	r = (min_dist + ((max_dist-min_dist)*id.k)/n_d);
+	pose = Eigen::AngleAxisf(M_PI/2+phi, Eigen::Vector3f::UnitZ())*Eigen::AngleAxisf((3*M_PI/2+theta), Eigen::Vector3f::UnitX());
+	pose.translation()(0) = r*sinf(theta)*cosf(phi);
+	pose.translation()(1) = r*sinf(theta)*sinf(phi);
+	pose.translation()(2) = r*cosf(theta);
+    }
+
+}
+
+void ConstraintMap::sampleGripperGridSphere(int n_vert_angles, int n_orient_angles, int n_dist_samples,
+	float min_dist_, float max_dist_) {
+    
+    isSphereGrid=true;
+    n_v = n_vert_angles;
+    n_o = n_orient_angles;
+    n_d = n_dist_samples;
+    min_z = 0;
+    max_z = 0;
+    min_dist = min_dist_;
+    max_dist = max_dist_;
+    //generate new configs and add them to ValidConfigs 
+    
+    float theta, phi, r;
+    for(int i=0; i<n_v; ++i) {
+	theta = i*M_PI/n_v;
+	for(int j=0; j<n_o; ++j) {
+	    phi = 2*j*M_PI/n_o;
+	    for(int k=0; k<n_d; ++k) {
+		r = (min_dist + ((max_dist-min_dist)*k)/n_d);
+		Eigen::Affine3f pose;
+		//pose = Eigen::AngleAxisf(M_PI-2*j*M_PI/n_o, Eigen::Vector3f::UnitZ())*Eigen::AngleAxisf(M_PI-2*i*M_PI/n_v, Eigen::Vector3f::UnitX());
+		pose = Eigen::AngleAxisf(M_PI/2+phi, Eigen::Vector3f::UnitZ())*Eigen::AngleAxisf((3*M_PI/2+theta), Eigen::Vector3f::UnitX());
+		//pose.setIdentity();
+		pose.translation()(0) = r*sinf(theta)*cosf(phi);
+		pose.translation()(1) = r*sinf(theta)*sinf(phi);
+		pose.translation()(2) = r*cosf(theta);
+
+		GripperConfiguration *config = new GripperConfiguration(pose,model);
+		config->calculateConstraints();
+		valid_configs.push_back(config);
+		//valid_configs.size () = k + j*n_dist_samples + i*n_orient*n_dist_samples
+    	    }
+	}
+    }
 
 }
 
@@ -261,8 +314,11 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
     }
 }
 	
-void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder, GripperPoseConstraint &output) {
+void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, GripperPoseConstraint &output) {
 
+    CylinderConstraint cylinder(cpose,cradius,cheight);
+    Eigen::Vector3f tmp = cpose.translation();
+    SphereConstraint sphere(tmp,cradius);
     double t1 = getDoubleTime();
     //reset grid to make all configs valid
     for(int i=0; i<valid_configs.size(); ++i) {
@@ -284,36 +340,37 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
 	for(int j=0; j<config_grid[id.i][id.j][id.k].configs.size(); ++j) {
 	    if(config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
 		if(*config_grid[id.i][id.j][id.k].configs[j]!=NULL) {
-		if((*config_grid[id.i][id.j][id.k].configs[j])->isValid) {
-		    //check if x inside cylinder
-		    if(cylinder(x_map)) {
-			//if yes, update min_oa
-			(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
-		    } else {
-			/*std::cerr<<"collision outside cylinder at "<<x.transpose()<<std::endl;
-			CellIndex id2;
-			object_map->getIdxPoint(x,id2);
-			object_map->setFree(id2);
-
-			Eigen::Matrix<float,2,1> bp = cylinder.A*x-cylinder.b;
-			if(bp(0)<0) std::cerr<<"bp fault\n";
-			if(bp(1)<0) std::cerr<<"bp fault\n";
-			Eigen::Vector3f normal = cylinder.A.block<1,3>(0,0).transpose();
-			Eigen::Vector3f xt = x - cylinder.pose.translation();
-			Eigen::Vector3f rejection = xt - xt.dot(normal)*normal;
-			if(rejection.norm() > cylinder.radius_) std::cerr<<"radius fault "<<rejection.norm()<<std::endl;*/
-			//if no, update max_oa
-			(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
+		    if((*config_grid[id.i][id.j][id.k].configs[j])->isValid) {
+			if(!isSphereGrid) {
+			    //check if x inside cylinder
+			    if(cylinder(x_map)) {
+				//if yes, update min_oa
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+			    } else {
+				//if no, update max_oa
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
+			    }
+			    if((*config_grid[id.i][id.j][id.k].configs[j])->max_oa <= (*config_grid[id.i][id.j][id.k].configs[j])->min_oa ||
+				    (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
+				//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
+				(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
+			    }
+			} else {
+			    //same check but with a sphere
+			    if(sphere(x_map)) {
+				//if yes, update min_oa
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+			    } else {
+				//if no, update max_oa
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
+			    }
+			    if((*config_grid[id.i][id.j][id.k].configs[j])->max_oa <= (*config_grid[id.i][id.j][id.k].configs[j])->min_oa ||
+				    (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
+				//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
+				(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
+			    }
+			}
 		    }
-		    if((*config_grid[id.i][id.j][id.k].configs[j])->max_oa <= (*config_grid[id.i][id.j][id.k].configs[j])->min_oa ||
-			   (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
-			//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
-			(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
-
-			//delete *config_grid[id.i][id.j][id.k].configs[j];
-			//*config_grid[id.i][id.j][id.k].configs[j] = NULL;
-		    }
-		}
 		}
 	    }
 	}
@@ -351,6 +408,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
     double t1i = getDoubleTime();
     DfunMaxEmptyCubeExtractor extractor;
     extractor.loopY = true;
+    if(isSphereGrid) extractor.loopX = true;
     //MaxEmptyCubeExtractor extractor;
     cube = extractor.getMaxCube(config_sample_grid);
 
@@ -359,30 +417,88 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, CylinderCo
     std::cout<<"extract took :"<<t2-t1i<<" sec\n";
     std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
 
-    //FIXME fill up output
-    //bottom left gives bottom plane, left plane and outer cylinder
-    Eigen::Affine3f pose;
-    pose = Eigen::AngleAxisf(2*cube.bl.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
-    Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
-    ori = pose*ori;
-    
-    output.lower_plane.a = Eigen::Vector3f::UnitZ();
-    output.lower_plane.b = min_z + ((max_z-min_z)*cube.bl.i)/n_v;
-    output.left_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
-    output.left_bound_plane.b = 0;
-    pose.setIdentity();
-    output.inner_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.bl.k)/n_d), max_z-min_z);
+    if(!isSphereGrid) {
+	output.isSphere = false;
+	
+	//bottom left gives bottom plane, left plane and outer cylinder
+	Eigen::Affine3f pose;
+	pose = Eigen::AngleAxisf(2*cube.bl.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+	Eigen::Vector3f ori = Eigen::Vector3f::UnitY();
+	ori = pose*ori;
+	
+	output.lower_plane.a = Eigen::Vector3f::UnitZ();
+	output.lower_plane.b = min_z + ((max_z-min_z)*cube.bl.i)/n_v;
+	output.left_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
+	output.left_bound_plane.b = 0;
+	pose.setIdentity();
+	output.inner_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.bl.k)/n_d), max_z-min_z);
 
-    //upper right gives upper plane, right plane and inner cylinder
-    pose = Eigen::AngleAxisf(2*cube.ur.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
-    ori = pose*Eigen::Vector3f::UnitY();
-    
-    output.upper_plane.a = Eigen::Vector3f::UnitZ();
-    output.upper_plane.b = min_z + ((max_z-min_z)*cube.ur.i)/n_v;
-    output.right_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
-    output.right_bound_plane.b = 0;
-    pose.setIdentity();
-    output.outer_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.ur.k)/n_d), max_z-min_z);
+	//upper right gives upper plane, right plane and inner cylinder
+	pose = Eigen::AngleAxisf(2*cube.ur.j*M_PI/n_o, Eigen::Vector3f::UnitZ());
+	ori = pose*Eigen::Vector3f::UnitY();
+
+	output.upper_plane.a = Eigen::Vector3f::UnitZ();
+	output.upper_plane.b = min_z + ((max_z-min_z)*cube.ur.i)/n_v;
+	output.right_bound_plane.a = ori.cross(Eigen::Vector3f::UnitZ());
+	output.right_bound_plane.b = 0;
+	pose.setIdentity();
+	output.outer_cylinder = CylinderConstraint(pose, (min_dist + ((max_dist-min_dist)*cube.ur.k)/n_d), max_z-min_z);
+    } else {
+	output.isSphere = true;
+	float theta, phi, r, phi_midpoint;
+	Eigen::Affine3f pose;
+	Eigen::Vector3f ori;
+
+	//bottom left gives bottom plane, left plane and outer sphere
+	theta = cube.bl.i*M_PI/n_v;
+	phi = 2*cube.bl.j*M_PI/n_o;
+	phi_midpoint = (cube.bl.j+cube.ur.j)*M_PI/n_o;
+	r = (min_dist + ((max_dist-min_dist)*cube.bl.k)/n_d);
+
+	/* //Note: this is for angle-aware slices
+	pose = Eigen::AngleAxisf(M_PI/2+phi_midpoint, Eigen::Vector3f::UnitZ())*Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX());
+	ori = pose*Eigen::Vector3f::UnitY();
+	output.lower_plane.a = ori;
+	output.lower_plane.b = 0;
+	*/
+	//vertical slices
+	output.upper_plane.a = Eigen::Vector3f::UnitZ();
+	output.upper_plane.b = r*cosf(theta);
+
+	pose = Eigen::AngleAxisf(phi, Eigen::Vector3f::UnitZ());
+	ori = pose*Eigen::Vector3f::UnitY();
+	output.left_bound_plane.a = ori;
+	output.left_bound_plane.b = 0;
+
+	ori.setZero();
+	output.outer_sphere.center = ori;
+	output.outer_sphere.radius = r;
+
+	//upper right gives upper plane, right plane and inner cylinder
+	theta = cube.ur.i*M_PI/n_v;
+	phi = 2*cube.ur.j*M_PI/n_o;
+	r = (min_dist + ((max_dist-min_dist)*cube.ur.k)/n_d);
+
+	/* //Note: this is for angle-aware slices
+	pose = Eigen::AngleAxisf(M_PI/2+phi_midpoint, Eigen::Vector3f::UnitZ())*Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX());
+	ori = pose*Eigen::Vector3f::UnitY();
+	output.upper_plane.a = ori;
+	output.upper_plane.b = 0;
+	*/
+	//vertical slices
+	output.lower_plane.a = Eigen::Vector3f::UnitZ();
+	output.lower_plane.b = r*cosf(theta);
+	
+	pose = Eigen::AngleAxisf(phi, Eigen::Vector3f::UnitZ());
+	ori = pose*Eigen::Vector3f::UnitY();
+	output.right_bound_plane.a = ori;
+	output.right_bound_plane.b = 0;
+
+	ori.setZero();
+	output.inner_sphere.center = ori;
+	output.inner_sphere.radius = r;
+
+    }
 //    valid_configs = valid_configs2;
 }
 	
@@ -446,6 +562,8 @@ bool ConstraintMap::saveGripperConstraints(const char *fname) const {
     fwrite(&max_z, sizeof(float), 1, fout);
     fwrite(&min_dist, sizeof(float), 1, fout);
     fwrite(&max_dist, sizeof(float), 1, fout);
+    
+    fwrite(&isSphereGrid, sizeof(bool), 1, fout);
 
     fclose(fout);
     return true;
@@ -490,11 +608,14 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
     size_z = size_meters(2) / resolution;
 
     std::cerr<<"read c "<<center.transpose()<<" s "<<size_meters.transpose()<<" r "<<resolution<<std::endl;
+    std::cerr<<"collision map size is "<<size_x<<" "<<size_y<<" "<<size_z<<" cells\n";
 
     if(!isInitialized) initialize();
     model = new GripperModel();
     hasGripper = true; 
     initializeConfigs();
+    
+    std::cerr<<"reading collision map ...\n";
     //grid;
     CellIndex id;
     for (id.i=0; id.i<size_x; ++id.i) {
@@ -505,7 +626,9 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	    }
 	}
     }
-   
+    std::cerr<<"DONE\n";
+    //sleep(5);
+
     if(fread(model->finger_size.data(), sizeof(float), 3, fin)!=3) {
 	std::cerr<<"couldn't read\n";
 	return false;
@@ -527,6 +650,7 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	std::cerr<<"couldn't read\n";
 	return false;
     }
+    std::cerr<<"reading configuration grid and initializing configs vector...\n";
     for(int i=0; i<sz1; ++i) {
 	Eigen::Affine3f ps;
 	if(!readMatrix4f(ps.matrix(), fin)) return false;
@@ -534,7 +658,10 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	cn->calculateConstraints();
 	valid_configs.push_back(cn);
     }
+    std::cerr<<"DONE\n";
+    //sleep(5);
 
+    std::cerr<<"initializing/reading configuration grid ...\n";
     for (id.i=0; id.i<size_x; ++id.i) {
 	for (id.j=0; id.j<size_y; ++id.j) {
 	    for (id.k=0; id.k<size_z; ++id.k) {
@@ -553,12 +680,14 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 			std::cerr<<"something is wrong, config id out of bounds "<<idx<<std::endl;
 			return false;
 		    }
-		    config_grid[id.i][id.j][id.k].config_ids.push_back(idx);
+		    //config_grid[id.i][id.j][id.k].config_ids.push_back(idx);
 		    config_grid[id.i][id.j][id.k].configs.push_back(&valid_configs[idx]);
 		}
 	    }
 	}
     }
+    std::cerr<<"DONE\n";
+    //sleep(5);
 		
     if(fread(&n_v, sizeof(int), 1, fin)!=1) {
 	std::cerr<<"couldn't read\n";
@@ -589,7 +718,13 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	std::cerr<<"couldn't read\n";
 	return false;
     }
+    
+    if(fread(&isSphereGrid, sizeof(bool), 1, fin)!=1) {
+	std::cerr<<"couldn't read, assume cylinder grid\n";
+	isSphereGrid=false;
+    }
     fclose(fin);
+    std::cerr<<"DONE loading file\n";
 
     return true;
 }
