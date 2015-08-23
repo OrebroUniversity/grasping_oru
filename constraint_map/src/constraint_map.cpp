@@ -410,12 +410,15 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     extractor.loopY = true;
     if(isSphereGrid) extractor.loopX = true;
     //MaxEmptyCubeExtractor extractor;
-    cube = extractor.getMaxCube(config_sample_grid);
+    cube = extractor.getMaxCube2(config_sample_grid);
 
     double t2 = getDoubleTime();
     std::cerr<<"Had "<<valid_configs.size()<<" configs, now we have "<<valid_configs2.size()<<" and it took "<<t2-t1<<" seconds\n";
     std::cout<<"extract took :"<<t2-t1i<<" sec\n";
-    std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
+    int xlen = (cube.ur.i+n_v)%n_v - (cube.bl.i+n_v)%n_v;
+    int ylen = (cube.ur.j+n_o)%n_o - (cube.bl.j+n_o)%n_o;
+    int volume = (cube.ur.k - cube.bl.k)*xlen*ylen;
+    std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") size: "<<xlen<<","<<ylen<<" volume "<<volume<<std::endl;
 
     if(!isSphereGrid) {
 	output.isSphere = false;
@@ -462,8 +465,8 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 	output.lower_plane.b = 0;
 	*/
 	//vertical slices
-	output.upper_plane.a = Eigen::Vector3f::UnitZ();
-	output.upper_plane.b = r*cosf(theta);
+	output.lower_plane.a = Eigen::Vector3f::UnitZ();
+	output.lower_plane.b = r*cosf(theta);
 
 	pose = Eigen::AngleAxisf(phi, Eigen::Vector3f::UnitZ());
 	ori = pose*Eigen::Vector3f::UnitY();
@@ -486,8 +489,8 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 	output.upper_plane.b = 0;
 	*/
 	//vertical slices
-	output.lower_plane.a = Eigen::Vector3f::UnitZ();
-	output.lower_plane.b = r*cosf(theta);
+	output.upper_plane.a = Eigen::Vector3f::UnitZ();
+	output.upper_plane.b = r*cosf(theta);
 	
 	pose = Eigen::AngleAxisf(phi, Eigen::Vector3f::UnitZ());
 	ori = pose*Eigen::Vector3f::UnitY();

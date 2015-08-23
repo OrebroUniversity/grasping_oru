@@ -12,14 +12,14 @@ double getDoubleTime()
 int main() {
 #if 0
 #endif
-    int map_size = 50;
+    int map_size = 70;
     float resolution = 1;
     SimpleOccMap sm(0,0,0,resolution,map_size,map_size,map_size);
     sm.setAllFree();
 
-    for(int j=0; j<10; ++j) {
+    for(int j=0; j<50; ++j) {
 
-	for(int i=0; i<500; ++i) {
+	for(int i=0; i<300; ++i) {
 	    int x = (float)rand()* map_size/RAND_MAX; 
 	    int y = (float)rand()* map_size/RAND_MAX; 
 	    int z = (float)rand()* map_size/RAND_MAX;
@@ -30,16 +30,28 @@ int main() {
 	DfunMaxEmptyCubeExtractor extractor;
 	extractor.loopX = true;
 	extractor.loopY = true;
-	extractor.loopZ = true;
-	CellIdxCube cube;
+	//extractor.loopZ = true;
+	CellIdxCube cube, cube2;
 	cube = extractor.getMaxCube(&sm);
 	double t2 = getDoubleTime();
-	std::cout<<"extract took :"<<t2-t1<<" sec\n";
+	cube2 = extractor.getMaxCube2(&sm);
+	double t3 = getDoubleTime();
+	std::cout<<"extract 1 took :"<<t2-t1<<" sec\n";
+	std::cout<<"extract 2 took :"<<t3-t2<<" sec\n";
+	/*int xlen, ylen, zlen;
+	xlen = ;
+	ylen = ;
+	zlen = (cube.ur.i-cube.bl.i+1);
+	int volume = (abs((cube.ur.j+map_size)%map_size-(cube.bl.j+map_size)%map_size)+1)*
+		     (abs((cube.ur.k+map_size)%map_size-(cube.bl.k+map_size)%map_size)+1)*
+		     ;*/
 	std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<endl;
+	std::cout<<"MAX cube2 at ("<<cube2.bl.i<<","<<cube2.bl.j<<","<<cube2.bl.k<<") : ("<<cube2.ur.i<<","<<cube2.ur.j<<","<<cube2.ur.k<<") volume "<<cube2.volume()<<endl;
 	
 
 	bool isokay = true;
 	CellIndex id, id2;
+	int v=0;
 	for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
 		for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
 			for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) {
@@ -50,10 +62,29 @@ int main() {
 					std::cout<<id2.i<<","<<id2.j<<","<<id2.k<<" really? "<<sm.isOccupied(id2)<<std::endl;
 					isokay=false;
 				}
+				v++;
 			}
 		}
 	}
-	if(isokay) std::cerr<<"OKAY\n";
+	if(isokay) std::cerr<<"OKAY and v is "<<v<<"\n";
+
+	isokay = true;
+	v=0;
+	for(id.i = cube2.bl.i; id.i<=cube2.ur.i; ++id.i) {
+		for(id.j = cube2.bl.j; id.j<=cube2.ur.j; ++id.j) {
+			for(id.k = cube2.bl.k; id.k<=cube2.ur.k; ++id.k) {
+				id2.i = (id.i + map_size)%map_size;
+				id2.j = (id.j + map_size)%map_size;
+				id2.k = (id.k + map_size)%map_size;
+				if(sm.isOccupied(id2)) {
+					std::cout<<id2.i<<","<<id2.j<<","<<id2.k<<" really? "<<sm.isOccupied(id2)<<std::endl;
+					isokay=false;
+				}
+				v++;
+			}
+		}
+	}
+	if(isokay) std::cerr<<"OKAY and v is "<<v<<"\n";
 /* 
         ConstraintMap object_map (0,0,0,resolution,map_size,map_size,map_size);
 	Eigen::Affine3f pose;

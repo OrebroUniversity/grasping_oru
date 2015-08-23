@@ -92,7 +92,7 @@ class CellIdxCube {
     public:
 	CellIndex bl, ur;
 	int volume() const{
-	   return ((abs(ur.i-bl.i)+1)*(abs(ur.j-bl.j)+1)*(abs(ur.k-bl.k)+1)); 
+	   return (((ur.i-bl.i)+1)*((ur.j-bl.j)+1)*((ur.k-bl.k)+1)); 
 	}
 };
 inline bool cubecmpr(const CellIdxCube &a, const CellIdxCube &b) {
@@ -143,6 +143,7 @@ class DistanceGrid {
 	return this->at(id.i, id.j, id.k);
     }
     void computeDistanceGrid(SimpleOccMap *map);
+    void computeDistanceGrid2(SimpleOccMap *map);
 };
 
 class DfunMaxEmptyCubeExtractor {
@@ -151,6 +152,7 @@ class DfunMaxEmptyCubeExtractor {
 	bool loopX, loopY, loopZ;
 	DfunMaxEmptyCubeExtractor():loopX(false),loopY(false),loopZ(false) {};
 	CellIdxCube getMaxCube(SimpleOccMap *map);
+	CellIdxCube getMaxCube2(SimpleOccMap *map);
 	CellIdxCube bruteForceMaxCube(SimpleOccMap *map);
 };
 
