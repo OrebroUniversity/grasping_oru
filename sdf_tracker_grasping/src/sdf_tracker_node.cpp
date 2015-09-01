@@ -5,6 +5,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <std_srvs/Empty.h>
 
 // uncomment this part to enable an example for how to work with LIDAR data.
 //#define LIDAR
@@ -38,6 +39,7 @@ private:
   ros::Publisher depth_publisher_;
   ros::Publisher color_publisher_;
   ros::Publisher vis_pub_;
+  ros::ServiceServer save_map_;
 
   
   ros::Timer heartbeat_depth_;
@@ -49,6 +51,8 @@ private:
   bool makeTris_;
   bool makeVolume_;
   void publishDepthDenoisedImage(const ros::TimerEvent& event); 
+  bool save_map_callback(std_srvs::Empty::Request  &req,
+	                     std_srvs::Empty::Response &res ) ;
 };
 
 
@@ -145,7 +149,7 @@ SDFTrackerNode::subscribeTopic(const std::string topic)
   {
     if(topic.compare(std::string("default")) == 0)
     {
-      subscribe_topic_depth = camera_name_+"/depth_registered/image";
+      subscribe_topic_depth = camera_name_+"/depth_registered/image_raw";
       subscribe_topic_color = camera_name_+"/rgb/image_color";
     }
 
@@ -183,6 +187,7 @@ SDFTrackerNode::advertiseTopic(const std::string topic)
 
   heartbeat_depth_ = nh_.createTimer(ros::Duration(1.0), &SDFTrackerNode::publishDepthDenoisedImage, this);
   vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
+  save_map_ = nh_.advertiseService("save_map", &SDFTrackerNode::save_map_callback, this);
 
 }
 void SDFTrackerNode::publishDepthDenoisedImage(const ros::TimerEvent& event) 
@@ -337,6 +342,13 @@ void SDFTrackerNode::PublishMarker(void)
     marker_array.markers.push_back(marker);
     vis_pub_.publish( marker_array );
 
+}
+     
+bool SDFTrackerNode::save_map_callback(std_srvs::Empty::Request  &req,
+	                     std_srvs::Empty::Response &res ) {
+      std::cerr<<"saving volume\n";
+      myTracker_->SaveSDF();
+      return true;
 }
 
 

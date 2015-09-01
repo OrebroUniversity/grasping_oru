@@ -148,8 +148,8 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		if(valid_configs[config_index]->isValid) {
 		    //valid
 		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
-			( isSphereGrid ? (lowX<highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
-			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
+			( isSphereGrid ? (lowX<=highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
+			(  lowY<=highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
 			//selected
 			pc.rgb = select.rgb;
 		    } else {
@@ -160,8 +160,8 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		} else {
 		    //invalid
 		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
-			( isSphereGrid ? (lowX<highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
-			(  lowY<highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
+			( isSphereGrid ? (lowX<=highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
+			(  lowY<=highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
 			pc.rgb = invalid.rgb;
 			configs_pc.points.push_back(pc);
 		      }
@@ -172,6 +172,51 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
     configs_pc.is_dense=false;
     configs_pc.width = configs_pc.points.size();
     configs_pc.height = 1;
+}
+	
+void ConstraintMap::generateOpeningAngleDump(std::string &fname) {
+    
+    FILE *fout = fopen(fname.c_str(), "w+");
+    if(fout == NULL) {
+	std::cerr<<"couldn't open file for writing at "<<fname<<std::endl;
+	return;
+    }
+
+    CellIndex id;
+    
+    int lowY, highY;
+    lowY = (n_o+cube.bl.j)%n_o;
+    highY = (n_o+cube.ur.j)%n_o;
+    int lowX, highX;
+    lowX = (n_v+cube.bl.i)%n_v;
+    highX = (n_v+cube.ur.i)%n_v;
+    
+    for (id.k=0; id.k<n_d; ++id.k) {
+	fprintf(fout,"configs(:,:,%d) = [", id.k+1);
+	for (id.j=0; id.j<n_o; ++id.j) {
+	    for (id.i=0; id.i<n_v; ++id.i) {
+		
+		if(id.i>0) fprintf(fout,", ");
+
+		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
+		if(valid_configs[config_index] == NULL) {
+		    fprintf(fout,"-1");
+		    continue;
+		}
+		if(valid_configs[config_index]->isValid) {
+		    fprintf(fout,"%f",valid_configs[config_index]->min_oa);
+		} else {
+		    fprintf(fout,"0");
+		}
+	    }
+	    fprintf(fout,";\n");
+	}
+	fprintf(fout,"];\n");
+    }
+
+    fprintf(fout, "bounds = [%d, %d, %d; %d, %d, %d];\n",cube.bl.i, cube.bl.j, cube.bl.k, cube.ur.i, cube.ur.j, cube.ur.k);
+    fclose(fout);
+
 }
 
 void ConstraintMap::drawValidConfigsSmall() {
@@ -415,10 +460,14 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     double t2 = getDoubleTime();
     std::cerr<<"Had "<<valid_configs.size()<<" configs, now we have "<<valid_configs2.size()<<" and it took "<<t2-t1<<" seconds\n";
     std::cout<<"extract took :"<<t2-t1i<<" sec\n";
-    int xlen = (cube.ur.i+n_v)%n_v - (cube.bl.i+n_v)%n_v;
-    int ylen = (cube.ur.j+n_o)%n_o - (cube.bl.j+n_o)%n_o;
-    int volume = (cube.ur.k - cube.bl.k)*xlen*ylen;
-    std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") size: "<<xlen<<","<<ylen<<" volume "<<volume<<std::endl;
+    int xlen = (cube.ur.i+n_v)%n_v - (cube.bl.i+n_v)%n_v+1;
+    int ylen = (cube.ur.j+n_o)%n_o - (cube.bl.j+n_o)%n_o+1;
+    int volume = (cube.ur.k - cube.bl.k+1)*xlen*ylen;
+    std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") size: "<<xlen<<","<<ylen
+	     <<" volume "<<volume<<" cvolume "<<cube.volume()<<std::endl;
+
+    output.debug_time = t2-t1;
+    output.cspace_volume = cube.volume();
 
     if(!isSphereGrid) {
 	output.isSphere = false;

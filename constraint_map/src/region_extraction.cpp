@@ -995,278 +995,282 @@ CellIdxCube DfunMaxEmptyCubeExtractor::getMaxCube2(SimpleOccMap *map) {
     
     int maxvolume = 0;
     //pass through dist_grid
-    for(id.i = 0; id.i < map->size_x; ++id.i) {
+    /*for(id.i = 0; id.i < map->size_x; ++id.i) {
 	    for(id.j = 0; id.j < map->size_y; ++id.j) {
 		    for(id.k = 0; id.k < map->size_z; ++id.k) {
-			    Triplet thisone = distance_grid.at(id);
-			    if((thisone[0])*(thisone[1])*(thisone[2]) > maxvolume) {
-				//check what the maxvolume at this point would be
-				int best_c[2];
-				int best_v[3];	
-				Triplet min_ids[3];
-				for(int x=0; x<3; ++x) {
-				    min_ids[x] = thisone;
-				}
-
-				int mval;
-				bool goOn;
-				
-				//search back to find the best feasible BL point
-//////////////////////////////////////////////////along xy////////////////////////////////////////////////////
-				//reset values
-				best_c[0] = 1; best_c[1]=1;
-				best_v[0] = 0; best_v[1]=0; best_v[2]=0;
-				//along xy
-				for(int i=id.i; i>id.i-(min_ids[0][0]+1); --i) {
-					mval = minval(min_ids[0][1],distance_grid.at(i,id.j,id.k)[1]);
-					//is this the best so far?
-					if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.i-i+1;
-					    best_c[1] = mval;
-					}
-					//can we potentially make a biger area than the best so far?
-					if(mval*min_ids[0][0] > best_c[1]*best_c[0]) {
-					    //yes we can, update the allowance
-					    min_ids[0][1] = mval;
-					} else {
-					    //no, let's stick to what we found
-					    min_ids[0][0] = best_c[0];
-					    min_ids[0][1] = best_c[1];
-					    break;
-					}
-				}
-//				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
-//				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
-				best_v[0] = best_c[0];
-				best_v[1] = best_c[1]; //for 0 depth cases
-				best_v[2] = 1;
-
-				//now let's sweep this cross section on the third dimension
-				goOn = true;
-				for(int k=id.k; k>id.k-(min_ids[0][2]+1)&&goOn; --k) {
-				    //find the largest cross section for this k index, within the constrained area
-				    best_c[0] = 1;
-				    best_c[1] = 1;
-				    for(int i=id.i; i>id.i-(min_ids[0][0]+1); --i) {
-					mval = minval(min_ids[0][1],distance_grid.at(i,id.j,k)[1]);
-					//is this the best so far?
-					if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.i-i+1;
-					    best_c[1] = mval;
-					}
-					//is this the best volume we found so far?
-					if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.k-k+1)) {
-					    //yes -> update
-					    best_v[0] = best_c[0];
-					    best_v[1] = best_c[1];
-					    best_v[2] = id.k-k+1;
-					}
-					
-					//can we potentially make a biger cross section area than the best so far?
-					if(mval*min_ids[0][0] > best_c[1]*best_c[0]) {
-					    //yes we can, continue looking
-					    min_ids[0][1] = mval;
-					} else {
-					    //no.
-					    //can we potentially find a larger volume?
-					    mval = minval(min_ids[0][2],distance_grid.at(i,id.j,k)[2]);
-					    if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
-						//yes, update the boundaries 
-						min_ids[0][0] = best_c[0];
-						min_ids[0][1] = best_c[1];
-					    } else {
-						//no, break
-						goOn = false;
-					    }
-					    break;
-					}
-				    }
-				}
-//				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
-				min_ids[0][0] = best_v[0];
-				min_ids[0][1] = best_v[1];
-				min_ids[0][2] = best_v[2];
-				
-				
-//////////////////////////////////////////////////along xz////////////////////////////////////////////////////
-				//reset values
-				best_c[0] = 1; best_c[1]=1;
-				best_v[0] = 0; best_v[1]=0; best_v[2]=0;
-				
-				//along xz
-				for(int i=id.i; i>id.i-(min_ids[1][0]+1); --i) {
-					mval = minval(min_ids[1][2],distance_grid.at(i,id.j,id.k)[2]);
-					//is this the best so far?
-					if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.i-i+1;
-					    best_c[1] = mval;
-					}
-					//can we potentially make a biger area than the best so far?
-					if(mval*min_ids[1][0] > best_c[1]*best_c[0]) {
-					    //yes we can, update the allowance
-					    min_ids[1][2] = mval;
-					} else {
-					    //no, let's stick to what we found
-					    min_ids[1][0] = best_c[0];
-					    min_ids[1][2] = best_c[1];
-					    break;
-					}
-				}
-//				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
-//				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
-				best_v[0] = best_c[0];
-				best_v[1] = 1;
-				best_v[2] = best_c[1]; //for 0 depth cases
-
-				//now let's sweep this cross section on the third dimension
-				goOn = true;
-				for(int j=id.j; j>id.j-(min_ids[1][1]+1)&&goOn; --j) {
-				    //find the largest cross section for this k index, within the constrained area
-				    best_c[0] = 1;
-				    best_c[1] = 1;
-				    for(int i=id.i; i>id.i-(min_ids[1][0]+1); --i) {
-					mval = minval(min_ids[1][2],distance_grid.at(i,j,id.k)[2]);
-					//is this the best so far?
-					if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.i-i+1;
-					    best_c[1] = mval;
-					}
-					//is this the best volume we found so far?
-					if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.j-j+1)) {
-					    //yes -> update
-					    best_v[0] = best_c[0];
-					    best_v[1] = id.j-j+1;
-					    best_v[2] = best_c[1];
-					}
-					//can we potentially make a biger area than the best so far?
-					if(mval*min_ids[1][0] > best_c[1]*best_c[0]) {
-					    //yes we can, update the allowance
-					    min_ids[1][2] = mval;
-					} else {
-					    //no.
-//					    std::cerr<<k<<" bc is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
-					    //can we potentially find a larger volume?
-					    mval = minval(min_ids[1][1],distance_grid.at(i,j,id.k)[1]);
-					    if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
-						//yes, update the boundaries 
-						min_ids[1][0] = best_c[0];
-						min_ids[1][2] = best_c[2];
-					    } else {
-						//no, break
-						goOn = false;
-					    }
-					    break;
-					}
-				    }
-				}
-//				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
-				min_ids[1][0] = best_v[0];
-				min_ids[1][1] = best_v[1];
-				min_ids[1][2] = best_v[2];
-				
-				
-//////////////////////////////////////////////////along yz////////////////////////////////////////////////////
-				//reset values
-				best_c[0] = 1; best_c[1]=1;
-				best_v[0] = 0; best_v[1]=0; best_v[2]=0;
-				for(int j=id.j; j>id.j-(min_ids[2][1]+1); --j) {
-					mval = minval(min_ids[2][2],distance_grid.at(id.i,j,id.k)[2]);
-					//is this the best so far?
-					if( mval*(id.j-j+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.j-j+1;
-					    best_c[1] = mval;
-					}
-					//can we potentially make a biger area than the best so far?
-					if(mval*min_ids[2][1] > best_c[1]*best_c[0]) {
-					    //yes we can, update the allowance
-					    min_ids[2][2] = mval;
-					} else {
-					    //no, let's stick to what we found
-					    min_ids[2][1] = best_c[0];
-					    min_ids[2][2] = best_c[1];
-					    break;
-					}
-				}
-//				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
-//				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
-				best_v[0] = 1;
-				best_v[1] = best_c[0];
-				best_v[2] = best_c[1]; //for 0 depth cases
-
-				//now let's sweep this cross section on the third dimension
-				goOn = true;
-				for(int i=id.i; i>id.i-(min_ids[2][0]+1)&&goOn; --i) {
-				    //find the largest cross section for this k index, within the constrained area
-				    best_c[0] = 1;
-				    best_c[1] = 1;
-				    for(int j=id.j; j>id.j-(min_ids[2][1]+1); --j) {
-					mval = minval(min_ids[2][2],distance_grid.at(i,j,id.k)[2]);
-					//is this the best so far?
-					if( mval*(id.j-j+1) > best_c[1]*best_c[0]) {
-					    best_c[0] = id.j-j+1;
-					    best_c[1] = mval;
-					}
-					//is this the best volume we found so far?
-					if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.i-i+1)) {
-					    //yes -> update
-					    best_v[0] = id.i-i+1;
-					    best_v[1] = best_c[0];
-					    best_v[2] = best_c[1];
-					}
-					//can we potentially make a biger area than the best so far?
-					if(mval*min_ids[2][1] > best_c[1]*best_c[0]) {
-					    //yes we can, update the allowance
-					    min_ids[2][2] = mval;
-					} else {
-					    //no.
-//					    std::cerr<<k<<" bc is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
-					    //can we potentially find a larger volume?
-					    mval = minval(min_ids[2][0],distance_grid.at(i,j,id.k)[0]);
-					    if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
-						//yes, update the boundaries 
-						min_ids[2][1] = best_c[0];
-						min_ids[2][2] = best_c[2];
-					    } else {
-						//no, break
-						goOn = false;
-					    }
-					    break;
-					}
-				    }
-				}
-//				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
-				min_ids[2][0] = best_v[0];
-				min_ids[2][1] = best_v[1];
-				min_ids[2][2] = best_v[2];
-				
-				
-				int maxvolu=-1;
-				int maxvolu_id=-1;
-				for(int x=0; x<3; ++x) {
-					if(min_ids[x][0] < 0) continue;
-					if(min_ids[x][1] < 0) continue;
-					if(min_ids[x][2] < 0) continue;
-					int v = (min_ids[x][0])*(min_ids[x][1])*(min_ids[x][2]);
-					if(v >maxvolu) {
-						maxvolu = v;
-						maxvolu_id = x;
-					}
-				}
-				if(maxvolu > maxvolume && maxvolu_id >=0) {
-					maxvolume = maxvolu;
-					cube.bl.i = id.i - (min_ids[maxvolu_id][0]-1);//
-					cube.bl.j = id.j - (min_ids[maxvolu_id][1]-1);//
-					cube.bl.k = id.k - (min_ids[maxvolu_id][2]-1);//
-					cube.ur.i = id.i;
-					cube.ur.j = id.j;
-					cube.ur.k = id.k;
-					//std::cerr<<"NEW "<<maxvolu_id<<" "<<maxvolume<<" "<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<min_ids[maxvolu_id][0]<<" "<<min_ids[maxvolu_id][1]<<" "<<min_ids[maxvolu_id][2]<<" was: "<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
-					//std::cerr<<"CUBE ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
-				}
-
-			    }
+		    */
+    for(id.i = map->size_x-1; id.i >=0; --id.i) {
+	for(id.j = map->size_y-1; id.j >=0; --id.j) {
+	    for(id.k = map->size_z-1; id.k >=0; --id.k) {
+		Triplet thisone = distance_grid.at(id);
+		if((thisone[0])*(thisone[1])*(thisone[2]) > maxvolume) {
+		    //check what the maxvolume at this point would be
+		    int best_c[2];
+		    int best_v[3];	
+		    Triplet min_ids[3];
+		    for(int x=0; x<3; ++x) {
+			min_ids[x] = thisone;
 		    }
+
+		    int mval;
+		    bool goOn;
+
+		    //search back to find the best feasible BL point
+		    //////////////////////////////////////////////////along xy////////////////////////////////////////////////////
+		    //reset values
+		    best_c[0] = 1; best_c[1]=1;
+		    best_v[0] = 0; best_v[1]=0; best_v[2]=0;
+		    //along xy
+		    for(int i=id.i; i>id.i-(min_ids[0][0]+1); --i) {
+			mval = minval(min_ids[0][1],distance_grid.at(i,id.j,id.k)[1]);
+			//is this the best so far?
+			if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
+			    best_c[0] = id.i-i+1;
+			    best_c[1] = mval;
+			}
+			//can we potentially make a biger area than the best so far?
+			if(mval*min_ids[0][0] > best_c[1]*best_c[0]) {
+			    //yes we can, update the allowance
+			    min_ids[0][1] = mval;
+			} else {
+			    //no, let's stick to what we found
+			    min_ids[0][0] = best_c[0];
+			    min_ids[0][1] = best_c[1];
+			    break;
+			}
+		    }
+		    //				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
+		    //				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
+		    best_v[0] = best_c[0];
+		    best_v[1] = best_c[1]; //for 0 depth cases
+		    best_v[2] = 1;
+
+		    //now let's sweep this cross section on the third dimension
+		    goOn = true;
+		    for(int k=id.k; k>id.k-(min_ids[0][2]+1)&&goOn; --k) {
+			//find the largest cross section for this k index, within the constrained area
+			best_c[0] = 1;
+			best_c[1] = 1;
+			for(int i=id.i; i>id.i-(min_ids[0][0]+1); --i) {
+			    mval = minval(min_ids[0][1],distance_grid.at(i,id.j,k)[1]);
+			    //is this the best so far?
+			    if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
+				best_c[0] = id.i-i+1;
+				best_c[1] = mval;
+			    }
+			    //is this the best volume we found so far?
+			    if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.k-k+1)) {
+				//yes -> update
+				best_v[0] = best_c[0];
+				best_v[1] = best_c[1];
+				best_v[2] = id.k-k+1;
+			    }
+
+			    //can we potentially make a biger cross section area than the best so far?
+			    if(mval*min_ids[0][0] > best_c[1]*best_c[0]) {
+				//yes we can, continue looking
+				min_ids[0][1] = mval;
+			    } else {
+				//no.
+				//can we potentially find a larger volume?
+				mval = minval(min_ids[0][2],distance_grid.at(i,id.j,k)[2]);
+				if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
+				    //yes, update the boundaries 
+				    min_ids[0][0] = best_c[0];
+				    min_ids[0][1] = best_c[1];
+				} else {
+				    //no, break
+				    goOn = false;
+				}
+				break;
+			    }
+			}
+		    }
+		    //				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
+		    min_ids[0][0] = best_v[0];
+		    min_ids[0][1] = best_v[1];
+		    min_ids[0][2] = best_v[2];
+
+
+		    //////////////////////////////////////////////////along xz////////////////////////////////////////////////////
+		    //reset values
+		    best_c[0] = 1; best_c[1]=1;
+		    best_v[0] = 0; best_v[1]=0; best_v[2]=0;
+
+		    //along xz
+		    for(int i=id.i; i>id.i-(min_ids[1][0]+1); --i) {
+			mval = minval(min_ids[1][2],distance_grid.at(i,id.j,id.k)[2]);
+			//is this the best so far?
+			if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
+			    best_c[0] = id.i-i+1;
+			    best_c[1] = mval;
+			}
+			//can we potentially make a biger area than the best so far?
+			if(mval*min_ids[1][0] > best_c[1]*best_c[0]) {
+			    //yes we can, update the allowance
+			    min_ids[1][2] = mval;
+			} else {
+			    //no, let's stick to what we found
+			    min_ids[1][0] = best_c[0];
+			    min_ids[1][2] = best_c[1];
+			    break;
+			}
+		    }
+		    //				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
+		    //				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
+		    best_v[0] = best_c[0];
+		    best_v[1] = 1;
+		    best_v[2] = best_c[1]; //for 0 depth cases
+
+		    //now let's sweep this cross section on the third dimension
+		    goOn = true;
+		    for(int j=id.j; j>id.j-(min_ids[1][1]+1)&&goOn; --j) {
+			//find the largest cross section for this k index, within the constrained area
+			best_c[0] = 1;
+			best_c[1] = 1;
+			for(int i=id.i; i>id.i-(min_ids[1][0]+1); --i) {
+			    mval = minval(min_ids[1][2],distance_grid.at(i,j,id.k)[2]);
+			    //is this the best so far?
+			    if( mval*(id.i-i+1) > best_c[1]*best_c[0]) {
+				best_c[0] = id.i-i+1;
+				best_c[1] = mval;
+			    }
+			    //is this the best volume we found so far?
+			    if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.j-j+1)) {
+				//yes -> update
+				best_v[0] = best_c[0];
+				best_v[1] = id.j-j+1;
+				best_v[2] = best_c[1];
+			    }
+			    //can we potentially make a biger area than the best so far?
+			    if(mval*min_ids[1][0] > best_c[1]*best_c[0]) {
+				//yes we can, update the allowance
+				min_ids[1][2] = mval;
+			    } else {
+				//no.
+				//					    std::cerr<<k<<" bc is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
+				//can we potentially find a larger volume?
+				mval = minval(min_ids[1][1],distance_grid.at(i,j,id.k)[1]);
+				if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
+				    //yes, update the boundaries 
+				    min_ids[1][0] = best_c[0];
+				    min_ids[1][2] = best_c[2];
+				} else {
+				    //no, break
+				    goOn = false;
+				}
+				break;
+			    }
+			}
+		    }
+		    //				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
+		    min_ids[1][0] = best_v[0];
+		    min_ids[1][1] = best_v[1];
+		    min_ids[1][2] = best_v[2];
+
+
+		    //////////////////////////////////////////////////along yz////////////////////////////////////////////////////
+		    //reset values
+		    best_c[0] = 1; best_c[1]=1;
+		    best_v[0] = 0; best_v[1]=0; best_v[2]=0;
+		    for(int j=id.j; j>id.j-(min_ids[2][1]+1); --j) {
+			mval = minval(min_ids[2][2],distance_grid.at(id.i,j,id.k)[2]);
+			//is this the best so far?
+			if( mval*(id.j-j+1) > best_c[1]*best_c[0]) {
+			    best_c[0] = id.j-j+1;
+			    best_c[1] = mval;
+			}
+			//can we potentially make a biger area than the best so far?
+			if(mval*min_ids[2][1] > best_c[1]*best_c[0]) {
+			    //yes we can, update the allowance
+			    min_ids[2][2] = mval;
+			} else {
+			    //no, let's stick to what we found
+			    min_ids[2][1] = best_c[0];
+			    min_ids[2][2] = best_c[1];
+			    break;
+			}
+		    }
+		    //				std::cerr<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
+		    //				std::cerr<<"bc (init) is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
+		    best_v[0] = 1;
+		    best_v[1] = best_c[0];
+		    best_v[2] = best_c[1]; //for 0 depth cases
+
+		    //now let's sweep this cross section on the third dimension
+		    goOn = true;
+		    for(int i=id.i; i>id.i-(min_ids[2][0]+1)&&goOn; --i) {
+			//find the largest cross section for this k index, within the constrained area
+			best_c[0] = 1;
+			best_c[1] = 1;
+			for(int j=id.j; j>id.j-(min_ids[2][1]+1); --j) {
+			    mval = minval(min_ids[2][2],distance_grid.at(i,j,id.k)[2]);
+			    //is this the best so far?
+			    if( mval*(id.j-j+1) > best_c[1]*best_c[0]) {
+				best_c[0] = id.j-j+1;
+				best_c[1] = mval;
+			    }
+			    //is this the best volume we found so far?
+			    if(best_v[0]*best_v[1]*best_v[2] < best_c[0]*best_c[1]*(id.i-i+1)) {
+				//yes -> update
+				best_v[0] = id.i-i+1;
+				best_v[1] = best_c[0];
+				best_v[2] = best_c[1];
+			    }
+			    //can we potentially make a biger area than the best so far?
+			    if(mval*min_ids[2][1] > best_c[1]*best_c[0]) {
+				//yes we can, update the allowance
+				min_ids[2][2] = mval;
+			    } else {
+				//no.
+				//					    std::cerr<<k<<" bc is "<<best_c[0]<<" "<<best_c[1]<<std::endl;
+				//can we potentially find a larger volume?
+				mval = minval(min_ids[2][0],distance_grid.at(i,j,id.k)[0]);
+				if(best_c[0]*best_c[1]*mval > best_v[0]*best_v[1]*best_v[2]) {
+				    //yes, update the boundaries 
+				    min_ids[2][1] = best_c[0];
+				    min_ids[2][2] = best_c[2];
+				} else {
+				    //no, break
+				    goOn = false;
+				}
+				break;
+			    }
+			}
+		    }
+		    //				std::cerr<<" bv is "<<best_v[0]<<" "<<best_v[1]<<" "<<best_v[2]<<std::endl;
+		    min_ids[2][0] = best_v[0];
+		    min_ids[2][1] = best_v[1];
+		    min_ids[2][2] = best_v[2];
+
+
+		    int maxvolu=-1;
+		    int maxvolu_id=-1;
+		    for(int x=0; x<3; ++x) {
+			if(min_ids[x][0] < 0) continue;
+			if(min_ids[x][1] < 0) continue;
+			if(min_ids[x][2] < 0) continue;
+			int v = (min_ids[x][0])*(min_ids[x][1])*(min_ids[x][2]);
+			if(v >maxvolu) {
+			    maxvolu = v;
+			    maxvolu_id = x;
+			}
+		    }
+		    if(maxvolu > maxvolume && maxvolu_id >=0) {
+			maxvolume = maxvolu;
+			cube.bl.i = id.i - (min_ids[maxvolu_id][0]-1);//
+			cube.bl.j = id.j - (min_ids[maxvolu_id][1]-1);//
+			cube.bl.k = id.k - (min_ids[maxvolu_id][2]-1);//
+			cube.ur.i = id.i;
+			cube.ur.j = id.j;
+			cube.ur.k = id.k;
+			//std::cerr<<"NEW "<<maxvolu_id<<" "<<maxvolume<<" "<<id.i<<" "<<id.j<<" "<<id.k<<": is :"<<min_ids[maxvolu_id][0]<<" "<<min_ids[maxvolu_id][1]<<" "<<min_ids[maxvolu_id][2]<<" was: "<<thisone[0]<<" "<<thisone[1]<<" "<<thisone[2]<<std::endl;
+			//std::cerr<<"CUBE ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<std::endl;
+		    }
+
+		}
 	    }
+	}
     }
     if(maxvolume == 0) {
 	cube.bl.i = 0;

@@ -167,6 +167,7 @@ class GripperPoseConstraint {
 	CylinderConstraint inner_cylinder, outer_cylinder;
 	SphereConstraint inner_sphere, outer_sphere;
 	PlaneConstraint upper_plane, lower_plane, left_bound_plane, right_bound_plane;
+	float cspace_volume, debug_time;
 };
 
 class GripperModel {
@@ -405,6 +406,7 @@ class ConstraintMap : public SimpleOccMap {
 
 	void drawValidConfigs();
 	void drawValidConfigsSmall();
+	void generateOpeningAngleDump(std::string &fname);
 
 	//returns a colored point cloud of configs. red are invalid, orange valid, green valid and selected
 	void getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs);
