@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   sdf_tracker_grasping
   std_msgs
+  hqp_controllers_msgs
   std_srvs
   tf
   pcl_ros
@@ -64,6 +65,7 @@ find_package(Boost REQUIRED COMPONENTS thread)
  add_service_files(
    FILES
    PlanGrasp.srv
+   LoadResource.srv
 #   Service2.srv
  )
 
@@ -77,7 +79,9 @@ find_package(Boost REQUIRED COMPONENTS thread)
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-   std_msgs geometry_msgs 
+   std_msgs 
+   geometry_msgs 
+   hqp_controllers_msgs
  )
 
 ###################################
@@ -92,7 +96,7 @@ find_package(Boost REQUIRED COMPONENTS thread)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES grasp_planner
-  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker_grasping std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
+  CATKIN_DEPENDS constraint_map geometry_msgs message_runtime sdf_tracker_grasping hqp_controllers_msgs std_msgs std_srvs tf eigen_conversions pcl_ros pcl_conversions image_transport image_geometry
   DEPENDS libpcl-all-dev
 )
 
@@ -115,13 +119,18 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 ## Declare a cpp executable
 add_executable(grasp_planner_node src/grasp_planner_node.cc)
+add_executable(run_gplanner_tests src/run_tests.cc)
 add_executable(pointcloud_publisher src/point_cloud_publisher.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(grasp_planner_node grasp_planner_generate_messages_cpp)
+add_dependencies(run_gplanner_tests grasp_planner_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
+ target_link_libraries(run_gplanner_tests
+   ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PCL_LIBRARIES}
+ )
  target_link_libraries(grasp_planner_node
    ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PCL_LIBRARIES}
  )

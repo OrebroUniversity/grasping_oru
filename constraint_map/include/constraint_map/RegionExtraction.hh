@@ -92,7 +92,7 @@ class CellIdxCube {
     public:
 	CellIndex bl, ur;
 	int volume() const{
-	   return ((abs(ur.i-bl.i)+1)*(abs(ur.j-bl.j)+1)*(abs(ur.k-bl.k)+1)); 
+	   return (((ur.i-bl.i)+1)*((ur.j-bl.j)+1)*((ur.k-bl.k)+1)); 
 	}
 };
 inline bool cubecmpr(const CellIdxCube &a, const CellIdxCube &b) {
@@ -109,14 +109,51 @@ class MaxEmptyCubeExtractor {
 
 };
 
-typedef int Triplet [3];
+//typedef int Triplet [3];
+class Triplet {
+    public:
+	int data[3];
+	Triplet(){};
+	Triplet(int i, int j, int k) {
+	    data[0]=i, data[1]=j, data[2]=k;
+	}
+	~Triplet() {};
+	Triplet(const Triplet &other) {
+	    memcpy(&data,&other.data,3*sizeof(int));
+	}
+	inline int& operator[](int i) {
+	    return data[i];
+	}
+};
+
 inline int minval (int a, int b) {
 	return a < b ? a : b;
 }
+class DistanceGrid {
+    public:
+    bool loopX, loopY, loopZ;
+    int size_x,size_y,size_z;
+    bool isAlloc;
+    Triplet ***distance_grid;
+    DistanceGrid() { isAlloc=false; }
+    DistanceGrid(int sx, int sy, int sz);
+    ~DistanceGrid();
+    Triplet at(int i, int j, int k);
+    Triplet at(CellIndex id) {
+	return this->at(id.i, id.j, id.k);
+    }
+    void computeDistanceGrid(SimpleOccMap *map);
+    void computeDistanceGrid2(SimpleOccMap *map);
+};
+
 class DfunMaxEmptyCubeExtractor {
     public:
 	std::vector<CellIdxCube> empty_cubes;
+	bool loopX, loopY, loopZ;
+	DfunMaxEmptyCubeExtractor():loopX(false),loopY(false),loopZ(false) {};
 	CellIdxCube getMaxCube(SimpleOccMap *map);
+	CellIdxCube getMaxCube2(SimpleOccMap *map);
+	CellIdxCube bruteForceMaxCube(SimpleOccMap *map);
 };
 
 

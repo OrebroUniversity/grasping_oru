@@ -536,7 +536,7 @@ class CanFinderNode {
 		    }
 		    mean /= (jt->indices.size ());
 	            std::cerr<<"Gripper is at "<<world2palm.translation().transpose()<<std::endl;
-		    closest_point(2) = 0.25;
+		    closest_point(2) = 0.26;
 		    pt.x = closest_point(0);
 		    pt.y = closest_point(1);
 		    pt.z = closest_point(2);
@@ -546,7 +546,7 @@ class CanFinderNode {
 		    Eigen::Vector3d approach = mean - world2palm.translation();
 		    approach.normalize();
 		    closest_point = closest_point - dist_factor*approach; 
-		    closest_point(2) = 0.25;
+		    closest_point(2) = 0.26;
 		    pt.x = closest_point(0);
 		    pt.y = closest_point(1);
 		    pt.z = closest_point(2);

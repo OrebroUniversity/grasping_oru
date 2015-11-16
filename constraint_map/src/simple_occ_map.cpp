@@ -63,6 +63,30 @@ SimpleOccMap::~SimpleOccMap() {
     }
 }
 
+void SimpleOccMap::toPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc) {
+    if(!isInitialized) return;
+    Eigen::Vector3f rel, center_cell;
+    pcl::PointXYZ pt;
+    for (int i=0; i<size_x; ++i) {
+	for (int j=0; j<size_y; ++j) {
+	    for (int k=0; k<size_z; ++k) {
+		if(grid[i][j][k] == SimpleOccMap::OCC) {
+		    rel<<i,j,k;
+		    center_cell = rel*resolution - size_meters/2 + center;
+		    pt.x = center_cell(0); 
+		    pt.y = center_cell(1); 
+		    pt.z = center_cell(2);
+		    pc.points.push_back(pt);	
+		}
+	    }
+	}
+    }
+    pc.is_dense=false;
+    pc.width = pc.points.size();
+    pc.height = 1;
+
+}
+
 void SimpleOccMap::toMessage(constraint_map::SimpleOccMapMsg &msg) {
     if(!isInitialized) return;
     msg.header.frame_id = "my_frame";

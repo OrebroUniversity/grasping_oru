@@ -16,7 +16,7 @@
     <!--param name="max_x" value="1.4"                  /-->
     <param name="max_x" value="1.6"                  />
     <param name="max_dist" value="1"                  />
-    <param name="dist_factor" value="0.18"                  />
+    <param name="dist_factor" value="0.165"                  />
   </node>
 
 </launch>

@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
   tf_conversions
+  pcl_ros
+  pcl_conversions
 )
 
 ## System dependencies are found with CMake's conventions
@@ -22,6 +24,7 @@ find_package(OpenMP)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 find_package(Boost REQUIRED)
+include_directories(include ${PCL_INCLUDE_DIRS})
 
 
 ## Generate messages in the 'msg' folder
@@ -62,7 +65,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS message_runtime std_msgs roscpp tf tf_conversions
+  CATKIN_DEPENDS message_runtime std_msgs roscpp tf tf_conversions pcl_ros pcl_conversions
   DEPENDS eigen
 )
 

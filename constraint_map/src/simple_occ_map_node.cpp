@@ -3,6 +3,8 @@
 #include <constraint_map/SimpleOccMapMsg.h>
 #include <tf/transform_broadcaster.h>
 #include <tf_conversions/tf_eigen.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <ros/ros.h>
 
@@ -32,10 +34,10 @@ class SimpleOccNode {
 	    n_ = ros::NodeHandle();
 
 	    map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> ("map_topic",10);
-	    object_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> ("object_map_topic",10);
+	    object_map_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> ("object_map_pc",10);
 	    map = new ConstraintMap();
-	    //nh_.param<std::string>("gripper_file",fname,"test_small.cons");
-	    nh_.param<std::string>("gripper_file",fname,"full.cons");
+	    nh_.param<std::string>("gripper_file",fname,"test_small.cons");
+	    //nh_.param<std::string>("gripper_file",fname,"full.cons");
 	    map->loadGripperConstraints(fname.c_str());
 	    object_map = new ConstraintMap(0,0,0,resolution,map_size/resolution,map_size/resolution,map_size/resolution);
 	}
@@ -45,8 +47,10 @@ class SimpleOccNode {
 	}
 
 	void publishMap() {
-	    constraint_map::SimpleOccMapMsg msg;
-	    object_map->toMessage(msg);
+	    pcl::PointCloud<pcl::PointXYZ> pc;
+	    object_map->toPointCloud(pc);
+	    sensor_msgs::PointCloud2 msg;
+	    pcl::toROSMsg(pc,msg);
 	    msg.header.frame_id = "/map_frame";
 	    object_map_publisher_.publish(msg);
 	    
@@ -108,15 +112,16 @@ int main(int argc, char **argv) {
     pose = Eigen::AngleAxisf(-0.57,Eigen::Vector3f::UnitX());
     //pose.translation()<<-0.25,-0.1,-0.1;
     CylinderConstraint cc(pose,0.115,0.5);
-    nd.map->computeValidConfigs(nd.object_map, cc);
+    GripperPoseConstraint out;
+    //nd.map->computeValidConfigs(nd.object_map,pose,0.115,0.5,out);
 
     tf::Transform transform;
     tf::transformEigenToTF(pose.cast<double>(),transform);
     nd.br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map_frame", "gripper_frame"));
 
     
-    nd.map->resetMap(); 
-    nd.map->drawValidConfigsSmall(); 
+    //nd.map->resetMap(); 
+    //nd.map->drawValidConfigsSmall(); 
     nd.publishMap();
     ros::spinOnce();
 

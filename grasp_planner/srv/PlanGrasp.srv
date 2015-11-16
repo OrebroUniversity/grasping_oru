@@ -4,9 +4,7 @@ geometry_msgs/Pose objectPose
 float32 object_radius
 float32 object_height
 ---
-float32 minD
-float32 maxD
-float32 minA
-float32 maxA
-float32 minH
-float32 maxH
+string frame_id
+hqp_controllers_msgs/TaskGeometry[] constraints
+float32 volume
+float32 time

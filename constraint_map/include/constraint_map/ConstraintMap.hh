@@ -6,6 +6,19 @@
 #include <sys/time.h>
 #include <cstdio>
 
+class PlaneConstraint {
+    public:
+	Eigen::Vector3f a;
+	float b;
+	PlaneConstraint() {
+	    a.setZero();
+	    b = 0;
+	}
+	inline bool operator()(Eigen::Vector3f& x) {
+	    return (a.dot(x) - b > 0);
+	}
+};
+
 class BoxConstraint {
     public:
 	Eigen::Matrix<float,6,3> A;
@@ -57,8 +70,14 @@ class CylinderConstraint {
     public:
 	Eigen::Matrix<float,2,3> A;
 	Eigen::Matrix<float,2,1> b;
-	float radius_;
+	float radius_, height_;
 	Eigen::Affine3f pose;
+	CylinderConstraint() {
+	    A.setZero();
+	    b.setZero();
+	    radius_ = 0;
+	    height_ = 0;
+	}
 	CylinderConstraint(Eigen::Affine3f &pose_, float radius, float height) {
 	    calculateConstraints(pose_,radius,height);
 	}
@@ -70,7 +89,12 @@ class CylinderConstraint {
 	    b(0) = tr.dot(A.block<1,3>(0,0));
 	    b(1) = tr.dot(A.block<1,3>(1,0))-height;
 	    radius_ = radius;
+	    height_ = height;
 	}
+	float getHeight() {
+	    return height_;
+	    //return pose.translation().dot(A.block<1,3>(1,0)) - b(1);
+	} 
 	inline bool operator()(Eigen::Vector3f &x) {
 	    Eigen::Matrix<float,2,1> bp = A*x-b;
 	    if(bp(0)<0) return false;
@@ -123,6 +147,28 @@ class HalfCylinderConstraint {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+class SphereConstraint {
+    public:
+	Eigen::Vector3f center;
+	float radius;
+	SphereConstraint() {};
+	SphereConstraint(Eigen::Vector3f &c, float r) {
+	    center=c;
+	    radius=r;
+	}
+	inline bool operator()(Eigen::Vector3f &x) {
+	    return (x-center).norm()<=radius;
+	}
+};
+
+class GripperPoseConstraint {
+    public:
+	bool isSphere;
+	CylinderConstraint inner_cylinder, outer_cylinder;
+	SphereConstraint inner_sphere, outer_sphere;
+	PlaneConstraint upper_plane, lower_plane, left_bound_plane, right_bound_plane;
+	float cspace_volume, debug_time;
+};
 
 class GripperModel {
     public:
@@ -198,21 +244,24 @@ class GripperConfiguration {
     ///vector pointing from the gripper to the center of the target
     //Eigen::Vector3f approach_direction;
     public:
-	GripperConfiguration() {};
+	GripperConfiguration() {isValid = false;};
 	GripperConfiguration(Eigen::Affine3f &pose_, GripperModel *model_) {
 	    pose = pose_;
 	    min_oa = 0; 
 	    max_oa = M_PI; 
 	    model = model_;
+	    isValid = true;
 	};
 
 	GripperModel *model;
 	Eigen::Affine3f pose, psm;
-	Eigen::Vector3f ori;
+	//Eigen::Vector3f ori;
 	//opening angle of the gripper
 	float min_oa, max_oa;
 	BoxConstraint palm;
 	HalfCylinderConstraint fingerSweep;
+
+	bool isValid;
 
 	void calculateConstraints() {
 	    
@@ -223,20 +272,17 @@ class GripperConfiguration {
 	    ps = pose*model->palm2fingers;
 	    fingerSweep.calculateConstraints(ps,model->finger_size(1),model->finger_size(2),0);
 	    psm = ps;
-	    ori = (pose*model->palm2fingers).rotation()*Eigen::Vector3f::UnitY();
-	    ori(2) = 0;
 	}
 
 	void updateMinAngle (Eigen::Vector3f &x) {
-	    Eigen::Vector3f xt = x - (psm).translation();
-	    xt(2) = 0; 
-	    float mm = 2*acos(xt.dot(ori) / (xt.norm()*ori.norm()));
+	    Eigen::Vector3f xt = psm.inverse()*x;
+	    float mm = M_PI - 2*atan2f(xt(1),xt(0));
 	    if(mm > min_oa) min_oa = mm;
 	}
 	void updateMaxAngle (Eigen::Vector3f &x) {
-	    Eigen::Vector3f xt = x - (psm).translation();
+	    Eigen::Vector3f xt = psm.inverse()*x;
 	    xt(2) = 0; 
-	    float mm = 2*acos(xt.dot(ori) / (xt.norm()*ori.norm()));
+	    float mm = M_PI - 2*atan2f(xt(1),xt(0));
 	    //now we need to remove a slice for the gripper thickness
 	    float gt = acos(model->finger_size(0) / xt.norm());
 	    mm = mm - gt;
@@ -253,7 +299,7 @@ struct ConfigurationList {
 	std::vector<int> config_ids;
 };
 
-#define _FILE_VERSION_ "#F V0.1"
+#define _FILE_VERSION_ "#F V0.2"
 
 class ConstraintMap : public SimpleOccMap {
 
@@ -273,8 +319,10 @@ class ConstraintMap : public SimpleOccMap {
 	GripperModel *model;
 	SimpleOccMap *config_sample_grid;
 	bool hasGripper;
+	bool isSphereGrid;
 
-	int n_v,n_o,n_d;	
+	int n_v,n_o,n_d;
+	float min_z, max_z, min_dist, max_dist;	
 	std::vector<GripperConfiguration*> valid_configs;
 	ConfigurationList *** config_grid;
 
@@ -287,7 +335,7 @@ class ConstraintMap : public SimpleOccMap {
 	CellIdxCube cube;
 
     public:
-	ConstraintMap():SimpleOccMap() { hasGripper = false; config_sample_grid = NULL;};
+	ConstraintMap():SimpleOccMap() { hasGripper = false; config_sample_grid = NULL; isSphereGrid=false; };
 	ConstraintMap(float _cen_x, float _cen_y, float _cen_z, 
 		float _resolution, int _size_x, int _size_y, int _size_z):SimpleOccMap(_cen_x,_cen_y,_cen_z,_resolution,_size_x,_size_y,_size_z) { 
 
@@ -305,6 +353,7 @@ class ConstraintMap : public SimpleOccMap {
 	    palm2fingers.translation() = Eigen::Vector3f(0.0,0.1,0);
 	    model = new GripperModel(finger_size,palm_size,palm2left,palm2right,palm2fingers);
 	    hasGripper = true; 
+	    isSphereGrid=false; 
 	    initializeConfigs();
 	    config_sample_grid = NULL;
 	} ;
@@ -357,14 +406,22 @@ class ConstraintMap : public SimpleOccMap {
 
 	void drawValidConfigs();
 	void drawValidConfigsSmall();
-	
+	void generateOpeningAngleDump(std::string &fname);
+
+	//returns a colored point cloud of configs. red are invalid, orange valid, green valid and selected
+	void getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs);
+
 	void sampleGripperGrid(int n_vert_slices, int n_orient, int n_dist_samples,
 		float min_z, float max_z, float min_dist, float max_dist);
+	
+	void sampleGripperGridSphere(int n_vert_angles, int n_orient_angles, int n_dist_samples,
+		float min_dist, float max_dist);
 
 	void updateMap();
 	void updateMapAndGripperLookup();
 
-	void computeValidConfigs(SimpleOccMapIfce *object_map, CylinderConstraint &cylinder);
+	//computes the valid gripper configurations when grasping a cylinder inside object map
+	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, GripperPoseConstraint &output);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);
@@ -383,6 +440,8 @@ class ConstraintMap : public SimpleOccMap {
 	    }
 	    return true;
 	}
+	bool getPoseForConfig(CellIndex &config_index, Eigen::Affine3f &pose);
+
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

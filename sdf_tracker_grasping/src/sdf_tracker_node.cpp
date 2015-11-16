@@ -3,6 +3,9 @@
 #include <ros/console.h>
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
+#include <std_srvs/Empty.h>
 
 // uncomment this part to enable an example for how to work with LIDAR data.
 //#define LIDAR
@@ -20,6 +23,7 @@ public:
  void advertiseTopic(const std::string topic = std::string("default"));    
  void rgbCallback(const sensor_msgs::Image::ConstPtr& msg);
  void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
+ void PublishMarker();
 
 private:
   int skip_frames_;
@@ -34,6 +38,9 @@ private:
   ros::Subscriber color_subscriber_;
   ros::Publisher depth_publisher_;
   ros::Publisher color_publisher_;
+  ros::Publisher vis_pub_;
+  ros::ServiceServer save_map_;
+
   
   ros::Timer heartbeat_depth_;
   std::string camera_name_;
@@ -44,6 +51,8 @@ private:
   bool makeTris_;
   bool makeVolume_;
   void publishDepthDenoisedImage(const ros::TimerEvent& event); 
+  bool save_map_callback(std_srvs::Empty::Request  &req,
+	                     std_srvs::Empty::Response &res ) ;
 };
 
 
@@ -140,7 +149,7 @@ SDFTrackerNode::subscribeTopic(const std::string topic)
   {
     if(topic.compare(std::string("default")) == 0)
     {
-      subscribe_topic_depth = camera_name_+"/depth_registered/image";
+      subscribe_topic_depth = camera_name_+"/depth_registered/image_raw";
       subscribe_topic_color = camera_name_+"/rgb/image_color";
     }
 
@@ -177,6 +186,8 @@ SDFTrackerNode::advertiseTopic(const std::string topic)
   }
 
   heartbeat_depth_ = nh_.createTimer(ros::Duration(1.0), &SDFTrackerNode::publishDepthDenoisedImage, this);
+  vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
+  save_map_ = nh_.advertiseService("save_map", &SDFTrackerNode::save_map_callback, this);
 
 }
 void SDFTrackerNode::publishDepthDenoisedImage(const ros::TimerEvent& event) 
@@ -276,6 +287,69 @@ void SDFTrackerNode::depthCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
 }
 
+void SDFTrackerNode::PublishMarker(void)
+{
+    
+    //myTracker_->MakeTriangles();
+    visualization_msgs::MarkerArray marker_array;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "map_frame_name";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "my_namespace";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::TRIANGLE_LIST;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = 0;
+    marker.pose.position.y = 0;
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 1;
+    marker.scale.y = 1;
+    marker.scale.z = 1;
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+
+    for (int i = 0; i < myTracker_->triangles_.size(); ++i)
+    {
+
+	Eigen::Vector3d vcolor;
+	vcolor << fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,0)),
+	       fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,1)),
+	       fabs(myTracker_->SDFGradient(myTracker_->triangles_[i],2,2));
+
+	std_msgs::ColorRGBA color;
+
+	/* normal-mapped color */
+	// vcolor.normalize();
+	// color.r = float(vcolor(0));
+	// color.g = float(vcolor(1));
+	// color.b = float(vcolor(2));
+
+	color.a = 1.0f;
+
+	geometry_msgs::Point vertex;
+	vertex.x = myTracker_->triangles_[i](0);
+	vertex.y = myTracker_->triangles_[i](1);
+	vertex.z = myTracker_->triangles_[i](2);
+	marker.points.push_back(vertex);
+	marker.colors.push_back(color);
+    }
+    marker_array.markers.push_back(marker);
+    vis_pub_.publish( marker_array );
+
+}
+     
+bool SDFTrackerNode::save_map_callback(std_srvs::Empty::Request  &req,
+	                     std_srvs::Empty::Response &res ) {
+      std::cerr<<"saving volume\n";
+      myTracker_->SaveSDF();
+      return true;
+}
 
 
 int main( int argc, char* argv[] )
