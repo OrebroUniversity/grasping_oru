@@ -78,7 +78,6 @@ class GraspPlannerNode {
 	bool use_tf_, grasp_frame_set, publish_pc;
 	double cylinder_tolerance, plane_tolerance;
 
-	//void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
     public:
 	GraspPlannerNode(SDF_Parameters &parameters) {
 

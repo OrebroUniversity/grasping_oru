@@ -1,12 +1,11 @@
 <?xml version="1.0"?>
 <launch>
   <node name="find_beer" pkg="can_finder" type="can_finder_node" output="screen">
-    <param name="floor_height" value="0.0" />
-    <param name="pallet_height" value="0.13" />
+    <param name="pallet_height" value="0.08" />
     <param name="pcloud_topic" value="/camera/depth/points"  />
-    <param name="world_frame" value="citi_truck_base"                  />
+    <param name="world_frame" value="torso_link"                  />
     <param name="min_pts_cluster" value="250"                />
-    <param name="pallet_height_tolerance" value="0.08"       />
+    <param name="pallet_height_tolerance" value="0.02"       />
     <param name="plane_angle_tolerance" value="10*M_PI/180"  />
     <param name="objects_max_height" value="0.3"             />
     <param name="cylinder_evals_thresh" value="0.8"          />
@@ -14,9 +13,12 @@
     <param name="cyl2cyl_m" value="0.04"                      />
     <param name="grow_plane_m" value="0.05"                  />
     <!--param name="max_x" value="1.4"                  /-->
-    <param name="max_x" value="1.6"                  />
-    <param name="max_dist" value="1"                  />
+    <!-- in world frame how far away the cluster can be, not relevant for us now -->
+    <param name="max_x" value="4"                  />
+    <!-- max distance from camera to allow points -->
+    <param name="max_dist" value="1.3"                  />
     <param name="dist_factor" value="0.165"                  />
+    <param name="cpoint_zheight" value="0.16"                  />
   </node>
 
 </launch>
