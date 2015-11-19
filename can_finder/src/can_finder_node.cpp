@@ -165,7 +165,7 @@ class CanFinderNode {
 	    // Mandatory
 	    seg.setModelType (pcl::SACMODEL_PLANE);
 	    seg.setMethodType (pcl::SAC_RANSAC);
-	    seg.setDistanceThreshold (0.01); //threshold on distance to plane
+	    seg.setDistanceThreshold (0.02); //threshold on distance to plane
 
 	    bool foundPalletPlane = false;
 
@@ -340,7 +340,7 @@ class CanFinderNode {
 #ifdef VANILLA_CANS
 		std::vector<pcl::PointIndices> cluster_indices;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-		ec.setClusterTolerance (0.02); // 2cm
+		ec.setClusterTolerance (0.01); // 2cm
 		ec.setMinClusterSize (min_number_pts);
 		ec.setMaxClusterSize (25000);
 		ec.setSearchMethod (tree);

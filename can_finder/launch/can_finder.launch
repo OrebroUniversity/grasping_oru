@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <launch>
   <node name="find_beer" pkg="can_finder" type="can_finder_node" output="screen">
-    <param name="pallet_height" value="0.08" />
+    <param name="pallet_height" value="0.96" />
     <param name="pcloud_topic" value="/camera/depth/points"  />
-    <param name="world_frame" value="torso_link"                  />
+    <param name="world_frame" value="world"                  />
     <param name="min_pts_cluster" value="250"                />
-    <param name="pallet_height_tolerance" value="0.02"       />
+    <param name="pallet_height_tolerance" value="0.03"       />
     <param name="plane_angle_tolerance" value="10*M_PI/180"  />
     <param name="objects_max_height" value="0.3"             />
     <param name="cylinder_evals_thresh" value="0.8"          />
@@ -17,8 +17,8 @@
     <param name="max_x" value="4"                  />
     <!-- max distance from camera to allow points -->
     <param name="max_dist" value="1.3"                  />
-    <param name="dist_factor" value="0.165"                  />
-    <param name="cpoint_zheight" value="0.16"                  />
+    <param name="dist_factor" value="0.175"                  />
+    <param name="cpoint_zheight" value="1.07"                  />
   </node>
 
 </launch>
