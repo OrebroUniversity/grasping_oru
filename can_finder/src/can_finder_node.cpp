@@ -44,7 +44,6 @@ class CanFinderNode {
 	std::string pcloud_frame_name;
 	std::string world_frame;
 	std::string palm_frame;
-	double expected_floor_height;
 	double expected_pallet_height;
 	double height_cutoff;
 	double eps;
@@ -52,6 +51,7 @@ class CanFinderNode {
 	double eval_thresh;
 	double max_dist;
 	double max_x;
+	double cpoint_zheight;
 	int min_number_pts;
 	//boost::mutex::cloud_mutex;
 	double grow_cylinder_m, inner2outer, grow_plane_m;
@@ -66,7 +66,6 @@ class CanFinderNode {
 	    nh_.param<std::string>("pcloud_topic", pcloud_topic,"/camera/depth/points");
 	    nh_.param<std::string>("world_frame", world_frame,"world");
 	    nh_.param<std::string>("palm_frame", palm_frame,"velvet_fingers_palm");
-	    nh_.param("floor_height", expected_floor_height  ,0.0);
 	    nh_.param("pallet_height", expected_pallet_height ,0.1);
 	    nh_.param("max_dist", max_dist ,2.0);
 	    nh_.param("max_x", max_x ,1.3);
@@ -80,6 +79,7 @@ class CanFinderNode {
 	    nh_.param("grow_cylinder_m",grow_cylinder_m,0.25);
 	    nh_.param("cyl2cyl_m",inner2outer,0.2);
 	    nh_.param("grow_plane_m",grow_plane_m,0.05);
+	    nh_.param("cpoint_zheight",cpoint_zheight,0.18);
 	    
 	    pcloud_frame_name = "";
 
@@ -165,7 +165,7 @@ class CanFinderNode {
 	    // Mandatory
 	    seg.setModelType (pcl::SACMODEL_PLANE);
 	    seg.setMethodType (pcl::SAC_RANSAC);
-	    seg.setDistanceThreshold (0.01); //threshold on distance to plane
+	    seg.setDistanceThreshold (0.02); //threshold on distance to plane
 
 	    bool foundPalletPlane = false;
 
@@ -340,7 +340,7 @@ class CanFinderNode {
 #ifdef VANILLA_CANS
 		std::vector<pcl::PointIndices> cluster_indices;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-		ec.setClusterTolerance (0.02); // 2cm
+		ec.setClusterTolerance (0.01); // 2cm
 		ec.setMinClusterSize (min_number_pts);
 		ec.setMaxClusterSize (25000);
 		ec.setSearchMethod (tree);
@@ -536,7 +536,7 @@ class CanFinderNode {
 		    }
 		    mean /= (jt->indices.size ());
 	            std::cerr<<"Gripper is at "<<world2palm.translation().transpose()<<std::endl;
-		    closest_point(2) = 0.26;
+		    closest_point(2) = cpoint_zheight;
 		    pt.x = closest_point(0);
 		    pt.y = closest_point(1);
 		    pt.z = closest_point(2);
@@ -546,7 +546,7 @@ class CanFinderNode {
 		    Eigen::Vector3d approach = mean - world2palm.translation();
 		    approach.normalize();
 		    closest_point = closest_point - dist_factor*approach; 
-		    closest_point(2) = 0.26;
+		    closest_point(2) = cpoint_zheight;
 		    pt.x = closest_point(0);
 		    pt.y = closest_point(1);
 		    pt.z = closest_point(2);
