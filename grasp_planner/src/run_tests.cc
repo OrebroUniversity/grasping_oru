@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "run_tests");
 
-    bool do_debug = false;
+    bool do_debug = true;
 
     ros::NodeHandle n;
     ros::ServiceClient empty_client = n.serviceClient<std_srvs::Empty>("/gplanner/publish_map");
@@ -37,8 +37,8 @@ int main(int argc, char **argv)
     plan.request.header.frame_id = "roi_frame";
     plan.request.objectPose.orientation.w = 1;
 
-    std::ifstream ifs ("test_10mm.txt", std::ifstream::in);
-    std::ofstream ofs ("res_10mm.m", std::ofstream::out);
+    std::ifstream ifs ("test_05mm.txt", std::ifstream::in);
+    std::ofstream ofs ("res_05mm.m", std::ofstream::out);
     int i=1;
     while(ifs.good() && !ifs.eof()) {
 	std::string vol_str;
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	}
 
 	//teddy and pig
-	constraint_path.request.name = path_prefix+"sphere_10mm.cons";
+	constraint_path.request.name = path_prefix+"sphere_05mm.cons";
 	if (!constraint_client.call(constraint_path))
 	{
 	    ROS_ERROR("Failed to call service load_constraints");
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 	volumes.push_back(plan.response.volume);
 
 	//cup, bottle, box
-	constraint_path.request.name = path_prefix+"cylinder_10mm.cons";
+	constraint_path.request.name = path_prefix+"cylinder_05mm.cons";
 	if (!constraint_client.call(constraint_path))
 	{
 	    ROS_ERROR("Failed to call service load_constraints");

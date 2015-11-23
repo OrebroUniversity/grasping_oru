@@ -113,6 +113,8 @@ add_definitions(${EIGEN_DEFINITIONS})
 
 ## Declare a cpp executable
 add_executable(can_finder_node src/can_finder_node.cpp)
+## Declare a cpp executable
+add_executable(can_postprocess_node src/can_postprocess.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -120,6 +122,9 @@ add_executable(can_finder_node src/can_finder_node.cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(can_finder_node
+   ${catkin_LIBRARIES}
+ )
+ target_link_libraries(can_postprocess_node
    ${catkin_LIBRARIES}
  )
 
