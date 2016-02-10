@@ -45,6 +45,7 @@ class GraspPlannerNode {
 	SDFTracker* myTracker_;
 	SDF_Parameters myParameters_;
 	ConstraintMap *gripper_map;
+	Eigen::Affine3d cam2map, prev_cam2map;
 	
 	//ros::Publisher gripper_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
@@ -267,13 +268,12 @@ class GraspPlannerNode {
 	{
 	    tf::StampedTransform camera_frame_to_map;
 	    try {
-		tl.waitForTransform(object_map_frame_name, camera_link_, ros::Time(0), ros::Duration(1.0) );
-		tl.lookupTransform(object_map_frame_name,camera_link_, ros::Time(0), camera_frame_to_map);
+		tl.waitForTransform(object_map_frame_name, camera_link_, msg->header.stamp, ros::Duration(0.15) );
+		tl.lookupTransform(object_map_frame_name,camera_link_, msg->header.stamp, camera_frame_to_map);
 	    } catch (tf::TransformException ex) {
 		ROS_ERROR("%s",ex.what());
 		return;
 	    }
-	    Eigen::Affine3d cam2map;
 	    tf::transformTFToEigen(camera_frame_to_map,cam2map);
 	    
 	    cv_bridge::CvImageConstPtr bridge;
@@ -287,7 +287,21 @@ class GraspPlannerNode {
 		return;
 	    }
 
-	    if(frame_counter_ < 3){++frame_counter_; return;}
+	    if(frame_counter_ < 3) {
+		++frame_counter_; 
+		prev_cam2map = cam2map;
+		return;
+	    }
+
+	    Eigen::Affine3d Tmotion;
+	    Tmotion = prev_cam2map.inverse()*cam2map;
+	    Eigen::AngleAxisd ax(Tmotion.rotation());
+	    if(Tmotion.translation().norm() <0.01 && ax.angle()< 0.01) {
+		//ROS_INFO("skipping frame %lf, %lf",Tmotion.translation().norm(),ax.angle());
+		return;
+	    } else {
+		prev_cam2map = cam2map;
+	    }
 	    
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
