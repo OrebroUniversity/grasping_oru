@@ -8,3 +8,4 @@ string frame_id
 hqp_controllers_msgs/TaskGeometry[] constraints
 float32 volume
 float32 time
+bool success

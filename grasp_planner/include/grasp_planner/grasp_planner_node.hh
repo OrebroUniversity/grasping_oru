@@ -361,7 +361,7 @@ class GraspPlannerNode {
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
 	    //obj2obj_fr = *obj2obj_fr;
-	    obj2map = obj2obj_fr*obj_fr2map_fr*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
+	    obj2map = obj2obj_fr*obj_fr2map_fr;//*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
 	    obj2map_f = obj2map.cast<float>(); //.setIdentity(); //
 	    tf::transformEigenToTF(obj2map, gripper2map);
 	    grasp_frame_set=true;
@@ -454,6 +454,7 @@ class GraspPlannerNode {
 
 	    }
 	    res.frame_id = req.header.frame_id;
+	    res.success = true;
 
 	    //Display functions
 	    pcl::PointCloud<pcl::PointXYZRGB> pc;
@@ -492,6 +493,8 @@ class GraspPlannerNode {
 	    }
 	    ROS_INFO("Publishing %lu markers",marker_array.markers.size());
 	    constraint_pub_.publish(marker_array);
+
+	    return true;
 	}
 
 	void addPlaneMarker(visualization_msgs::MarkerArray& markers, Eigen::Vector3d n, double d, std::string frame_, 
