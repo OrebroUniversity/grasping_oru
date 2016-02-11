@@ -347,7 +347,7 @@ class GraspPlannerNode {
 		grasp_planner::PlanGrasp::Response &res ) {
 
 	    ROS_INFO("Got request");
-
+	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
 	    tf::StampedTransform object_frame_to_map;
 	    try {
 		tl.waitForTransform(object_map_frame_name, req.header.frame_id, ros::Time(0), ros::Duration(1.0) );
@@ -361,7 +361,7 @@ class GraspPlannerNode {
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
 	    //obj2obj_fr = *obj2obj_fr;
-	    obj2map = obj2obj_fr*obj_fr2map_fr;//*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
+	    obj2map = obj_fr2map_fr*obj2obj_fr; //*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
 	    obj2map_f = obj2map.cast<float>(); //.setIdentity(); //
 	    tf::transformEigenToTF(obj2map, gripper2map);
 	    grasp_frame_set=true;
