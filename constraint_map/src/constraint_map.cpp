@@ -466,6 +466,34 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") size: "<<xlen<<","<<ylen
 	     <<" volume "<<volume<<" cvolume "<<cube.volume()<<std::endl;
 
+    output.max_oa = M_PI;
+    output.min_oa = 0;
+
+    CellIndex id2;
+    int v=0;
+    int dctr=0;
+    for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
+	for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
+	    for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) {
+		//id2.i = (id.i + map_size)%map_size;
+		//id2.j = (id.j + map_size)%map_size;
+		//id2.k = (id.k + map_size)%map_size;
+		v = id.i*n_o*n_d + id.j*n_d + id.k;
+		if(valid_configs[v] !=NULL) {
+		    if(valid_configs[v]->isValid) {
+			//std::cout<<v<<" "<<id.i<<" "<<id.j<<" "<<id.k<<" "<<valid_configs[v]->min_oa<<" "<<valid_configs[v]->max_oa<<std::endl;
+			output.min_oa = valid_configs[v]->min_oa > output.min_oa ? valid_configs[v]->min_oa : output.min_oa;
+			output.max_oa = valid_configs[v]->max_oa < output.max_oa ? valid_configs[v]->max_oa : output.max_oa;
+		    }
+		}
+	    
+		dctr++;
+	    }
+	}
+    }
+    output.max_oa = fabsf((M_PI-output.max_oa)/2);
+    output.min_oa = (M_PI-output.min_oa)/2;
+    std::cout<<"min "<<output.min_oa<<" max "<<output.max_oa<<" checked "<<dctr<<std::endl;
     output.debug_time = t2-t1;
     output.cspace_volume = cube.volume();
 

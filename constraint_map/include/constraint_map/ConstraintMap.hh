@@ -168,6 +168,7 @@ class GripperPoseConstraint {
 	SphereConstraint inner_sphere, outer_sphere;
 	PlaneConstraint upper_plane, lower_plane, left_bound_plane, right_bound_plane;
 	float cspace_volume, debug_time;
+	float min_oa, max_oa;
 };
 
 class GripperModel {

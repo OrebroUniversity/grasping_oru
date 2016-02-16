@@ -6,6 +6,8 @@ float32 object_height
 ---
 string frame_id
 hqp_controllers_msgs/TaskGeometry[] constraints
+float32 min_oa
+float32 max_oa
 float32 volume
 float32 time
 bool success

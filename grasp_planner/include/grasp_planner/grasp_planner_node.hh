@@ -359,6 +359,7 @@ class GraspPlannerNode {
 	bool plan_grasp_callback(grasp_planner::PlanGrasp::Request  &req,
 		grasp_planner::PlanGrasp::Response &res ) {
 
+	    //FIXME: this slows us down, but it helps with debugging/visualization
 	    this->publishPC();
 	    ROS_INFO("Got request");
 	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
@@ -390,7 +391,9 @@ class GraspPlannerNode {
 	    ROS_INFO("[PLAN GRASP] Got lock");
 	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, out);
 	    tracker_m.unlock();
-	   
+	  
+	    res.min_oa = out.min_oa;
+	    res.max_oa = out.max_oa; 
 	    res.volume=out.cspace_volume;
 	    res.time= out.debug_time;
 
