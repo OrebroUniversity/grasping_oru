@@ -306,9 +306,11 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
+		ROS_INFO("GPLAN: Fusing frame");
 		myTracker_->SetCurrentTransformation(cam2map.matrix());
 		myTracker_->UpdateDepth(bridge->image);
 		myTracker_->FuseDepth();
+		ROS_INFO("DONE");
 	    }
 	    else 
 	    {

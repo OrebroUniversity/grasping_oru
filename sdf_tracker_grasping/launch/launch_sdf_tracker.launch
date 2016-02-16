@@ -10,11 +10,11 @@
     <param name="PositiveTruncationDistance" value= "0.04" />
     <param name="NegativeTruncationDistance" value= "-0.02" />
     <param name="RobustStatisticCoefficient" value= "0.02" />
-    <param name="OutputVolume" value= "true" />
+    <param name="OutputVolume" value= "false" />
     <param name="InteractiveMode" value= "true" />
-    <param name="depth_registered" value= "true"/>
+    <param name="depth_registered" value= "false"/>
     <param name="MaximumRaycastSteps" value= "360" /> 
-    <param name="OutputTriangles" value= "true" />
+    <param name="OutputTriangles" value= "false" />
 
 <!-- full list of parameters and their default values -->
 <!--   
