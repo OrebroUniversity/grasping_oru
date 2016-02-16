@@ -57,6 +57,7 @@ class GraspPlannerNode {
 
 	ros::ServiceServer plan_grasp_serrver_;
 	ros::ServiceServer publish_map_server_;
+	ros::ServiceServer save_map_server_;
 	ros::ServiceServer load_volume_server_;
 	ros::ServiceServer load_constraints_server_;
 
@@ -150,6 +151,7 @@ class GraspPlannerNode {
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
+	    publish_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
 	    load_volume_server_ = nh_.advertiseService("load_volume", &GraspPlannerNode::load_volume_callback, this);
 	    load_constraints_server_ = nh_.advertiseService("load_constraints", &GraspPlannerNode::load_constraints_callback, this);
 	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
@@ -338,6 +340,15 @@ class GraspPlannerNode {
 	    return true;
 	}
 	
+	bool save_map_callback(std_srvs::Empty::Request  &req,
+		std_srvs::Empty::Response &res ) {
+	    
+	    tracker_m.lock();
+	    myTracker_->SaveSDF();
+	    tracker_m.unlock();
+	    return true;
+	}
+	
 	bool publish_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
 	    
@@ -348,6 +359,7 @@ class GraspPlannerNode {
 	bool plan_grasp_callback(grasp_planner::PlanGrasp::Request  &req,
 		grasp_planner::PlanGrasp::Response &res ) {
 
+	    this->publishPC();
 	    ROS_INFO("Got request");
 	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
 	    tf::StampedTransform object_frame_to_map;
@@ -396,19 +408,19 @@ class GraspPlannerNode {
 	    normal = grasp2global.rotation()*out.lower_plane.a;
 	    d = out.lower_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(normal(0));
-	    task.g_data.push_back(normal(1));
-	    task.g_data.push_back(normal(2));
-	    task.g_data.push_back(d+plane_tolerance);
+	    task.g_data.push_back(-normal(0));
+	    task.g_data.push_back(-normal(1));
+	    task.g_data.push_back(-normal(2));
+	    task.g_data.push_back(-d-plane_tolerance);
 	    res.constraints.push_back(task);
 	    //top 
 	    normal = grasp2global.rotation()*out.upper_plane.a;
 	    d = out.upper_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(-normal(0));
-	    task.g_data.push_back(-normal(1));
-	    task.g_data.push_back(-normal(2));
-	    task.g_data.push_back(-d-plane_tolerance);
+	    task.g_data.push_back(normal(0));
+	    task.g_data.push_back(normal(1));
+	    task.g_data.push_back(normal(2));
+	    task.g_data.push_back(d+plane_tolerance);
 	    res.constraints.push_back(task);
 	    //left
 	    normal = grasp2global.rotation()*out.left_bound_plane.a;
@@ -423,42 +435,12 @@ class GraspPlannerNode {
 	    normal = grasp2global.rotation()*out.right_bound_plane.a;
 	    d = out.right_bound_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(-normal(0));
-	    task.g_data.push_back(-normal(1));
-	    task.g_data.push_back(-normal(2));
-	    task.g_data.push_back(-d-plane_tolerance);
+	    task.g_data.push_back(normal(0));
+	    task.g_data.push_back(normal(1));
+	    task.g_data.push_back(normal(2));
+	    task.g_data.push_back(d+plane_tolerance);
 	    res.constraints.push_back(task);
 	    
-#if 0	
-	    //bottom 
-	    task.g_data.clear();	    
-	    task.g_data.push_back(out.lower_plane.a(0));
-	    task.g_data.push_back(out.lower_plane.a(1));
-	    task.g_data.push_back(out.lower_plane.a(2));
-	    task.g_data.push_back(out.lower_plane.b+plane_tolerance);
-	    res.constraints.push_back(task);
-	    //top 
-	    task.g_data.clear();	    
-	    task.g_data.push_back(-out.upper_plane.a(0));
-	    task.g_data.push_back(-out.upper_plane.a(1));
-	    task.g_data.push_back(-out.upper_plane.a(2));
-	    task.g_data.push_back(-out.upper_plane.b-plane_tolerance);
-	    res.constraints.push_back(task);
-	    //left 
-	    task.g_data.clear();	    
-	    task.g_data.push_back(out.left_bound_plane.a(0));
-	    task.g_data.push_back(out.left_bound_plane.a(1));
-	    task.g_data.push_back(out.left_bound_plane.a(2));
-	    task.g_data.push_back(out.left_bound_plane.b+plane_tolerance);
-	    res.constraints.push_back(task);
-	    //right 
-	    task.g_data.clear();	    
-	    task.g_data.push_back(-out.right_bound_plane.a(0));
-	    task.g_data.push_back(-out.right_bound_plane.a(1));
-	    task.g_data.push_back(-out.right_bound_plane.a(2));
-	    task.g_data.push_back(-out.right_bound_plane.b-plane_tolerance);
-	    res.constraints.push_back(task);
-#endif
 
 	    Eigen::Vector3f zaxis = grasp2global.rotation()*out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
 	    if(!out.isSphere) {

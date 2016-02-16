@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-<param name="use_sim_time" value="true"/>
+<!--param name="use_sim_time" value="true"/-->
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen">
     
     <!--param name="gripper_file" value="$(find grasp_planner)/cfg/full.cons"/-->
@@ -9,7 +9,7 @@
     <param name="use_tf" value="true"/>
     <param name="camera_link" value="camera_depth_optical_frame"/>
     
-    <param name="depth_topic_name" value="/camera/depth/image_raw"/>
+    <param name="depth_topic_name" value="/camera/depth/image"/>
 
     <!-- SDF related parameters -->
     <param name="GridSizeX" value= "200"/>
@@ -18,7 +18,8 @@
     <param name="PositiveTruncationDistance" value= "0.08" />
     <param name="NegativeTruncationDistance" value= "-0.04" />
     <param name="RobustStatisticCoefficient" value= "0.02" />
-    <param name="OutputVolume" value= "false" />
+    <param name="OutputVolume" value= "true" />
+    <!--param name="LoadVolume" value= "/home/tsv/.ros/sdf_volume.vti" /-->
     <!--param name="LoadVolume" value= "/home/tsv/Dropbox/shelf_1_10mm.vti" /-->
     <!--param name="LoadVolume" value= "$(find grasp_planner)/cfg/test.vti" /-->
     <param name="InteractiveMode" value= "false" />
@@ -67,7 +68,7 @@
 -->
   </node>
   <!--node name="retimer" pkg="grasp_planner" type="tf_retime" output="screen"/-->
-  <node name="pc_pub" pkg="grasp_planner" type="pointcloud_publisher" output="screen"/>
+  <!--node name="pc_pub" pkg="grasp_planner" type="pointcloud_publisher" output="screen"/-->
   <node pkg="tf" type="static_transform_publisher" name="roipub"
          args="0 0 0.5 -0.707 0 0 0.707 lwr_base_link sdf_map_frame 100" />
   <!--node name="viz" pkg="rviz" type="rviz" output="screen"/-->
