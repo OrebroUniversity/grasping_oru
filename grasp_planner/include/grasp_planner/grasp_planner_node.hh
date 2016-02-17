@@ -137,7 +137,7 @@ class GraspPlannerNode {
 	    nh_.getParam("CenterPointX", myParameters_.cx);
 	    nh_.getParam("CenterPointY", myParameters_.cy);
 
-	    nh_.param<double>("orientation_tolerance", orientation_tolerance,0.5); //RADIAN
+	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
 	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
 	    cylinder_tolerance = 0.005;
 	    plane_tolerance = 0.005;
@@ -305,12 +305,12 @@ class GraspPlannerNode {
 	    Eigen::Affine3d Tmotion;
 	    Tmotion = prev_cam2map.inverse()*cam2map;
 	    Eigen::AngleAxisd ax(Tmotion.rotation());
-	    if(Tmotion.translation().norm() <0.01 && ax.angle()< 0.01) {
+	    /*if(Tmotion.translation().norm() <0.01 && ax.angle()< 0.01) {
 		//ROS_INFO("skipping frame %lf, %lf",Tmotion.translation().norm(),ax.angle());
 		return;
 	    } else {
 		prev_cam2map = cam2map;
-	    }
+	    }*/
 	    
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
@@ -319,7 +319,7 @@ class GraspPlannerNode {
 		myTracker_->SetCurrentTransformation(cam2map.matrix());
 		myTracker_->UpdateDepth(bridge->image);
 		myTracker_->FuseDepth();
-		ROS_INFO("DONE");
+	//	ROS_INFO("DONE");
 	    }
 	    else 
 	    {
@@ -376,7 +376,7 @@ class GraspPlannerNode {
 		grasp_planner::PlanGrasp::Response &res ) {
 
 	    //FIXME: this slows us down, but it helps with debugging/visualization
-	    this->publishPC();
+	    //this->publishPC();
 	    ROS_INFO("Got request");
 	    
 	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
