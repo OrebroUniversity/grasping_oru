@@ -359,24 +359,34 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
     }
 }
 	
-void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, GripperPoseConstraint &output) {
+void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, 
+		    Eigen::Affine3f &prototype_orientation, double orientation_tolerance, GripperPoseConstraint &output) {
 
     CylinderConstraint cylinder(cpose,cradius,cheight);
     Eigen::Vector3f tmp = cpose.translation();
     SphereConstraint sphere(tmp,cradius);
     double t1 = getDoubleTime();
+    Eigen::AngleAxisf aa;
+    float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2)+M_PI/2;
     //reset grid to make all configs valid
     for(int i=0; i<valid_configs.size(); ++i) {
 	valid_configs[i]->isValid = true;
 	valid_configs[i]->min_oa = 0; 
 	valid_configs[i]->max_oa = M_PI;
+	//EXCEPT the ones with a wrong orientation...
+	float cyaw = valid_configs[i]->pose.rotation().eulerAngles(0,1,2)(2);
+	float diff = fabs(gyaw-cyaw);
+	if(diff > 2*M_PI) diff -= 2*M_PI; //one period over  
+	//if(diff > M_PI) diff -= M_PI;	  //treat orientations equally in both directions
+	valid_configs[i]->isValid = ( diff <= orientation_tolerance);
     }
-
+    
+    CellIndex id;
+    
     std::vector<CellIndex> overlap;
     this->getIntersectionWithPose(object_map,cylinder.pose,overlap);
     
     Eigen::Vector3f x, x_map;
-    CellIndex id;
     std::cerr<<"overlap size is "<<overlap.size()<<std::endl;
     for(int i=0; i<overlap.size(); ++i) {
 	id = overlap[i];
@@ -420,7 +430,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 	    }
 	}
     }
-    
+
     //std::cerr<<n_v<<" "<<n_o<<" "<<n_d<<std::endl;
     if(config_sample_grid != NULL) {
 	delete config_sample_grid;

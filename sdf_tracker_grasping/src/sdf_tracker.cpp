@@ -78,6 +78,33 @@ SDFTracker::~SDFTracker()
   
 };
 
+void SDFTracker::ResetSDF()
+{
+  
+  for (int i = 0; i < parameters_.image_height; ++i)
+  {
+    memset(validityMask_[i],0,parameters_.image_width);
+  }   
+
+  for (int x = 0; x < parameters_.XSize; ++x)
+  {
+    for (int y = 0; y < parameters_.YSize; ++y)
+    {
+      for (int z = 0; z < parameters_.ZSize; ++z)
+      {
+        myGrid_[x][y][z*2]=parameters_.Dmax;
+        myGrid_[x][y][z*2+1]=0.0f;
+      }
+    }
+  }
+  quit_ = false;
+  first_frame_ = true;
+  Pose_ << 0.0,0.0,0.0,0.0,0.0,0.0;
+  cumulative_pose_ << 0.0,0.0,0.0,0.0,0.0,0.0;
+  Transformation_=parameters_.pose_offset*Eigen::MatrixXd::Identity(4,4);
+
+}
+
 void SDFTracker::Init(SDF_Parameters &parameters)
 {
   parameters_ = parameters;

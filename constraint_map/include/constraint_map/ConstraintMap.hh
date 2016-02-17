@@ -422,7 +422,8 @@ class ConstraintMap : public SimpleOccMap {
 	void updateMapAndGripperLookup();
 
 	//computes the valid gripper configurations when grasping a cylinder inside object map
-	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, GripperPoseConstraint &output);
+	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, 
+		    Eigen::Affine3f &prototype_orientation, double orientation_tolerance, GripperPoseConstraint &output);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);

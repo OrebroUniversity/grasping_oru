@@ -8,6 +8,7 @@
     <param name="use_tf" value="true"/>
     <param name="camera_link" value="camera_depth_optical_frame"/>
     
+    <param name="orientation_tolerance" value= "0.5" />
     <param name="depth_topic_name" value="/camera/depth/image"/>
 
     <!-- SDF related parameters -->

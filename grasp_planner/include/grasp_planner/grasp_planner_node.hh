@@ -58,6 +58,7 @@ class GraspPlannerNode {
 	ros::ServiceServer plan_grasp_serrver_;
 	ros::ServiceServer publish_map_server_;
 	ros::ServiceServer save_map_server_;
+	ros::ServiceServer clear_map_server_;
 	ros::ServiceServer load_volume_server_;
 	ros::ServiceServer load_constraints_server_;
 
@@ -67,6 +68,7 @@ class GraspPlannerNode {
 
 	std::string gripper_fname;
 	std::string gripper_frame_name;
+	std::string ee_frame_name;
 	std::string object_map_frame_name;
 	std::string gripper_map_topic;
 	std::string object_map_topic;
@@ -78,7 +80,8 @@ class GraspPlannerNode {
 
 	int skip_frames_, frame_counter_;
 	bool use_tf_, grasp_frame_set, publish_pc;
-	double cylinder_tolerance, plane_tolerance;
+	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
+	int MIN_ENVELOPE_VOLUME;
 
     public:
 	GraspPlannerNode(SDF_Parameters &parameters) {
@@ -89,6 +92,7 @@ class GraspPlannerNode {
 
 	    nh_.param<std::string>("gripper_file",gripper_fname,"full.cons");
 	    nh_.param<std::string>("grasp_frame_name",gripper_frame_name,"planned_grasp");
+	    nh_.param<std::string>("ee_frame_name",ee_frame_name,"velvet_fingers_palm");
 	    nh_.param<std::string>("map_frame_name",object_map_frame_name,"map_frame");
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
@@ -133,6 +137,8 @@ class GraspPlannerNode {
 	    nh_.getParam("CenterPointX", myParameters_.cx);
 	    nh_.getParam("CenterPointY", myParameters_.cy);
 
+	    nh_.param<double>("orientation_tolerance", orientation_tolerance,0.5); //RADIAN
+	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
 	    cylinder_tolerance = 0.005;
 	    plane_tolerance = 0.005;
 
@@ -151,7 +157,8 @@ class GraspPlannerNode {
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
-	    publish_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
+	    save_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
+	    clear_map_server_ = nh_.advertiseService("clear_map", &GraspPlannerNode::clear_map_callback, this);
 	    load_volume_server_ = nh_.advertiseService("load_volume", &GraspPlannerNode::load_volume_callback, this);
 	    load_constraints_server_ = nh_.advertiseService("load_constraints", &GraspPlannerNode::load_constraints_callback, this);
 	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
@@ -349,6 +356,15 @@ class GraspPlannerNode {
 	    return true;
 	}
 	
+	bool clear_map_callback(std_srvs::Empty::Request  &req,
+		std_srvs::Empty::Response &res ) {
+	    
+	    tracker_m.lock();
+	    myTracker_->ResetSDF();
+	    tracker_m.unlock();
+	    return true;
+	}
+	
 	bool publish_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
 	    
@@ -362,6 +378,7 @@ class GraspPlannerNode {
 	    //FIXME: this slows us down, but it helps with debugging/visualization
 	    this->publishPC();
 	    ROS_INFO("Got request");
+	    
 	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
 	    tf::StampedTransform object_frame_to_map;
 	    try {
@@ -384,12 +401,26 @@ class GraspPlannerNode {
 	    grasp2global = obj2obj_fr.cast<float>();
 
 	    grasp_frame_set=true;
+	    
+	    tf::StampedTransform ee_in_plan_frame;
+	    try {
+		tl.waitForTransform(gripper_frame_name, ee_frame_name, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform( gripper_frame_name, ee_frame_name, ros::Time(0), ee_in_plan_frame);
+	    } catch (tf::TransformException ex) {
+		ROS_ERROR("%s",ex.what());
+		return false;
+	    }
+	    Eigen::Affine3d ee2grasp_d;
+	    Eigen::Affine3f ee2grasp;
+	    tf::transformTFToEigen(ee_in_plan_frame, ee2grasp_d);
+	    ee2grasp = ee2grasp_d.cast<float>();
 
+	    //std::cout<<"EE in grasp frame is at:\n"<<ee2grasp.matrix()<<std::endl;
 	    //CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    GripperPoseConstraint out;
 	    tracker_m.lock();
 	    ROS_INFO("[PLAN GRASP] Got lock");
-	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, out);
+	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, ee2grasp, orientation_tolerance, out);
 	    tracker_m.unlock();
 	  
 	    res.min_oa = out.min_oa;
@@ -487,7 +518,7 @@ class GraspPlannerNode {
 
 	    }
 	    res.frame_id = req.header.frame_id;
-	    res.success = true;
+	    res.success = res.volume > MIN_ENVELOPE_VOLUME;
 
 	    //Display functions
 	    pcl::PointCloud<pcl::PointXYZRGB> pc;

@@ -9,6 +9,7 @@
     <param name="camera_link" value="camera_depth_optical_frame"/>
     
     <param name="depth_topic_name" value="/camera/depth/image"/>
+    <param name="orientation_tolerance" value= "0.5" />
 
     <!-- SDF related parameters -->
     <param name="GridSizeX" value= "300"/>
