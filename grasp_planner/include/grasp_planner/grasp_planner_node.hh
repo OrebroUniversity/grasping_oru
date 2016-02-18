@@ -139,7 +139,7 @@ class GraspPlannerNode {
 
 	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
 	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
-	    cylinder_tolerance = 0.005;
+	    cylinder_tolerance = 0.035;
 	    plane_tolerance = 0.005;
 
 	    myParameters_.resolution = gripper_map->getResolution();
@@ -498,7 +498,7 @@ class GraspPlannerNode {
 		task.g_data.push_back(zaxis(0));
 		task.g_data.push_back(zaxis(1));
 		task.g_data.push_back(zaxis(2));
-		task.g_data.push_back(out.outer_cylinder.radius_ + cylinder_tolerance);
+		task.g_data.push_back(out.outer_cylinder.radius_ - cylinder_tolerance);
 		res.constraints.push_back(task);
 	    } else {
 		task.g_type = hqp_controllers_msgs::TaskGeometry::SPHERE;
