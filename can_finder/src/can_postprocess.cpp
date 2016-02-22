@@ -14,6 +14,10 @@
 
 #include <sensor_msgs/Image.h>
 #include <fstream>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <Eigen/Core>
 
@@ -24,13 +28,15 @@ class CanPPNode {
 	ros::NodeHandle n_;
 
 	ros::Subscriber pcloud_sub;
+	ros::Subscriber img_sub;
 
 	pcl::PointCloud<pcl::PointXYZRGB> my_cloud;
 	std::string pcloud_topic;
 	std::string pcloud_frame_name;
 	std::string outfile_name;
-	std::string palm_frame;
+	std::string image_topic;
 	std::ofstream outfile;
+	int ctr;
 	Eigen::Affine3d world2palm;
 
     public:
@@ -40,10 +46,13 @@ class CanPPNode {
 	    n_ = ros::NodeHandle();
 	    nh_.param<std::string>("pcloud_topic", pcloud_topic,"result_cloud");
 	    nh_.param<std::string>("out", outfile_name,"volumes.m");
+	    nh_.param<std::string>("image_topic", image_topic,"rgb_image_raw");
 	    
 	    pcloud_sub = n_.subscribe(pcloud_topic, 1, &CanPPNode::cloudCallback, this);
+	    img_sub = n_.subscribe(image_topic, 10, &CanPPNode::imageCallback, this);
 	    outfile.open(outfile_name.c_str(), std::ofstream::out);
-
+	    outfile<<"volumes = [";
+	    ctr = 0;
 
 	}
 	
@@ -63,12 +72,32 @@ class CanPPNode {
 	    }
 	}
 
+	void imageCallback(const sensor_msgs::ImageConstPtr &msg) {
+	    cv_bridge::CvImagePtr cv_ptr;
+	    try
+	    {
+		cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+	    }
+	    catch (cv_bridge::Exception& e)
+	    {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		return;
+	    }
+	    cv::Mat dst;
+	    cv::flip(cv_ptr->image, dst, -1);
+	    
+	    char fname[500];
+	    snprintf(fname,499,"img%03d.jpg", ctr);
+	    cv::imwrite(fname, dst);
+	    ctr++;
+	}
+
 	void cloudCallback(const sensor_msgs::PointCloud2 &msg) {
 	    
 	    pcl::fromROSMsg(msg, my_cloud);
 	    pcl::PointCloud<pcl::PointXYZRGB> points;
 	    
-	    uint8_t r0 = 0, g0 = 255, b0 = 0; // Example: Red color
+	    uint8_t r0 = 0, g0 = 250, b0 = 0; // Example: Red color
 
 	    for(int i=0; i<my_cloud.points.size(); ++i) {
 		uint32_t rgb = *reinterpret_cast<int*>(&my_cloud.points[i].rgb);

@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   tf_conversions
   sensor_msgs
+  cv_bridge
 )
 
 ## System dependencies are found with CMake's conventions
@@ -89,7 +90,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES can_finder
-  CATKIN_DEPENDS hqp_controllers_msgs pcl_ros pcl_conversions tf sensor_msgs tf_conversions eigen_conversions cmake_modules
+  CATKIN_DEPENDS hqp_controllers_msgs pcl_ros pcl_conversions tf sensor_msgs tf_conversions eigen_conversions cmake_modules cv_bridge
 #  DEPENDS system_lib
 )
 
