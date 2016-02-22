@@ -168,6 +168,7 @@ class GripperPoseConstraint {
 	SphereConstraint inner_sphere, outer_sphere;
 	PlaneConstraint upper_plane, lower_plane, left_bound_plane, right_bound_plane;
 	float cspace_volume, debug_time;
+	float min_oa, max_oa;
 };
 
 class GripperModel {
@@ -340,7 +341,7 @@ class ConstraintMap : public SimpleOccMap {
 		float _resolution, int _size_x, int _size_y, int _size_z):SimpleOccMap(_cen_x,_cen_y,_cen_z,_resolution,_size_x,_size_y,_size_z) { 
 
 	    //FIXME: these should be read in somewhere
-	    Eigen::Vector3f finger_size(0.05,0.129,0.025);
+	    Eigen::Vector3f finger_size(0.06,0.129,0.08);
 	    Eigen::Vector3f palm_size(0.18,0.13,0.1);
 	    Eigen::Affine3f palm2left;
 	    palm2left.setIdentity();
@@ -421,7 +422,8 @@ class ConstraintMap : public SimpleOccMap {
 	void updateMapAndGripperLookup();
 
 	//computes the valid gripper configurations when grasping a cylinder inside object map
-	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, GripperPoseConstraint &output);
+	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, 
+		    Eigen::Affine3f &prototype_orientation, double orientation_tolerance, GripperPoseConstraint &output);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);

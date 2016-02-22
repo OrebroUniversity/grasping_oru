@@ -45,6 +45,7 @@ class GraspPlannerNode {
 	SDFTracker* myTracker_;
 	SDF_Parameters myParameters_;
 	ConstraintMap *gripper_map;
+	Eigen::Affine3d cam2map, prev_cam2map;
 	
 	//ros::Publisher gripper_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
@@ -56,6 +57,8 @@ class GraspPlannerNode {
 
 	ros::ServiceServer plan_grasp_serrver_;
 	ros::ServiceServer publish_map_server_;
+	ros::ServiceServer save_map_server_;
+	ros::ServiceServer clear_map_server_;
 	ros::ServiceServer load_volume_server_;
 	ros::ServiceServer load_constraints_server_;
 
@@ -65,6 +68,7 @@ class GraspPlannerNode {
 
 	std::string gripper_fname;
 	std::string gripper_frame_name;
+	std::string ee_frame_name;
 	std::string object_map_frame_name;
 	std::string gripper_map_topic;
 	std::string object_map_topic;
@@ -76,7 +80,8 @@ class GraspPlannerNode {
 
 	int skip_frames_, frame_counter_;
 	bool use_tf_, grasp_frame_set, publish_pc;
-	double cylinder_tolerance, plane_tolerance;
+	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
+	int MIN_ENVELOPE_VOLUME;
 
     public:
 	GraspPlannerNode(SDF_Parameters &parameters) {
@@ -87,6 +92,7 @@ class GraspPlannerNode {
 
 	    nh_.param<std::string>("gripper_file",gripper_fname,"full.cons");
 	    nh_.param<std::string>("grasp_frame_name",gripper_frame_name,"planned_grasp");
+	    nh_.param<std::string>("ee_frame_name",ee_frame_name,"velvet_fingers_palm");
 	    nh_.param<std::string>("map_frame_name",object_map_frame_name,"map_frame");
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
@@ -131,7 +137,9 @@ class GraspPlannerNode {
 	    nh_.getParam("CenterPointX", myParameters_.cx);
 	    nh_.getParam("CenterPointY", myParameters_.cy);
 
-	    cylinder_tolerance = 0.005;
+	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
+	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
+	    cylinder_tolerance = 0.035;
 	    plane_tolerance = 0.005;
 
 	    myParameters_.resolution = gripper_map->getResolution();
@@ -149,6 +157,8 @@ class GraspPlannerNode {
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
+	    save_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
+	    clear_map_server_ = nh_.advertiseService("clear_map", &GraspPlannerNode::clear_map_callback, this);
 	    load_volume_server_ = nh_.advertiseService("load_volume", &GraspPlannerNode::load_volume_callback, this);
 	    load_constraints_server_ = nh_.advertiseService("load_constraints", &GraspPlannerNode::load_constraints_callback, this);
 	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
@@ -267,13 +277,12 @@ class GraspPlannerNode {
 	{
 	    tf::StampedTransform camera_frame_to_map;
 	    try {
-		tl.waitForTransform(object_map_frame_name, camera_link_, ros::Time(0), ros::Duration(1.0) );
-		tl.lookupTransform(object_map_frame_name,camera_link_, ros::Time(0), camera_frame_to_map);
+		tl.waitForTransform(object_map_frame_name, camera_link_, msg->header.stamp, ros::Duration(0.15) );
+		tl.lookupTransform(object_map_frame_name,camera_link_, msg->header.stamp, camera_frame_to_map);
 	    } catch (tf::TransformException ex) {
 		ROS_ERROR("%s",ex.what());
 		return;
 	    }
-	    Eigen::Affine3d cam2map;
 	    tf::transformTFToEigen(camera_frame_to_map,cam2map);
 	    
 	    cv_bridge::CvImageConstPtr bridge;
@@ -287,14 +296,30 @@ class GraspPlannerNode {
 		return;
 	    }
 
-	    if(frame_counter_ < 3){++frame_counter_; return;}
+	    if(frame_counter_ < 3) {
+		++frame_counter_; 
+		prev_cam2map = cam2map;
+		return;
+	    }
+
+	    Eigen::Affine3d Tmotion;
+	    Tmotion = prev_cam2map.inverse()*cam2map;
+	    Eigen::AngleAxisd ax(Tmotion.rotation());
+	    /*if(Tmotion.translation().norm() <0.01 && ax.angle()< 0.01) {
+		//ROS_INFO("skipping frame %lf, %lf",Tmotion.translation().norm(),ax.angle());
+		return;
+	    } else {
+		prev_cam2map = cam2map;
+	    }*/
 	    
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
+		ROS_INFO("GPLAN: Fusing frame");
 		myTracker_->SetCurrentTransformation(cam2map.matrix());
 		myTracker_->UpdateDepth(bridge->image);
 		myTracker_->FuseDepth();
+	//	ROS_INFO("DONE");
 	    }
 	    else 
 	    {
@@ -322,6 +347,24 @@ class GraspPlannerNode {
 	    return true;
 	}
 	
+	bool save_map_callback(std_srvs::Empty::Request  &req,
+		std_srvs::Empty::Response &res ) {
+	    
+	    tracker_m.lock();
+	    myTracker_->SaveSDF();
+	    tracker_m.unlock();
+	    return true;
+	}
+	
+	bool clear_map_callback(std_srvs::Empty::Request  &req,
+		std_srvs::Empty::Response &res ) {
+	    
+	    tracker_m.lock();
+	    myTracker_->ResetSDF();
+	    tracker_m.unlock();
+	    return true;
+	}
+	
 	bool publish_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
 	    
@@ -332,8 +375,11 @@ class GraspPlannerNode {
 	bool plan_grasp_callback(grasp_planner::PlanGrasp::Request  &req,
 		grasp_planner::PlanGrasp::Response &res ) {
 
+	    //FIXME: this slows us down, but it helps with debugging/visualization
+	    //this->publishPC();
 	    ROS_INFO("Got request");
-
+	    
+	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;
 	    tf::StampedTransform object_frame_to_map;
 	    try {
 		tl.waitForTransform(object_map_frame_name, req.header.frame_id, ros::Time(0), ros::Duration(1.0) );
@@ -344,21 +390,41 @@ class GraspPlannerNode {
 	    }
 	    Eigen::Affine3d obj2obj_fr, obj_fr2map_fr, obj2map;
 	    Eigen::Affine3f obj2map_f;
+	    Eigen::Affine3f grasp2global;
+
 	    tf::transformTFToEigen(object_frame_to_map,obj_fr2map_fr);
 	    tf::poseMsgToEigen(req.objectPose,obj2obj_fr);
 	    //obj2obj_fr = *obj2obj_fr;
-	    obj2map = obj2obj_fr*obj_fr2map_fr*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
+	    obj2map = obj_fr2map_fr*obj2obj_fr; //*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ());
 	    obj2map_f = obj2map.cast<float>(); //.setIdentity(); //
 	    tf::transformEigenToTF(obj2map, gripper2map);
-	    grasp_frame_set=true;
+	    grasp2global = obj2obj_fr.cast<float>();
 
+	    grasp_frame_set=true;
+	    
+	    tf::StampedTransform ee_in_plan_frame;
+	    try {
+		tl.waitForTransform(gripper_frame_name, ee_frame_name, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform( gripper_frame_name, ee_frame_name, ros::Time(0), ee_in_plan_frame);
+	    } catch (tf::TransformException ex) {
+		ROS_ERROR("%s",ex.what());
+		return false;
+	    }
+	    Eigen::Affine3d ee2grasp_d;
+	    Eigen::Affine3f ee2grasp;
+	    tf::transformTFToEigen(ee_in_plan_frame, ee2grasp_d);
+	    ee2grasp = ee2grasp_d.cast<float>();
+
+	    //std::cout<<"EE in grasp frame is at:\n"<<ee2grasp.matrix()<<std::endl;
 	    //CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    GripperPoseConstraint out;
 	    tracker_m.lock();
 	    ROS_INFO("[PLAN GRASP] Got lock");
-	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, out);
+	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, ee2grasp, orientation_tolerance, out);
 	    tracker_m.unlock();
-	   
+	  
+	    res.min_oa = out.min_oa;
+	    res.max_oa = out.max_oa; 
 	    res.volume=out.cspace_volume;
 	    res.time= out.debug_time;
 
@@ -368,44 +434,56 @@ class GraspPlannerNode {
 	    //order is: bottom, top, left, right, inner, outer
 	    hqp_controllers_msgs::TaskGeometry task;
 	    task.g_type = hqp_controllers_msgs::TaskGeometry::PLANE;
-	    
+	   
+	    Eigen::Vector3f normal;
+	    float d = 0;
+
 	    //bottom 
+	    normal = grasp2global.rotation()*out.lower_plane.a;
+	    d = out.lower_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(out.lower_plane.a(0));
-	    task.g_data.push_back(out.lower_plane.a(1));
-	    task.g_data.push_back(out.lower_plane.a(2));
-	    task.g_data.push_back(out.lower_plane.b+plane_tolerance);
+	    task.g_data.push_back(-normal(0));
+	    task.g_data.push_back(-normal(1));
+	    task.g_data.push_back(-normal(2));
+	    task.g_data.push_back(-d-plane_tolerance);
 	    res.constraints.push_back(task);
 	    //top 
+	    normal = grasp2global.rotation()*out.upper_plane.a;
+	    d = out.upper_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(-out.upper_plane.a(0));
-	    task.g_data.push_back(-out.upper_plane.a(1));
-	    task.g_data.push_back(-out.upper_plane.a(2));
-	    task.g_data.push_back(-out.upper_plane.b-plane_tolerance);
+	    task.g_data.push_back(normal(0));
+	    task.g_data.push_back(normal(1));
+	    task.g_data.push_back(normal(2));
+	    task.g_data.push_back(d+plane_tolerance);
 	    res.constraints.push_back(task);
-	    //left 
+	    //left
+	    normal = grasp2global.rotation()*out.left_bound_plane.a;
+	    d = out.left_bound_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(out.left_bound_plane.a(0));
-	    task.g_data.push_back(out.left_bound_plane.a(1));
-	    task.g_data.push_back(out.left_bound_plane.a(2));
-	    task.g_data.push_back(out.left_bound_plane.b+plane_tolerance);
+	    task.g_data.push_back(-normal(0));
+	    task.g_data.push_back(-normal(1));
+	    task.g_data.push_back(-normal(2));
+	    task.g_data.push_back(-d-plane_tolerance);
 	    res.constraints.push_back(task);
-	    //right 
+	    //right
+	    normal = grasp2global.rotation()*out.right_bound_plane.a;
+	    d = out.right_bound_plane.b+normal.dot(grasp2global.translation());
 	    task.g_data.clear();	    
-	    task.g_data.push_back(-out.right_bound_plane.a(0));
-	    task.g_data.push_back(-out.right_bound_plane.a(1));
-	    task.g_data.push_back(-out.right_bound_plane.a(2));
-	    task.g_data.push_back(-out.right_bound_plane.b-plane_tolerance);
+	    task.g_data.push_back(normal(0));
+	    task.g_data.push_back(normal(1));
+	    task.g_data.push_back(normal(2));
+	    task.g_data.push_back(d+plane_tolerance);
 	    res.constraints.push_back(task);
+	    
 
-	    Eigen::Vector3f zaxis = out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
+	    Eigen::Vector3f zaxis = grasp2global.rotation()*out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
 	    if(!out.isSphere) {
 		task.g_type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
 		//inner
 		task.g_data.clear();	    
-		task.g_data.push_back(out.inner_cylinder.pose.translation()(0));
-		task.g_data.push_back(out.inner_cylinder.pose.translation()(1));
-		task.g_data.push_back(out.inner_cylinder.pose.translation()(2));
+		task.g_data.push_back(grasp2global.translation()(0)+out.inner_cylinder.pose.translation()(0));
+		task.g_data.push_back(grasp2global.translation()(1)+out.inner_cylinder.pose.translation()(1));
+		task.g_data.push_back(grasp2global.translation()(2)+out.inner_cylinder.pose.translation()(2));
 		task.g_data.push_back(zaxis(0));
 		task.g_data.push_back(zaxis(1));
 		task.g_data.push_back(zaxis(2));
@@ -414,32 +492,33 @@ class GraspPlannerNode {
 		//outer
 		zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
 		task.g_data.clear();	    
-		task.g_data.push_back(out.outer_cylinder.pose.translation()(0));
-		task.g_data.push_back(out.outer_cylinder.pose.translation()(1));
-		task.g_data.push_back(out.outer_cylinder.pose.translation()(2));
+		task.g_data.push_back(grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0));
+		task.g_data.push_back(grasp2global.translation()(1)+out.outer_cylinder.pose.translation()(1));
+		task.g_data.push_back(grasp2global.translation()(2)+out.outer_cylinder.pose.translation()(2));
 		task.g_data.push_back(zaxis(0));
 		task.g_data.push_back(zaxis(1));
 		task.g_data.push_back(zaxis(2));
-		task.g_data.push_back(out.outer_cylinder.radius_ + cylinder_tolerance);
+		task.g_data.push_back(out.outer_cylinder.radius_ - cylinder_tolerance);
 		res.constraints.push_back(task);
 	    } else {
 		task.g_type = hqp_controllers_msgs::TaskGeometry::SPHERE;
 		task.g_data.clear();	    
-		task.g_data.push_back(out.inner_sphere.center(0));
-		task.g_data.push_back(out.inner_sphere.center(1));
-		task.g_data.push_back(out.inner_sphere.center(2));
+		task.g_data.push_back(grasp2global.translation()(0)+out.inner_sphere.center(0));
+		task.g_data.push_back(grasp2global.translation()(1)+out.inner_sphere.center(1));
+		task.g_data.push_back(grasp2global.translation()(2)+out.inner_sphere.center(2));
 		task.g_data.push_back(out.inner_sphere.radius - cylinder_tolerance);
 		res.constraints.push_back(task);
 		
 		task.g_data.clear();	    
-		task.g_data.push_back(out.outer_sphere.center(0));
-		task.g_data.push_back(out.outer_sphere.center(1));
-		task.g_data.push_back(out.outer_sphere.center(2));
+		task.g_data.push_back(grasp2global.translation()(0)+out.outer_sphere.center(0));
+		task.g_data.push_back(grasp2global.translation()(1)+out.outer_sphere.center(1));
+		task.g_data.push_back(grasp2global.translation()(2)+out.outer_sphere.center(2));
 		task.g_data.push_back(out.outer_sphere.radius - cylinder_tolerance);
 		res.constraints.push_back(task);
 
 	    }
 	    res.frame_id = req.header.frame_id;
+	    res.success = res.volume > MIN_ENVELOPE_VOLUME;
 
 	    //Display functions
 	    pcl::PointCloud<pcl::PointXYZRGB> pc;
@@ -453,9 +532,17 @@ class GraspPlannerNode {
 	    fused_pc_publisher_.publish(cloud);
     
 	    visualization_msgs::MarkerArray marker_array;
-	    addPlaneMarker(marker_array, out.lower_plane.a.cast<double>(), out.lower_plane.b+plane_tolerance, gripper_frame_name);
-	    addPlaneMarker(marker_array, -out.upper_plane.a.cast<double>(), -out.upper_plane.b-plane_tolerance, gripper_frame_name);
+	    normal = grasp2global.rotation()*out.lower_plane.a;
+	    d = out.lower_plane.b+normal.dot(grasp2global.translation());
+	    addPlaneMarker(marker_array, normal.cast<double>(), d+plane_tolerance, req.header.frame_id);
+	    normal = grasp2global.rotation()*out.upper_plane.a;
+	    d = out.upper_plane.b+normal.dot(grasp2global.translation());
+	    addPlaneMarker(marker_array, -normal.cast<double>(), -d-plane_tolerance, req.header.frame_id);
+	    
+	    //addPlaneMarker(marker_array, -out.upper_plane.a.cast<double>(), -out.upper_plane.b-plane_tolerance, gripper_frame_name);
+	    
 	    addPlaneMarker(marker_array, -out.left_bound_plane.a.cast<double>(), -out.left_bound_plane.b-plane_tolerance, gripper_frame_name);
+	    
 	    addPlaneMarker(marker_array, out.right_bound_plane.a.cast<double>(), out.right_bound_plane.b+plane_tolerance, gripper_frame_name);
 	    if(!out.isSphere) {
 		zaxis = out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
@@ -478,6 +565,8 @@ class GraspPlannerNode {
 	    }
 	    ROS_INFO("Publishing %lu markers",marker_array.markers.size());
 	    constraint_pub_.publish(marker_array);
+
+	    return true;
 	}
 
 	void addPlaneMarker(visualization_msgs::MarkerArray& markers, Eigen::Vector3d n, double d, std::string frame_, 

@@ -99,6 +99,9 @@ class SDFTracker : public SimpleOccMapIfce
   /// Loads a volume from a VTK image. The grid is resized to fit the loaded volume
   virtual void LoadSDF(const std::string &filename);
 
+  /// Resets all grids 
+  virtual void ResetSDF();
+
   /// Checks the validity of the gradient of the SDF at the current point   
   bool ValidGradient(const Eigen::Vector4d &location);
 

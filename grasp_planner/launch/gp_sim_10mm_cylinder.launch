@@ -1,23 +1,34 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="SDF" pkg="sdf_tracker_grasping" type="sdf_tracker_grasping_node">
-    <param name="c_name" value="camera"/>
-    <param name="offsetZ" value="-1.0"/>
-    <param name="GridSizeX" value= "200"/>
-    <param name="GridSizeY" value= "200"/>
-    <param name="GridSizeZ" value= "250"/>
-    <param name="CellSize" value= "0.01" />
-    <param name="PositiveTruncationDistance" value= "0.04" />
-    <param name="NegativeTruncationDistance" value= "-0.02" />
+<!--param name="use_sim_time" value="true"/-->
+  <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen">
+    
+    <param name="gripper_file" value="$(find grasp_planner)/cfg/cylinder_10mm.cons"/>
+    <param name="map_frame_name" value="sdf_map_frame"/>
+    <param name="use_tf" value="true"/>
+    <param name="camera_link" value="camera_depth_optical_frame"/>
+    
+    <param name="depth_topic_name" value="/camera/depth/image"/>
+    <param name="orientation_tolerance" value= "0.5" />
+
+    <!-- SDF related parameters -->
+    <param name="GridSizeX" value= "300"/>
+    <param name="GridSizeY" value= "400"/>
+    <param name="GridSizeZ" value= "400"/>
+    <param name="PositiveTruncationDistance" value= "0.08" />
+    <param name="NegativeTruncationDistance" value= "-0.04" />
     <param name="RobustStatisticCoefficient" value= "0.02" />
-    <param name="OutputVolume" value= "false" />
-    <param name="InteractiveMode" value= "true" />
+    <param name="OutputVolume" value= "true" />
+    <param name="LoadVolume" value= "/home/tsv/.ros/sdf_volume_10mm.vti" />
+    <param name="InteractiveMode" value= "false" />
     <param name="depth_registered" value= "false"/>
     <param name="MaximumRaycastSteps" value= "360" /> 
     <param name="OutputTriangles" value= "false" />
 
-<!-- full list of parameters and their default values -->
-<!--   
+<!-- full list of SDF parameters and their default values -->
+<!-- 
+    !note: deprecated, taken from gripper constraint map
+    <param name="CellSize" value= "0.01" />
     <param name="ImageWidth" value= "640"/>
     <param name="ImageHeight" value= "480"/>
    
@@ -54,4 +65,10 @@
     <param name="CenterPointY" value= "239.5" /> 
 -->
   </node>
+  <!--node name="retimer" pkg="grasp_planner" type="tf_retime" output="screen"/-->
+  <!--node name="pc_pub" pkg="grasp_planner" type="pointcloud_publisher" output="screen"/-->
+  <node pkg="tf" type="static_transform_publisher" name="roipub"
+         args="0 0 0.5 -0.707 0 0 0.707 lwr_base_link sdf_map_frame 100" />
+  <!--node name="viz" pkg="rviz" type="rviz" output="screen"/-->
+
 </launch>
