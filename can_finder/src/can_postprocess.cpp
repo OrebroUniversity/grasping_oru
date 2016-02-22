@@ -13,6 +13,7 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include <sensor_msgs/Image.h>
+#include <fstream>
 
 #include <Eigen/Core>
 
@@ -29,7 +30,7 @@ class CanPPNode {
 	std::string pcloud_frame_name;
 	std::string outfile_name;
 	std::string palm_frame;
-	std::offstream outfile;
+	std::ofstream outfile;
 	Eigen::Affine3d world2palm;
 
     public:
@@ -41,7 +42,7 @@ class CanPPNode {
 	    nh_.param<std::string>("out", outfile_name,"volumes.m");
 	    
 	    pcloud_sub = n_.subscribe(pcloud_topic, 1, &CanPPNode::cloudCallback, this);
-	    outfile.open(outfile_name, std::ofstream::out);
+	    outfile.open(outfile_name.c_str(), std::ofstream::out);
 
 
 	}
