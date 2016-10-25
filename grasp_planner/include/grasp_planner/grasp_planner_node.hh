@@ -139,7 +139,7 @@ class GraspPlannerNode {
 
 	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
 	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
-	    cylinder_tolerance = 0.035;
+	    cylinder_tolerance = -0.015;
 	    plane_tolerance = 0.005;
 
 	    myParameters_.resolution = gripper_map->getResolution();
@@ -503,19 +503,19 @@ class GraspPlannerNode {
 	    } else {
 		task.g_type = hqp_controllers_msgs::TaskGeometry::SPHERE;
 		task.g_data.clear();	    
-		task.g_data.push_back(grasp2global.translation()(0)+out.inner_sphere.center(0));
-		task.g_data.push_back(grasp2global.translation()(1)+out.inner_sphere.center(1));
-		task.g_data.push_back(grasp2global.translation()(2)+out.inner_sphere.center(2));
-		task.g_data.push_back(out.inner_sphere.radius - cylinder_tolerance);
-		res.constraints.push_back(task);
-		
-		task.g_data.clear();	    
 		task.g_data.push_back(grasp2global.translation()(0)+out.outer_sphere.center(0));
 		task.g_data.push_back(grasp2global.translation()(1)+out.outer_sphere.center(1));
 		task.g_data.push_back(grasp2global.translation()(2)+out.outer_sphere.center(2));
 		task.g_data.push_back(out.outer_sphere.radius - cylinder_tolerance);
 		res.constraints.push_back(task);
 
+		task.g_data.clear();	    
+		task.g_data.push_back(grasp2global.translation()(0)+out.inner_sphere.center(0));
+		task.g_data.push_back(grasp2global.translation()(1)+out.inner_sphere.center(1));
+		task.g_data.push_back(grasp2global.translation()(2)+out.inner_sphere.center(2));
+		task.g_data.push_back(out.inner_sphere.radius - cylinder_tolerance);
+		res.constraints.push_back(task);
+		
 	    }
 	    res.frame_id = req.header.frame_id;
 	    res.success = res.volume > MIN_ENVELOPE_VOLUME;
@@ -560,7 +560,7 @@ class GraspPlannerNode {
 
 	    } else {
 		addSphereMarker(marker_array, out.inner_sphere.center, out.inner_sphere.radius-cylinder_tolerance, gripper_frame_name);
-		addSphereMarker(marker_array, out.outer_sphere.center, out.outer_sphere.radius+cylinder_tolerance, gripper_frame_name);
+		addSphereMarker(marker_array, out.outer_sphere.center, out.outer_sphere.radius-cylinder_tolerance, gripper_frame_name);
 		addSphereMarker(marker_array, obj2map_f.translation(), req.object_radius, object_map_frame_name, "request", 0.8, 0.1, 0.1);
 	    }
 	    ROS_INFO("Publishing %lu markers",marker_array.markers.size());

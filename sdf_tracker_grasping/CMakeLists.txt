@@ -54,7 +54,7 @@ install(TARGETS sdf_tracker_grasping_node ${PROJECT_NAME}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
        )
 
-install(DIRECTORY include/${PROJECT_NAME}/
+install(DIRECTORY include/sdf_tracker/
 	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
        )
 install(FILES

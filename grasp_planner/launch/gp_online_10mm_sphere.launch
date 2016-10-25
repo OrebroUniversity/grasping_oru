@@ -8,10 +8,11 @@
     <param name="use_tf" value="true"/>
     <param name="camera_link" value="camera_depth_optical_frame"/>
     
+    <param name="orientation_tolerance" value= "0.7" />
     <param name="depth_topic_name" value="/camera/depth/image"/>
 
     <!-- SDF related parameters -->
-    <param name="GridSizeX" value= "150"/>
+    <param name="GridSizeX" value= "200"/>
     <param name="GridSizeY" value= "200"/>
     <param name="GridSizeZ" value= "200"/>
     <param name="PositiveTruncationDistance" value= "0.08" />
