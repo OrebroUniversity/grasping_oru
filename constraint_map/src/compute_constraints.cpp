@@ -10,11 +10,10 @@ int main(int argc, char **argv) {
     float resolution = atof(argv[2]);
     float map_size = atof(argv[3]);
     ConstraintMap *map;
-    map = new ConstraintMap(0,0,0,resolution,map_size/resolution,map_size/resolution,map_size/resolution);
-    map->sampleGripperGrid(15, 100, 7, 0.0, 0.20, 0.0, 0.2);
+    map = new ConstraintMap(0,0,0,resolution,map_size/resolution,map_size/resolution,map_size/resolution, false);
+    map->sampleGripperGrid(10, 100, 7, 0.0, 0.1, 0.08, 0.14);
+    //map->sampleGripperGrid(15, 100, 7, 0.0, 0.20, 0.0, 0.2);
     //map->sampleGripperGridSphere(15, 100, 7, 0.0, 0.2);
-    //map->sampleGripperGrid(10, 100, 20, 0.0, 0.4, 0.15, 0.5);
-    //map->sampleGripperGrid(3, 10, 20, 0.1, 0.5, 0.2, 0.8);
     map->updateMapAndGripperLookup(); 
     map->saveGripperConstraints(fname);
    

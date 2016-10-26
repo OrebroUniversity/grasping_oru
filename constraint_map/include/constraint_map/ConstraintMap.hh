@@ -171,14 +171,17 @@ class GripperPoseConstraint {
 	float min_oa, max_oa;
 };
 
+///model for the velvet fingers RR gripper
 class GripperModel {
     public:
 	Eigen::Vector3f finger_size, palm_size;
 	Eigen::Affine3f palm2left, palm2right, palm2fingers;
 	Eigen::Affine3f palm2palm_box, right2right_box, left2left_box;
-	GripperModel() { };
+	float max_oa;
+	float min_oa;
+	GripperModel():min_oa(0),max_oa(M_PI) { };
 	GripperModel(Eigen::Vector3f &finger_size_, Eigen::Vector3f &palm_size_,
-		Eigen::Affine3f &palm2left_, Eigen::Affine3f &palm2right_, Eigen::Affine3f &palm2fingers_) {
+		Eigen::Affine3f &palm2left_, Eigen::Affine3f &palm2right_, Eigen::Affine3f &palm2fingers_):min_oa(0),max_oa(M_PI) {
 	    finger_size = finger_size_;
 	    palm_size = palm_size_;
 	    palm2left = palm2left_;
@@ -196,6 +199,40 @@ class GripperModel {
 	    right2right_box.translation() = -finger_size/2;
 	    right2right_box.translation()(1) = 0;
 
+	}
+    public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+///Parallel-jaw gripper
+class GripperModelPJ {
+    public:
+	Eigen::Vector3f finger_size, palm_size;
+	Eigen::Affine3f palm2palm_box;
+	Eigen::Affine3f palm2fingers_box;
+	float max_oa;
+	float min_oa;
+	float finger_thickness;
+	GripperModelPJ():min_oa(0) { };
+	GripperModelPJ(Eigen::Vector3f &finger_size_, Eigen::Vector3f &palm_size_, Eigen::Affine3f &palm2fingers_, float max_oa_):min_oa(0) {
+	    finger_size = finger_size_;
+	    max_oa = max_oa_;
+	    //now let's calculate the "finger_size" for the finger sweep box: 2 finger widths + max_oa
+	    finger_size(0) = 2*finger_size(0) + max_oa;
+	    palm_size = palm_size_;
+	    finger_thickness = finger_size_(0);
+	    
+	    //now the offsets to the bottom left corner of each box
+	    //assumption is that y points out of the gripper, x along finger opening
+	    palm2palm_box.setIdentity();
+	    palm2palm_box.translation() = -palm_size/2;
+	    palm2palm_box.translation()(1) = 0;
+	    
+	    Eigen::Affine3f f2f_box;
+	    f2f_box.setIdentity();
+	    f2f_box.translation() = -finger_size/2;
+	    f2f_box.translation()(1) = 0;
+	    palm2fingers_box = palm2fingers_*f2f_box;
 	}
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -264,7 +301,7 @@ class GripperConfiguration {
 
 	bool isValid;
 
-	void calculateConstraints() {
+	virtual void calculateConstraints() {
 	    
 	    Eigen::Affine3f ps;
 	    ps = pose*model->palm2palm_box;
@@ -275,12 +312,12 @@ class GripperConfiguration {
 	    psm = ps;
 	}
 
-	void updateMinAngle (Eigen::Vector3f &x) {
+	virtual void updateMinAngle (Eigen::Vector3f &x) {
 	    Eigen::Vector3f xt = psm.inverse()*x;
 	    float mm = M_PI - 2*atan2f(xt(1),xt(0));
 	    if(mm > min_oa) min_oa = mm;
 	}
-	void updateMaxAngle (Eigen::Vector3f &x) {
+	virtual void updateMaxAngle (Eigen::Vector3f &x) {
 	    Eigen::Vector3f xt = psm.inverse()*x;
 	    xt(2) = 0; 
 	    float mm = M_PI - 2*atan2f(xt(1),xt(0));
@@ -295,12 +332,58 @@ class GripperConfiguration {
 
 };
 
+class GripperConfigurationPJ : public GripperConfiguration {
+    ///position of the gripper
+    //Eigen::Vector3f position;
+    ///vector pointing from the gripper to the center of the target
+    //Eigen::Vector3f approach_direction;
+    public:
+	GripperConfigurationPJ() {isValid = false;};
+	GripperConfigurationPJ(Eigen::Affine3f &pose_, GripperModelPJ *model_) {
+	    pose = pose_;
+	    min_oa = 0.0; 
+	    max_oa = 0.05; 
+	    modelPJ = model_;
+	    isValid = true;
+	};
+
+	GripperModelPJ *modelPJ;
+	BoxConstraint fingerSweepPJ;
+
+	virtual void calculateConstraints() {
+	    
+	    Eigen::Affine3f ps;
+	    ps = pose*modelPJ->palm2palm_box;
+	    palm.calculateConstraints(ps,modelPJ->palm_size);
+	      
+	    ps = pose*modelPJ->palm2fingers_box;
+	    fingerSweepPJ.calculateConstraints(ps,modelPJ->finger_size);
+	    psm = ps;
+	}
+
+	virtual void updateMinAngle (Eigen::Vector3f &x) {
+	    Eigen::Vector3f xt = psm.inverse()*x;
+	    float mm = fabsf(xt(0));
+	    if(mm > min_oa) min_oa = mm;
+	}
+	virtual void updateMaxAngle (Eigen::Vector3f &x) {
+	    Eigen::Vector3f xt = psm.inverse()*x;
+	    float mm = fabsf(xt(0))-modelPJ->finger_thickness;
+	    mm = mm < 0 ? 0 : mm;
+	    if( mm < max_oa) max_oa = mm;
+	}
+    public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+};
+
 struct ConfigurationList {
 	std::vector<GripperConfiguration**> configs;
 	std::vector<int> config_ids;
 };
 
-#define _FILE_VERSION_ "#F V0.2"
+#define _FILE_VERSION_IROS2016 "#F V0.2"
+#define _FILE_VERSION_ "#F V0.3"
 
 class ConstraintMap : public SimpleOccMap {
 
@@ -318,9 +401,11 @@ class ConstraintMap : public SimpleOccMap {
 	std::vector<CylinderConstraint> cylinders;
 	
 	GripperModel *model;
+	GripperModelPJ *modelPJ;
 	SimpleOccMap *config_sample_grid;
 	bool hasGripper;
 	bool isSphereGrid;
+	bool isPJGripper;
 
 	int n_v,n_o,n_d;
 	float min_z, max_z, min_dist, max_dist;	
@@ -336,23 +421,38 @@ class ConstraintMap : public SimpleOccMap {
 	CellIdxCube cube;
 
     public:
-	ConstraintMap():SimpleOccMap() { hasGripper = false; config_sample_grid = NULL; isSphereGrid=false; };
+	ConstraintMap():SimpleOccMap() { hasGripper = false; config_sample_grid = NULL; isSphereGrid=false; isPJGripper=false;};
 	ConstraintMap(float _cen_x, float _cen_y, float _cen_z, 
-		float _resolution, int _size_x, int _size_y, int _size_z):SimpleOccMap(_cen_x,_cen_y,_cen_z,_resolution,_size_x,_size_y,_size_z) { 
+		float _resolution, int _size_x, int _size_y, int _size_z, bool isVelvet=true):SimpleOccMap(_cen_x,_cen_y,_cen_z,_resolution,_size_x,_size_y,_size_z) { 
 
-	    //FIXME: these should be read in somewhere
-	    Eigen::Vector3f finger_size(0.06,0.129,0.08);
-	    Eigen::Vector3f palm_size(0.18,0.13,0.1);
-	    Eigen::Affine3f palm2left;
-	    palm2left.setIdentity();
-	    palm2left.translation() = Eigen::Vector3f(-0.025,0.1,0);
-	    Eigen::Affine3f palm2right;
-	    palm2right.setIdentity();
-	    palm2right.translation() = Eigen::Vector3f(0.025,0.1,0);
-	    Eigen::Affine3f palm2fingers;
-	    palm2fingers.setIdentity();
-	    palm2fingers.translation() = Eigen::Vector3f(0.0,0.1,0);
-	    model = new GripperModel(finger_size,palm_size,palm2left,palm2right,palm2fingers);
+	    if(isVelvet) {
+		//FIXME: these should be read in somewhere
+		Eigen::Vector3f finger_size(0.06,0.129,0.08);
+		Eigen::Vector3f palm_size(0.18,0.13,0.1);
+		Eigen::Affine3f palm2left;
+		palm2left.setIdentity();
+		palm2left.translation() = Eigen::Vector3f(-0.025,0.1,0);
+		Eigen::Affine3f palm2right;
+		palm2right.setIdentity();
+		palm2right.translation() = Eigen::Vector3f(0.025,0.1,0);
+		Eigen::Affine3f palm2fingers;
+		palm2fingers.setIdentity();
+		palm2fingers.translation() = Eigen::Vector3f(0.0,0.1,0);
+		model = new GripperModel(finger_size,palm_size,palm2left,palm2right,palm2fingers);
+		modelPJ = NULL;
+		isPJGripper = false;
+	    } else {
+		model = NULL;
+		isPJGripper = true;
+		
+		Eigen::Vector3f finger_size(0.01,0.04,0.015);
+		Eigen::Vector3f palm_size(0.08,0.085,0.068);
+		Eigen::Affine3f palm2fingers;
+		palm2fingers.setIdentity();
+		palm2fingers.translation() = Eigen::Vector3f(0.0,0.09,0);
+		modelPJ = new GripperModelPJ(finger_size,palm_size,palm2fingers,0.05);
+
+	    }	
 	    hasGripper = true; 
 	    isSphereGrid=false; 
 	    initializeConfigs();

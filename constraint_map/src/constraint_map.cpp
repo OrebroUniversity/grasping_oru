@@ -71,7 +71,8 @@ void ConstraintMap::updateMapAndGripperLookup() {
 }
 	
 void ConstraintMap::drawValidConfigs() {
-    
+   
+    if(isPJGripper) return; 
     double t1 = getDoubleTime();
     std::vector<GripperConfigurationSimple> simple_configs;
     for(int i=0; i<valid_configs.size(); ++i) {
@@ -314,9 +315,16 @@ void ConstraintMap::sampleGripperGridSphere(int n_vert_angles, int n_orient_angl
 		pose.translation()(1) = r*sinf(theta)*sinf(phi);
 		pose.translation()(2) = r*cosf(theta);
 
-		GripperConfiguration *config = new GripperConfiguration(pose,model);
-		config->calculateConstraints();
-		valid_configs.push_back(config);
+		if(!isPJGripper && model != NULL) {
+		    GripperConfiguration *config = new GripperConfiguration(pose,model);
+		    config->calculateConstraints();
+		    valid_configs.push_back(config);
+		}
+		if(isPJGripper && modelPJ!=NULL) {
+		    GripperConfigurationPJ *config = new GripperConfigurationPJ(pose,modelPJ);
+		    config->calculateConstraints();
+		    valid_configs.push_back(config);
+		}
 		//valid_configs.size () = k + j*n_dist_samples + i*n_orient*n_dist_samples
     	    }
 	}
@@ -350,9 +358,16 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
 		pose = Eigen::AngleAxisf(M_PI + 2*j*M_PI/n_orient, Eigen::Vector3f::UnitZ());
 		pose.translation() = ori;
 
-		GripperConfiguration *config = new GripperConfiguration(pose,model);
-		config->calculateConstraints();
-		valid_configs.push_back(config);
+		if(!isPJGripper && model != NULL) {
+		    GripperConfiguration *config = new GripperConfiguration(pose,model);
+		    config->calculateConstraints();
+		    valid_configs.push_back(config);
+		}
+		if(isPJGripper && modelPJ!=NULL) {
+		    GripperConfigurationPJ *config = new GripperConfigurationPJ(pose,modelPJ);
+		    config->calculateConstraints();
+		    valid_configs.push_back(config);
+		}
 		//valid_configs.size () = k + j*n_dist_samples + i*n_orient*n_dist_samples
     	    }
 	}
@@ -368,17 +383,26 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     double t1 = getDoubleTime();
     Eigen::AngleAxisf aa;
     float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2)+M_PI/2;
+    float MIN_OA,MAX_OA;
+    if(isPJGripper) {
+	MIN_OA = modelPJ->min_oa;
+	MAX_OA = modelPJ->max_oa;
+    } else {
+	MIN_OA = model->min_oa;
+	MAX_OA = model->max_oa;
+    }
     //reset grid to make all configs valid
     for(int i=0; i<valid_configs.size(); ++i) {
 	valid_configs[i]->isValid = true;
-	valid_configs[i]->min_oa = 0; 
-	valid_configs[i]->max_oa = M_PI;
+	valid_configs[i]->min_oa = MIN_OA; 
+	valid_configs[i]->max_oa = MAX_OA;
 	//EXCEPT the ones with a wrong orientation...
 	float cyaw = valid_configs[i]->pose.rotation().eulerAngles(0,1,2)(2);
 	float diff = fabs(gyaw-cyaw);
 	if(diff > 2*M_PI) diff -= 2*M_PI; //one period over  
 	//if(diff > M_PI) diff -= M_PI;	  //treat orientations equally in both directions
-	valid_configs[i]->isValid = ( diff <= orientation_tolerance);
+	//note orientation_tolerance < 0 => disable orientation bias
+	valid_configs[i]->isValid = (orientation_tolerance < 0) || ( diff <= orientation_tolerance); 
     }
     
     CellIndex id;
@@ -409,7 +433,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 				    (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
 				//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
 				(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
-			    }
+			    } 
 			} else {
 			    //same check but with a sphere
 			    if(sphere(x_map)) {
@@ -616,16 +640,27 @@ bool ConstraintMap::saveGripperConstraints(const char *fname) const {
 	    fwrite(grid[id.i][id.j], sizeof(int), size_z, fout);
 	}
     }
-    
-    //GripperModel *model;
-    fwrite(model->finger_size.data(), sizeof(float), 3, fout);
-    fwrite(model->palm_size.data(), sizeof(float), 3, fout);
-    saveMatrix4f(model->palm2left.matrix(), fout);
-    saveMatrix4f(model->palm2right.matrix(), fout);
-    saveMatrix4f(model->palm2fingers.matrix(), fout);
-    saveMatrix4f(model->palm2palm_box.matrix(), fout);
-    saveMatrix4f(model->left2left_box.matrix(), fout);
-    saveMatrix4f(model->right2right_box.matrix(), fout);
+   
+    fwrite(&isPJGripper, sizeof(bool), 1, fout);
+    if(!isPJGripper && model != NULL) {  
+	//GripperModel *model;
+	fwrite(model->finger_size.data(), sizeof(float), 3, fout);
+	fwrite(model->palm_size.data(), sizeof(float), 3, fout);
+	saveMatrix4f(model->palm2left.matrix(), fout);
+	saveMatrix4f(model->palm2right.matrix(), fout);
+	saveMatrix4f(model->palm2fingers.matrix(), fout);
+	saveMatrix4f(model->palm2palm_box.matrix(), fout);
+	saveMatrix4f(model->left2left_box.matrix(), fout);
+	saveMatrix4f(model->right2right_box.matrix(), fout);
+    } 
+    else if (isPJGripper && modelPJ != NULL) {
+	fwrite(modelPJ->finger_size.data(), sizeof(float), 3, fout);
+	fwrite(modelPJ->palm_size.data(), sizeof(float), 3, fout);
+	saveMatrix4f(modelPJ->palm2palm_box.matrix(), fout);
+	saveMatrix4f(modelPJ->palm2fingers_box.matrix(), fout);
+	fwrite(&modelPJ->max_oa, sizeof(float), 1, fout);
+	fwrite(&modelPJ->finger_thickness, sizeof(float), 1, fout);
+    }
 
     //std::vector<GripperConfiguration*> valid_configs;
     size_t sz1 =valid_configs.size(); 
@@ -673,9 +708,14 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 	return false;
     }
     versionBuf[strlen(_FILE_VERSION_)] = '\0';
+    bool isOldFileVersion = false;
     if(strncmp(versionBuf, _FILE_VERSION_, strlen(_FILE_VERSION_)) != 0) {
-	std::cerr<<"Version mismatch, don't know what to do: "<<versionBuf<<std::endl;
-	return false;
+	if(strncmp(versionBuf, _FILE_VERSION_IROS2016, strlen(_FILE_VERSION_IROS2016)) != 0) {
+	    std::cerr<<"Version mismatch, don't know what to do: "<<versionBuf<<std::endl;
+	    return false;
+	} else {
+	    isOldFileVersion = true;
+	}
     }
     
     //center;
@@ -701,8 +741,6 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
     std::cerr<<"collision map size is "<<size_x<<" "<<size_y<<" "<<size_z<<" cells\n";
 
     if(!isInitialized) initialize();
-    model = new GripperModel();
-    hasGripper = true; 
     initializeConfigs();
     
     std::cerr<<"reading collision map ...\n";
@@ -718,22 +756,66 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
     }
     std::cerr<<"DONE\n";
     //sleep(5);
-
-    if(fread(model->finger_size.data(), sizeof(float), 3, fin)!=3) {
-	std::cerr<<"couldn't read\n";
-	return false;
-    }
     
-    if(fread(model->palm_size.data(), sizeof(float), 3, fin)!=3) {
-	std::cerr<<"couldn't read\n";
-	return false;
+    if(isOldFileVersion) { 
+	model = new GripperModel();
+	isPJGripper = false;
+	modelPJ = NULL;
+    } 
+    else {
+	//read in gripper type
+	if(fread(&isPJGripper, sizeof(bool), 1, fin) != 1) {
+	    std::cerr<<"couldn't read in gripper type\n";
+	    return false;
+	}
+        if(isPJGripper) {
+	    modelPJ = new GripperModelPJ();
+	    model = NULL;
+	    std::cout<<"read a PJ gripper type\n";
+	} else {
+	    model = new GripperModel();
+	    modelPJ = NULL;
+	    std::cout<<"read a Velvet gripper type\n";
+	}	    
     }
-    if(!readMatrix4f(model->palm2left.matrix(), fin)) return false;
-    if(!readMatrix4f(model->palm2right.matrix(), fin)) return false;
-    if(!readMatrix4f(model->palm2fingers.matrix(), fin)) return false;
-    if(!readMatrix4f(model->palm2palm_box.matrix(), fin)) return false;
-    if(!readMatrix4f(model->left2left_box.matrix(), fin)) return false;
-    if(!readMatrix4f(model->right2right_box.matrix(), fin)) return false;
+    hasGripper = true; 
+
+    if(isOldFileVersion || !isPJGripper) {
+	if(fread(model->finger_size.data(), sizeof(float), 3, fin)!=3) {
+	    std::cerr<<"couldn't read\n";
+	    return false;
+	}
+	if(fread(model->palm_size.data(), sizeof(float), 3, fin)!=3) {
+	    std::cerr<<"couldn't read\n";
+	    return false;
+	}
+	if(!readMatrix4f(model->palm2left.matrix(), fin)) return false;
+	if(!readMatrix4f(model->palm2right.matrix(), fin)) return false;
+	if(!readMatrix4f(model->palm2fingers.matrix(), fin)) return false;
+	if(!readMatrix4f(model->palm2palm_box.matrix(), fin)) return false;
+	if(!readMatrix4f(model->left2left_box.matrix(), fin)) return false;
+	if(!readMatrix4f(model->right2right_box.matrix(), fin)) return false;
+    } 
+    else {
+	if(fread(modelPJ->finger_size.data(), sizeof(float), 3, fin)!=3) {
+	    std::cerr<<"couldn't read finger dimensions\n";
+	    return false;
+	}
+	if(fread(modelPJ->palm_size.data(), sizeof(float), 3, fin)!=3) {
+	    std::cerr<<"couldn't read palm dimensions\n";
+	    return false;
+	}
+	if(!readMatrix4f(modelPJ->palm2palm_box.matrix(), fin)) return false;
+	if(!readMatrix4f(modelPJ->palm2fingers_box.matrix(), fin)) return false;
+	if(fread(&modelPJ->max_oa, sizeof(float), 1, fin)!=1) {
+	    std::cerr<<"couldn't read gripper opening size\n";
+	    return false;
+	}
+	if(fread(&modelPJ->finger_thickness, sizeof(float), 1, fin)!=1) {
+	    std::cerr<<"couldn't read gripper finger thickness\n";
+	    return false;
+	}
+    }
     
     size_t sz1;
     if(fread(&sz1, sizeof(size_t), 1, fin)!=1) {
@@ -744,9 +826,19 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
     for(int i=0; i<sz1; ++i) {
 	Eigen::Affine3f ps;
 	if(!readMatrix4f(ps.matrix(), fin)) return false;
-	GripperConfiguration *cn = new GripperConfiguration(ps,model);
-	cn->calculateConstraints();
-	valid_configs.push_back(cn);
+	if(!isPJGripper && model!=NULL) { 
+	    GripperConfiguration *cn = new GripperConfiguration(ps,model);
+	    cn->calculateConstraints();
+	    valid_configs.push_back(cn);
+	} 
+	else if(isPJGripper && modelPJ!=NULL) {
+	    GripperConfigurationPJ *cn = new GripperConfigurationPJ(ps,modelPJ);
+	    cn->calculateConstraints();
+	    valid_configs.push_back(cn);
+	} else {
+	    std::cerr<<"could not get gripper model\n";
+	    return false;
+	}
     }
     std::cerr<<"DONE\n";
     //sleep(5);
