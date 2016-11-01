@@ -1,10 +1,11 @@
 #ifndef NDT_DISPLAY_H
 #define NDT_DISPLAY_H
 
+#ifndef Q_MOC_RUN
 #include <boost/circular_buffer.hpp>
-
 #include <constraint_map/SimpleOccMapMsg.h>
 #include <rviz/message_filter_display.h>
+#endif
 
 namespace Ogre
 {

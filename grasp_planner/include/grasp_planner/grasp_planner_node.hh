@@ -315,10 +315,16 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
+		if(frame_counter_ < 50) {
+		    ++frame_counter_; 
+		} else {
+		    //FIXME: throttling down fusing here
+		    frame_counter_ = 3;
 		ROS_INFO("GPLAN: Fusing frame");
 		myTracker_->SetCurrentTransformation(cam2map.matrix());
 		myTracker_->UpdateDepth(bridge->image);
 		myTracker_->FuseDepth();
+		}
 	//	ROS_INFO("DONE");
 	    }
 	    else 
