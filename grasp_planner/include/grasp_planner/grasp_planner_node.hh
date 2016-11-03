@@ -13,6 +13,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sdf_tracker/sdf_tracker.h>
@@ -52,6 +53,7 @@ class GraspPlannerNode {
 	ros::Publisher vis_pub_;
 	ros::Publisher constraint_pub_;
 	ros::Subscriber depth_subscriber_;
+	ros::Subscriber depth_camera_info_subscriber_;
 	ros::Timer heartbeat_tf_;
 //	ros::Timer heartbeat_pc_;
 
@@ -73,13 +75,14 @@ class GraspPlannerNode {
 	std::string gripper_map_topic;
 	std::string object_map_topic;
 	std::string depth_topic_name_;
+	std::string depth_info_topic_name_;
 	std::string camera_link_;
 	std::string fused_pc_topic;
 	std::string loadVolume_;
 	std::string dumpfile;
 
 	int skip_frames_, frame_counter_;
-	bool use_tf_, grasp_frame_set, publish_pc;
+	bool use_tf_, grasp_frame_set, publish_pc, isInfoSet;
 	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
 	int MIN_ENVELOPE_VOLUME;
 
@@ -102,7 +105,9 @@ class GraspPlannerNode {
 
 	    gripper_map = new ConstraintMap();
 	    bool success = gripper_map->loadGripperConstraints(gripper_fname.c_str());
-	
+	    isInfoSet = false;
+	    bool offlineTracker = false;
+
 	    if(!success) {
 		    ROS_ERROR("could not load gripper constraints file from %s",gripper_fname.c_str());
 		    ros::shutdown();
@@ -112,8 +117,10 @@ class GraspPlannerNode {
 	    myParameters_ = parameters;
 	    //node specific parameters
 	    nh_.param("use_tf", use_tf_, false);
-	    nh_.param<std::string>("depth_topic_name", depth_topic_name_,"/camera/depth/image");
-	    nh_.param<std::string>("camera_link", camera_link_,"/camera/depth_frame");
+	    nh_.param("runTrackerFromVolume", offlineTracker, false);
+	    nh_.param<std::string>("depth_topic_name", depth_topic_name_,"/camera/depth_registered/image");
+	    nh_.param<std::string>("depth_info_topic_name", depth_info_topic_name_,"/camera/depth_registered/camera_info");
+	    //nh_.param<std::string>("camera_link", camera_link_,"/camera/depth_frame");
 	    nh_.param("skip_frames", skip_frames_, 0);
 
 	    //parameters used for the SDF tracker
@@ -143,11 +150,16 @@ class GraspPlannerNode {
 	    plane_tolerance = 0.005;
 
 	    myParameters_.resolution = gripper_map->getResolution();
-	    myTracker_ = new SDFTracker(myParameters_);
+	    //myTracker_ = new SDFTracker(myParameters_);
 
-	    if(loadVolume_.compare(std::string("none"))!=0)
+	    if(loadVolume_.compare(std::string("none"))!=0 && offlineTracker)
+
 	    {
-		myTracker_->LoadSDF(loadVolume_);
+		//Assume we are operating offline
+		myTracker_ = new SDFTracker(myParameters_);
+	    	myTracker_->LoadSDF(loadVolume_);
+	    } else {
+		myTracker_ = NULL;
 	    }
 	    
 	    //subscribe / advertise
@@ -155,6 +167,7 @@ class GraspPlannerNode {
 	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
+	    depth_camera_info_subscriber_ = n_.subscribe(depth_info_topic_name_, 1, &GraspPlannerNode::depthInfoCallback, this);
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
 	    save_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
@@ -186,6 +199,8 @@ class GraspPlannerNode {
 	    }
 	}
         void publishPC() {
+
+	    if(myTracker_ == NULL) return;
 
 	    if(publish_pc) {
 		pcl::PointCloud<pcl::PointXYZ> pc;
@@ -272,9 +287,28 @@ class GraspPlannerNode {
 		vis_pub_.publish( marker_array );
 	    }
 	}
+	
+	void depthInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
+	{
+	    if(isInfoSet) return;
+	    //set image size, focal length and center from camera info
+	    
+	    myParameters_.image_width=msg->width;
+	    myParameters_.image_height=msg->height; 
+	    myParameters_.fx=msg->K[0];
+	    myParameters_.fy=msg->K[4];
+	    myParameters_.cx=msg->K[2];
+	    myParameters_.cy=msg->K[5];
+	    isInfoSet = true;
+
+	    myTracker_ = new SDFTracker(myParameters_);
+	    ROS_INFO("Parameters set and tracker initialized");
+	}
 
 	void depthCallback(const sensor_msgs::Image::ConstPtr& msg)
 	{
+	    if(myTracker_ == NULL) return;
+	    camera_link_ = msg->header.frame_id;
 	    tf::StampedTransform camera_frame_to_map;
 	    try {
 		tl.waitForTransform(object_map_frame_name, camera_link_, msg->header.stamp, ros::Duration(0.15) );
@@ -315,15 +349,15 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
-		if(frame_counter_ < 50) {
+		if(frame_counter_ < 1) {
 		    ++frame_counter_; 
 		} else {
 		    //FIXME: throttling down fusing here
 		    frame_counter_ = 3;
-		ROS_INFO("GPLAN: Fusing frame");
-		myTracker_->SetCurrentTransformation(cam2map.matrix());
-		myTracker_->UpdateDepth(bridge->image);
-		myTracker_->FuseDepth();
+		    ROS_INFO("GPLAN: Fusing frame");
+		    myTracker_->SetCurrentTransformation(cam2map.matrix());
+		    myTracker_->UpdateDepth(bridge->image);
+		    myTracker_->FuseDepth();
 		}
 	//	ROS_INFO("DONE");
 	    }
@@ -346,6 +380,7 @@ class GraspPlannerNode {
 	bool load_volume_callback(grasp_planner::LoadResource::Request  &req,
 		grasp_planner::LoadResource::Response &res ) {
 	    
+	    if(myTracker_ == NULL) return false;
 	    tracker_m.lock();
 	    myTracker_->LoadSDF(req.name);
 	    tracker_m.unlock();
@@ -356,6 +391,7 @@ class GraspPlannerNode {
 	bool save_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
 	    
+	    if(myTracker_ == NULL) return false;
 	    tracker_m.lock();
 	    myTracker_->SaveSDF();
 	    tracker_m.unlock();
@@ -365,6 +401,7 @@ class GraspPlannerNode {
 	bool clear_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
 	    
+	    if(myTracker_ == NULL) return false;
 	    tracker_m.lock();
 	    myTracker_->ResetSDF();
 	    tracker_m.unlock();
@@ -381,8 +418,7 @@ class GraspPlannerNode {
 	bool plan_grasp_callback(grasp_planner::PlanGrasp::Request  &req,
 		grasp_planner::PlanGrasp::Response &res ) {
 
-	    //FIXME: this slows us down, but it helps with debugging/visualization
-	    //this->publishPC();
+	    if(myTracker_ == NULL) return false;
 	    ROS_INFO("Got request");
 	    
 	    std::cout<<"From frame "<<req.header.frame_id<<" to "<<object_map_frame_name<<std::endl;

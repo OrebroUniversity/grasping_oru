@@ -42,6 +42,10 @@ SDF_Parameters::SDF_Parameters()
   fy = 520.0;
   cx = 319.5;
   cy = 239.5;
+  //fx = 570.34;
+  //fy = 570.34;
+  //cx = 314.5;
+  //cy = 235.5;
   render_window = "Render";
 }
 
