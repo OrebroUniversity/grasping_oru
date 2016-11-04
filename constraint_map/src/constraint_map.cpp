@@ -424,10 +424,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 			    //check if x inside cylinder
 			    if(cylinder(x_map)) {
 				//if yes, update min_oa
-				if(object_map->isOccupied(x_map)) {
-				    //ONLY if the cell is really occupied and NOT an unknown cell
-				    (*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
-				}
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
 			    } else {
 				//if no, update max_oa
 				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
@@ -441,10 +438,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 			    //same check but with a sphere
 			    if(sphere(x_map)) {
 				//if yes, update min_oa
-				if(object_map->isOccupied(x_map)) {
-				    //ONLY if the cell is really occupied and NOT an unknown cell
-				    (*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
-				}
+				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
 			    } else {
 				//if no, update max_oa
 				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);

@@ -182,6 +182,7 @@ class SDFTracker : public SimpleOccMapIfce
   public:
   virtual void toMessage(constraint_map::SimpleOccMapMsg &msg);
   virtual bool isOccupied(const Eigen::Vector3f &point) const;
+  virtual bool isUnknown(const Eigen::Vector3f &point) const;
 //  void RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc);
 
 };

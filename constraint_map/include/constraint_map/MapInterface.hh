@@ -15,6 +15,7 @@ class SimpleOccMapIfce {
 	//virtual void getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this) const = 0;
 	//virtual void getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const = 0;
 	virtual bool isOccupied(const Eigen::Vector3f &point) const = 0;
+	virtual bool isUnknown(const Eigen::Vector3f &point) const = 0;
 };
 
 #endif

@@ -97,6 +97,7 @@ class SimpleOccMap : public SimpleOccMapIfce {
 	}
 	
 	virtual bool isOccupied(const Eigen::Vector3f &point) const;
+	virtual bool isUnknown(const Eigen::Vector3f &point) const;
 
 	inline bool isFree(const CellIndex &idx) const {
 	    if(!isInitialized) return false;
@@ -118,8 +119,8 @@ class SimpleOccMap : public SimpleOccMapIfce {
 	void getUnknown(std::vector<CellIndex> &idx) const;
 
 	///intersection methods
-	void getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this) const;
-	void getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this) const;
+	void getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this, bool strict=false) const;
+	void getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen::Affine3f &this_to_map, std::vector<CellIndex> &idx_this, bool strict=false) const;
 
 	///helpers
 	inline bool isInside(const int &i, const int &j, const int &k) const {

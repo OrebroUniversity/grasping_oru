@@ -173,6 +173,12 @@ bool SimpleOccMap::isOccupied(const Eigen::Vector3f &point) const {
     if(!this->getIdxPoint(point,id)) return false;
     return this->isOccupied(id);
 }
+	
+bool SimpleOccMap::isUnknown(const Eigen::Vector3f &point) const {
+    CellIndex id;
+    if(!this->getIdxPoint(point,id)) return false;
+    return this->isUnknown(id);
+}
 
 void SimpleOccMap::getIntersection(const SimpleOccMapIfce *other, std::vector<CellIndex> &idx_this) const {
 
@@ -181,7 +187,7 @@ void SimpleOccMap::getIntersection(const SimpleOccMapIfce *other, std::vector<Ce
     for (id.i=0; id.i<size_x; ++id.i) {
 	for (id.j=0; id.j<size_y; ++id.j) {
 	    for (id.k=0; id.k<size_z; ++id.k) {
-		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC) {
+		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC ) {
 		    Eigen::Vector3f this_point;
 		    if(!this->getCenterCell(id,this_point)) continue;
 		    if(other->isOccupied(this_point)) idx_this.push_back(id);
@@ -198,11 +204,11 @@ void SimpleOccMap::getIntersectionWithPose(const SimpleOccMapIfce *other, Eigen:
     for (id.i=0; id.i<size_x; ++id.i) {
 	for (id.j=0; id.j<size_y; ++id.j) {
 	    for (id.k=0; id.k<size_z; ++id.k) {
-		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC) {
+		if(grid[id.i][id.j][id.k] == SimpleOccMap::OCC ) {
 		    Eigen::Vector3f this_point;
 		    if(!this->getCenterCell(id,this_point)) continue;
 		    this_point = this_to_map*this_point;
-		    if(other->isOccupied(this_point)) idx_this.push_back(id);
+		    if(other->isOccupied(this_point) ) idx_this.push_back(id);
 		}	   
 	    }
 	}

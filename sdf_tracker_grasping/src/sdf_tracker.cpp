@@ -1766,10 +1766,6 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
 }
 
 bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
-//   int i = point(0)/parameters_.resolution; 
-//   int j = point(1)/parameters_.resolution; 
-//   int k = point(2)/parameters_.resolution;
-  
    double I,J,K;
    modf(point(0)/parameters_.resolution + parameters_.XSize/2, &I);
    modf(point(1)/parameters_.resolution + parameters_.YSize/2, &J);  
@@ -1780,21 +1776,34 @@ bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
    if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
 	return true; //outside is considered occupied everywhere
    }
-   //if(myGrid_[i][j][k*2] < 0 && myGrid_[i][j][k*2+1] != 0) {
    if(myGrid_[i][j][k*2] < 0 || fabsf(myGrid_[i][j][k*2+1]) < 1e-5) {
        return true;
    }
    return false;
-#if 0
-   //treat unknown as occupied!!
+}
+
+bool SDFTracker::isUnknown(const Eigen::Vector3f &point) const {
+   double I,J,K;
+   modf(point(0)/parameters_.resolution + parameters_.XSize/2, &I);
+   modf(point(1)/parameters_.resolution + parameters_.YSize/2, &J);  
+   modf(point(2)/parameters_.resolution + parameters_.ZSize/2, &K);
+   if(std::isnan(I) || std::isnan(J) || std::isnan(K)) return true;
+   int i = (int)I,  j = (int)J, k= (int)K; 
+
+   if(i<0 || i>=parameters_.XSize || j<0 || j>=parameters_.YSize || k<0 || k>=parameters_.ZSize) {
+	return true; //outside is considered unknown everywhere
+   }
+
+   //distance has been initialized and weight have been computed, we have seen this
    if(myGrid_[i][j][k*2] < parameters_.Dmax-1e-6 && myGrid_[i][j][k*2+1] > 0) {
        return false;
    }
+
    return true;
-#endif
 
 }
- 
+
+
 /*
 void SDFTracker::RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc) {
     
