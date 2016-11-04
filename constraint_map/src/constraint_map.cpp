@@ -424,7 +424,10 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 			    //check if x inside cylinder
 			    if(cylinder(x_map)) {
 				//if yes, update min_oa
-				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+				if(object_map->isOccupied(x_map)) {
+				    //ONLY if the cell is really occupied and NOT an unknown cell
+				    (*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+				}
 			    } else {
 				//if no, update max_oa
 				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
@@ -438,7 +441,10 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 			    //same check but with a sphere
 			    if(sphere(x_map)) {
 				//if yes, update min_oa
-				(*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+				if(object_map->isOccupied(x_map)) {
+				    //ONLY if the cell is really occupied and NOT an unknown cell
+				    (*config_grid[id.i][id.j][id.k].configs[j])->updateMinAngle(x);
+				}
 			    } else {
 				//if no, update max_oa
 				(*config_grid[id.i][id.j][id.k].configs[j])->updateMaxAngle(x);
@@ -525,8 +531,9 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 	    }
 	}
     }
-    output.max_oa = fabsf((M_PI-output.max_oa)/2);
-    output.min_oa = (M_PI-output.min_oa)/2;
+    //This converts to the scale expected by the velvet gripper
+    //output.max_oa = fabsf((M_PI-output.max_oa)/2);
+    //output.min_oa = (M_PI-output.min_oa)/2;
     std::cout<<"min "<<output.min_oa<<" max "<<output.max_oa<<" checked "<<dctr<<std::endl;
     output.debug_time = t2-t1;
     output.cspace_volume = cube.volume();
