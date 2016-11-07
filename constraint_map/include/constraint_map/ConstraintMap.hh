@@ -215,12 +215,12 @@ class GripperModelPJ {
 	float finger_thickness;
 	GripperModelPJ():min_oa(0) { };
 	GripperModelPJ(Eigen::Vector3f &finger_size_, Eigen::Vector3f &palm_size_, Eigen::Affine3f &palm2fingers_, float max_oa_):min_oa(0) {
+	    finger_thickness = finger_size_(0);
 	    finger_size = finger_size_;
 	    max_oa = max_oa_;
 	    //now let's calculate the "finger_size" for the finger sweep box: 2 finger widths + max_oa
 	    finger_size(0) = 2*finger_size(0) + max_oa;
 	    palm_size = palm_size_;
-	    finger_thickness = finger_size_(0);
 	    
 	    //now the offsets to the bottom left corner of each box
 	    //assumption is that y points out of the gripper, x along finger opening
@@ -277,10 +277,10 @@ class GripperConfigurationSimple {
 };
 
 class GripperConfiguration {
-    ///position of the gripper
-    //Eigen::Vector3f position;
-    ///vector pointing from the gripper to the center of the target
-    //Eigen::Vector3f approach_direction;
+    protected:
+	BoxConstraint palm_;
+	HalfCylinderConstraint fingerSweep_;
+
     public:
 	GripperConfiguration() {isValid = false;};
 	GripperConfiguration(Eigen::Affine3f &pose_, GripperModel *model_) {
@@ -296,19 +296,24 @@ class GripperConfiguration {
 	//Eigen::Vector3f ori;
 	//opening angle of the gripper
 	float min_oa, max_oa;
-	BoxConstraint palm;
-	HalfCylinderConstraint fingerSweep;
 
 	bool isValid;
+	virtual bool palm(Eigen::Vector3f &x) {
+	    return palm_(x);
+	}
+
+	virtual bool fingerSweep(Eigen::Vector3f &x) {
+	    return fingerSweep_(x);
+	}
 
 	virtual void calculateConstraints() {
 	    
 	    Eigen::Affine3f ps;
 	    ps = pose*model->palm2palm_box;
-	    palm.calculateConstraints(ps,model->palm_size);
+	    palm_.calculateConstraints(ps,model->palm_size);
 	      
 	    ps = pose*model->palm2fingers;
-	    fingerSweep.calculateConstraints(ps,model->finger_size(1),model->finger_size(2),0);
+	    fingerSweep_.calculateConstraints(ps,model->finger_size(1),model->finger_size(2),0);
 	    psm = ps;
 	}
 
@@ -333,10 +338,9 @@ class GripperConfiguration {
 };
 
 class GripperConfigurationPJ : public GripperConfiguration {
-    ///position of the gripper
-    //Eigen::Vector3f position;
-    ///vector pointing from the gripper to the center of the target
-    //Eigen::Vector3f approach_direction;
+    protected:
+	BoxConstraint fingerSweepPJ;
+
     public:
 	GripperConfigurationPJ() {isValid = false;};
 	GripperConfigurationPJ(Eigen::Affine3f &pose_, GripperModelPJ *model_) {
@@ -348,13 +352,16 @@ class GripperConfigurationPJ : public GripperConfiguration {
 	};
 
 	GripperModelPJ *modelPJ;
-	BoxConstraint fingerSweepPJ;
+	
+	virtual bool fingerSweep(Eigen::Vector3f &x) {
+	    return fingerSweepPJ(x);
+	}
 
 	virtual void calculateConstraints() {
 	    
 	    Eigen::Affine3f ps;
 	    ps = pose*modelPJ->palm2palm_box;
-	    palm.calculateConstraints(ps,modelPJ->palm_size);
+	    palm_.calculateConstraints(ps,modelPJ->palm_size);
 	      
 	    ps = pose*modelPJ->palm2fingers_box;
 	    fingerSweepPJ.calculateConstraints(ps,modelPJ->finger_size);
@@ -362,15 +369,19 @@ class GripperConfigurationPJ : public GripperConfiguration {
 	}
 
 	virtual void updateMinAngle (Eigen::Vector3f &x) {
-	    Eigen::Vector3f xt = psm.inverse()*x;
-	    float mm = fabsf(xt(0));
-	    if(mm > min_oa) min_oa = mm;
+	    if(fingerSweep(x)) {
+		Eigen::Vector3f xt = psm.inverse()*x;
+		float mm = fabsf(xt(0));
+		if(mm > min_oa) min_oa = mm;
+	    }
 	}
 	virtual void updateMaxAngle (Eigen::Vector3f &x) {
-	    Eigen::Vector3f xt = psm.inverse()*x;
-	    float mm = fabsf(xt(0))-modelPJ->finger_thickness;
-	    mm = mm < 0 ? 0 : mm;
-	    if( mm < max_oa) max_oa = mm;
+	    if(fingerSweep(x)) {
+		Eigen::Vector3f xt = psm.inverse()*x;
+		float mm = fabsf(xt(0))-modelPJ->finger_thickness;
+		mm = mm < 0 ? 0 : mm;
+		if( mm < max_oa) max_oa = mm;
+	    }
 	}
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
