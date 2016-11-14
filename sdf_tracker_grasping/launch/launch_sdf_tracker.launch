@@ -10,11 +10,18 @@
     <param name="PositiveTruncationDistance" value= "0.04" />
     <param name="NegativeTruncationDistance" value= "-0.02" />
     <param name="RobustStatisticCoefficient" value= "0.02" />
-    <param name="OutputVolume" value= "false" />
+    <param name="OutputVolume" value= "true" />
     <param name="InteractiveMode" value= "true" />
     <param name="depth_registered" value= "false"/>
     <param name="MaximumRaycastSteps" value= "360" /> 
     <param name="OutputTriangles" value= "false" />
+    
+    <param name="ImageWidth" value= "1920"/>
+    <param name="ImageHeight" value= "1080"/>
+    <param name="FocalLengthX" value= "1051.0" />
+    <param name="FocalLengthY" value= "1051.0" />
+    <param name="CenterPointX" value= "953.0" />
+    <param name="CenterPointY" value= "518.6" /> 
 
 <!-- full list of parameters and their default values -->
 <!--   

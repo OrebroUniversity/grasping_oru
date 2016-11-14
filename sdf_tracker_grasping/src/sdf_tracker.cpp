@@ -119,6 +119,7 @@ void SDFTracker::Init(SDF_Parameters &parameters)
   case 480: downsample = 1; break; //VGA
   case 240: downsample = 2; break; //QVGA
   case 120: downsample = 4; break; //QQVGA
+  default: downsample = 1; break;
   }
   parameters_.fx /= downsample;
   parameters_.fy /= downsample;
@@ -847,7 +848,7 @@ SDFTracker::UpdateDepth(const cv::Mat &depth)
     #pragma omp parallel for 
     for(int col=0; col<depthImage_->cols-0; ++col)
     { 
-      if(!std::isnan(Drow[col]) && Drow[col]>0.1)
+      if(!std::isnan(Drow[col]) && Drow[col]>0.01)
       {
       validityMask_[row][col]=true;
       }else
@@ -873,7 +874,7 @@ SDFTracker::FuseDepth(void)
   
   const float Wslope = 1/(parameters_.Dmax - parameters_.Dmin);
   Eigen::Matrix4d worldToCam = Transformation_.inverse();
-  Eigen::Vector4d camera = worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
+  //Eigen::Vector4d camera = Transformation_ * Eigen::Vector4d(0.0,0.0,0.0,1.0);//worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
   
   //Main 3D reconstruction loop
   grid_mutex_.lock();
@@ -890,7 +891,8 @@ SDFTracker::FuseDepth(void)
         //define a ray and point it into the center of a node
         Eigen::Vector4d ray((x-parameters_.XSize/2)*parameters_.resolution, (y- parameters_.YSize/2)*parameters_.resolution , (z- parameters_.ZSize/2)*parameters_.resolution, 1);        
         ray = worldToCam*ray;
-        if(ray(2)-camera(2) < 0) continue;
+	//in front of the camera in camera coordinate frame
+        if(ray(2) <= 0) continue;
         
         cv::Point2d uv;
         uv=To2D(ray,parameters_.fx,parameters_.fy,parameters_.cx,parameters_.cy );
@@ -899,29 +901,38 @@ SDFTracker::FuseDepth(void)
         int i=floor(uv.y);      
         
         //if the projected coordinate is within image bounds
-        if(i>0 && i<depthImage_->rows-1 && j>0 && j <depthImage_->cols-1 && validityMask_[i][j] &&    
-            validityMask_[i-1][j] && validityMask_[i][j-1])
-        {
-          const float* Di = depthImage_->ptr<float>(i);
-          double Eta; 
-          // const float W=1/((1+Di[j])*(1+Di[j]));
-            
-          Eta=(double(Di[j])-ray(2));       
-            
-          if(Eta >= parameters_.Dmin)
-          {
-              
-            double D = std::min(Eta,parameters_.Dmax);
+	if(i>0 && i<depthImage_->rows-1 && j>0 && j <depthImage_->cols-1 ) {
+	    if(validityMask_[i][j] && validityMask_[i-1][j] && validityMask_[i][j-1])
+	    {
+		const float* Di = depthImage_->ptr<float>(i);
+		double Eta; 
+		// const float W=1/((1+Di[j])*(1+Di[j]));
 
-            float W = ((D - 1e-6) < parameters_.Dmax) ? 1.0f : Wslope*D - Wslope*parameters_.Dmin;
-                
-            previousD[z*2] = (previousD[z*2] * previousW[z*2] + float(D) * W) /
-                      (previousW[z*2] + W);
+		Eta=(double(Di[j])-ray(2));       
 
-            previousW[z*2] = std::min(previousW[z*2] + W , float(parameters_.Wmax));
+		if(Eta >= parameters_.Dmin)
+		{
 
-          }//within visible region 
-        }//within bounds      
+		    double D = std::min(Eta,parameters_.Dmax);
+
+		    float W = ((D - 1e-6) < parameters_.Dmax) ? 1.0f : Wslope*D - Wslope*parameters_.Dmin;
+
+		    previousD[z*2] = (previousD[z*2] * previousW[z*2] + float(D) * W) /
+			(previousW[z*2] + W);
+
+		    previousW[z*2] = std::min(previousW[z*2] + W , float(parameters_.Wmax));
+
+		}
+	    }//within valid region 
+	    else {
+		//debug: pixels that are hiting non-valid pixels
+		//previousW[z*2] = -1;
+	    }
+	}//within bounds
+	else {
+	    //pixels that hit outside image
+	    //previousW[z*2] = -2;
+	}	    
       }//z   
     }//y
   }//x
@@ -1081,7 +1092,7 @@ SDFTracker::FuseDepth(const cv::Mat& depth)
   cumulative_pose_ *= 0.0;
   
   Eigen::Matrix4d worldToCam = Transformation_.inverse();
-  Eigen::Vector4d camera = worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
+  Eigen::Vector4d camera =  Transformation_* Eigen::Vector4d(0.0,0.0,0.0,1.0);;//worldToCam * Eigen::Vector4d(0.0,0.0,0.0,1.0);
   //Main 3D reconstruction loop
  
   grid_mutex_.lock();

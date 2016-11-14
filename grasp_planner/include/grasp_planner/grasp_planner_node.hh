@@ -86,6 +86,7 @@ class GraspPlannerNode {
 	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
 	int MIN_ENVELOPE_VOLUME;
 
+
     public:
 	GraspPlannerNode(SDF_Parameters &parameters) {
 
@@ -320,9 +321,21 @@ class GraspPlannerNode {
 	    tf::transformTFToEigen(camera_frame_to_map,cam2map);
 	    
 	    cv_bridge::CvImageConstPtr bridge;
+	    cv::Mat converted;
 	    try
 	    {
+		ROS_INFO("Encoding in message is: %s", msg->encoding.c_str());
 		bridge = cv_bridge::toCvCopy(msg, "32FC1");
+		double scale_factor = 1;
+		if(strncmp(msg->encoding.c_str(),"16UC1", msg->encoding.size())==0) {
+		    //kinect v2, convert to metric scale
+		    scale_factor = 0.001;
+		}
+		bridge->image.convertTo(converted,CV_32FC1,scale_factor);
+
+		double min,max;
+		cv::minMaxIdx(converted, &min, &max, NULL, NULL);
+		ROS_INFO("Min/Max values are %lf,%lf",min,max);
 	    }
 	    catch (cv_bridge::Exception& e)
 	    {
@@ -349,17 +362,10 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
-		if(frame_counter_ < 1) {
-		    ++frame_counter_; 
-		} else {
-		    //FIXME: throttling down fusing here
-		    frame_counter_ = 3;
 		    ROS_INFO("GPLAN: Fusing frame");
 		    myTracker_->SetCurrentTransformation(cam2map.matrix());
-		    myTracker_->UpdateDepth(bridge->image);
+		    myTracker_->UpdateDepth(converted);
 		    myTracker_->FuseDepth();
-		}
-	//	ROS_INFO("DONE");
 	    }
 	    else 
 	    {

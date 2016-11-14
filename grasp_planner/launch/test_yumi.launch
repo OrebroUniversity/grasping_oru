@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-<param name="use_sim_time" value="true"/>
+<param name="use_sim_time" value="false"/>
 <!--param name="use_sim_time" value="true"/-->
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen" >
     
@@ -9,8 +9,17 @@
     <param name="map_frame_name" value="sdf_map_frame"/>
     <param name="use_tf" value="true"/>
     <param name="ee_frame_name" value="gripper_r_base"/>
-    
-    <param name="depth_topic_name" value="/camera/depth_registered/image_raw"/>
+
+    <!-- asus camera -->
+    <!--
+    <param name="depth_info_topic_name" value="/camera/depth_registered/camera_info"/>
+    <param name="depth_topic_name" value="/camera/depth_registered/image_raw"/> 
+    -->
+    <!-- kinect2 camera -->
+    <param name="depth_topic_name" value="/kinect2/hd/image_depth_rect"/>
+    <param name="depth_info_topic_name" value="/kinect2/hd/camera_info"/>
+
+    <param name="gripper_frame_name" value="/gripper_r_base"/>
     <param name="orientation_tolerance" value= "-1" />
 
     <!-- SDF related parameters -->
@@ -68,9 +77,10 @@
   <!--node name="retimer" pkg="grasp_planner" type="tf_retime" output="screen"/-->
   <!--node name="pc_pub" pkg="grasp_planner" type="pointcloud_publisher" output="screen"/-->
   <node pkg="tf" type="static_transform_publisher" name="roipub"
-         args="0.5 0 0.3 -0.707 0 0 0.707 world sdf_map_frame 100" />
-  <node pkg="tf" type="static_transform_publisher" name="dbgpub"
-         args="1 0 0.8 0 0 -0.707 0.707 world velvet_fingers_palm 100" />
+         args="0.3 0 0.3 -0.707 0 0 0.707 world sdf_map_frame 100" />
+     <!--args="0.5 0 0.3 -0.707 0 0 0.707 world sdf_map_frame 100" /-->
+  <!--node pkg="tf" type="static_transform_publisher" name="dbgpub"
+         args="1 0 0.8 0 0 -0.707 0.707 world velvet_fingers_palm 100" /-->
   <!--node name="viz" pkg="rviz" type="rviz" output="screen"/-->
 
 </launch>

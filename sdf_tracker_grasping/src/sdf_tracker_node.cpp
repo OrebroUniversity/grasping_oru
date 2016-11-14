@@ -370,7 +370,7 @@ int main( int argc, char* argv[] )
     param.pose_offset = initialTransformation;
 
     SDFTrackerNode MyTrackerNode(param);
-    MyTrackerNode.subscribeTopic();
+    MyTrackerNode.subscribeTopic("/kinect2/hd/image_depth_rect");
     MyTrackerNode.advertiseTopic();
 
     ros::spin();
