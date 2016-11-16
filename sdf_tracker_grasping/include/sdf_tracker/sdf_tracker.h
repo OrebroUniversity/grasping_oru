@@ -47,6 +47,18 @@ public:
   virtual ~SDF_Parameters();
 };
 
+class SDF_CamParameters
+{
+public:
+  int image_height;
+  int image_width;
+  double fx;
+  double fy;
+  double cx;
+  double cy;
+  SDF_CamParameters(); 
+};
+
 typedef Eigen::Matrix<double,6,1> Vector6d; 
 
 class SDFTracker : public SimpleOccMapIfce
@@ -80,6 +92,7 @@ class SDFTracker : public SimpleOccMapIfce
   void MarchingTetrahedrons(Eigen::Vector4d &Origin, int tetrahedron);
   virtual void Init(SDF_Parameters &parameters);
   virtual void DeleteGrids(void);
+  virtual bool pixelValid(float &px);
 
   public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -120,6 +133,9 @@ class SDFTracker : public SimpleOccMapIfce
 
   /// Fuses the current depth map into the TSDF volume, the current depth map is set using UpdateDepth 
   virtual void FuseDepth(void);
+  
+  /// Fuses the depth map @param depth from a camera with parameters @cam_param taken from camera pose @param T  
+  virtual void FuseDepth(cv::Mat &depth, SDF_CamParameters &cam_param, const Eigen::Matrix4d &T);
 
   /// Fuses the current point vector into the TSDF volume, the current point vector is set using UpdatePoints 
   virtual void FusePoints(void);

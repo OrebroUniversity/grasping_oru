@@ -383,6 +383,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     double t1 = getDoubleTime();
     Eigen::AngleAxisf aa;
     float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2)+M_PI/2;
+    //float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2);
     float MIN_OA,MAX_OA;
     if(isPJGripper) {
 	MIN_OA = modelPJ->min_oa;

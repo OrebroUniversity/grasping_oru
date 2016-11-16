@@ -49,6 +49,16 @@ SDF_Parameters::SDF_Parameters()
   render_window = "Render";
 }
 
+SDF_CamParameters::SDF_CamParameters()
+{  
+  image_width = 640;
+  image_height = 480;
+  fx = 520.0;
+  fy = 520.0;
+  cx = 319.5;
+  cy = 239.5;
+}
+
 SDF_Parameters::~SDF_Parameters()
 {}
 
@@ -867,9 +877,82 @@ SDFTracker::UpdatePoints(const std::vector<Eigen::Vector4d,Eigen::aligned_alloca
   points_mutex_.unlock();
 }
 
+bool SDFTracker::pixelValid(float &px) {
+    return (!std::isnan(px) && px>0.01);
+}
+
+void SDFTracker::FuseDepth(cv::Mat &depth, SDF_CamParameters &cparam, const Eigen::Matrix4d &T) {
+  
+  const float Wslope = 1/(parameters_.Dmax - parameters_.Dmin);
+  Eigen::Matrix4d worldToCam = T.inverse();
+  
+  //Main 3D reconstruction loop
+  grid_mutex_.lock();
+  for(int x = 0; x<parameters_.XSize; ++x)
+  { 
+  #pragma omp parallel for \
+  shared(x)
+    for(int y = 0; y<parameters_.YSize;++y)
+    { 
+      float* previousD = &myGrid_[x][y][0];
+      float* previousW = &myGrid_[x][y][1];      
+      for(int z = 0; z<parameters_.ZSize; ++z)
+      {           
+        //define a ray and point it into the center of a node
+        Eigen::Vector4d ray((x-parameters_.XSize/2)*parameters_.resolution, (y- parameters_.YSize/2)*parameters_.resolution , (z- parameters_.ZSize/2)*parameters_.resolution, 1);        
+        ray = worldToCam*ray;
+	//in front of the camera in camera coordinate frame
+        if(ray(2) <= 0) continue;
+        
+        cv::Point2d uv;
+        uv=To2D(ray,cparam.fx,cparam.fy,cparam.cx,cparam.cy);
+        
+        int j=floor(uv.x);
+        int i=floor(uv.y);      
+        
+        //if the projected coordinate is within image bounds
+	if(i>0 && i<depth.rows-1 && j>0 && j <depth.cols-1 ) {
+	    if(pixelValid(depth.at<float>(i,j)) && pixelValid(depth.at<float>(i-1,j)) && pixelValid(depth.at<float>(i,j-1)))
+	    {
+		const float* Di = depth.ptr<float>(i);
+		double Eta; 
+		// const float W=1/((1+Di[j])*(1+Di[j]));
+
+		Eta=(double(Di[j])-ray(2));       
+
+		if(Eta >= parameters_.Dmin)
+		{
+
+		    double D = std::min(Eta,parameters_.Dmax);
+
+		    float W = ((D - 1e-6) < parameters_.Dmax) ? 1.0f : Wslope*D - Wslope*parameters_.Dmin;
+
+		    previousD[z*2] = (previousD[z*2] * previousW[z*2] + float(D) * W) /
+			(previousW[z*2] + W);
+
+		    previousW[z*2] = std::min(previousW[z*2] + W , float(parameters_.Wmax));
+
+		}
+	    }//within valid region 
+	    else {
+		//debug: pixels that are hiting non-valid pixels
+		//previousW[z*2] = -1;
+	    }
+	}//within bounds
+	else {
+	    //pixels that hit outside image
+	    //previousW[z*2] = -2;
+	}	    
+      }//z   
+    }//y
+  }//x
+  grid_mutex_.unlock();
+  return;
+
+}
 
 void 
-SDFTracker::FuseDepth(void)
+SDFTracker::FuseDepth()
 {
   
   const float Wslope = 1/(parameters_.Dmax - parameters_.Dmin);

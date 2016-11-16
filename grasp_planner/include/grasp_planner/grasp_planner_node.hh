@@ -45,6 +45,7 @@ class GraspPlannerNode {
 	boost::mutex tracker_m;
 	SDFTracker* myTracker_;
 	SDF_Parameters myParameters_;
+	SDF_CamParameters cam1params_, cam2params_;
 	ConstraintMap *gripper_map;
 	Eigen::Affine3d cam2map, prev_cam2map;
 	
@@ -54,6 +55,8 @@ class GraspPlannerNode {
 	ros::Publisher constraint_pub_;
 	ros::Subscriber depth_subscriber_;
 	ros::Subscriber depth_camera_info_subscriber_;
+	ros::Subscriber depth_subscriber2_;
+	ros::Subscriber depth_camera_info_subscriber2_;
 	ros::Timer heartbeat_tf_;
 //	ros::Timer heartbeat_pc_;
 
@@ -69,6 +72,7 @@ class GraspPlannerNode {
 	tf::Transform gripper2map;
 
 	std::string gripper_fname;
+	std::string internal_grasp_fname;
 	std::string gripper_frame_name;
 	std::string ee_frame_name;
 	std::string object_map_frame_name;
@@ -76,13 +80,15 @@ class GraspPlannerNode {
 	std::string object_map_topic;
 	std::string depth_topic_name_;
 	std::string depth_info_topic_name_;
+	std::string depth_topic_name2_;
+	std::string depth_info_topic_name2_;
 	std::string camera_link_;
 	std::string fused_pc_topic;
 	std::string loadVolume_;
 	std::string dumpfile;
 
 	int skip_frames_, frame_counter_;
-	bool use_tf_, grasp_frame_set, publish_pc, isInfoSet;
+	bool use_tf_, grasp_frame_set, publish_pc, isInfoSet1, isInfoSet2;
 	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
 	int MIN_ENVELOPE_VOLUME;
 
@@ -106,7 +112,8 @@ class GraspPlannerNode {
 
 	    gripper_map = new ConstraintMap();
 	    bool success = gripper_map->loadGripperConstraints(gripper_fname.c_str());
-	    isInfoSet = false;
+	    isInfoSet1 = false;
+	    isInfoSet2 = false;
 	    bool offlineTracker = false;
 
 	    if(!success) {
@@ -121,7 +128,8 @@ class GraspPlannerNode {
 	    nh_.param("runTrackerFromVolume", offlineTracker, false);
 	    nh_.param<std::string>("depth_topic_name", depth_topic_name_,"/camera/depth_registered/image");
 	    nh_.param<std::string>("depth_info_topic_name", depth_info_topic_name_,"/camera/depth_registered/camera_info");
-	    //nh_.param<std::string>("camera_link", camera_link_,"/camera/depth_frame");
+	    nh_.param<std::string>("depth_topic_name2", depth_topic_name2_,"none");
+	    nh_.param<std::string>("depth_info_topic_name2", depth_info_topic_name2_,"none");
 	    nh_.param("skip_frames", skip_frames_, 0);
 
 	    //parameters used for the SDF tracker
@@ -149,26 +157,29 @@ class GraspPlannerNode {
 	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
 	    cylinder_tolerance = -0.015;
 	    plane_tolerance = 0.005;
+	    internal_grasp_fname = "internal_grasp_frame_name";
 
 	    myParameters_.resolution = gripper_map->getResolution();
-	    //myTracker_ = new SDFTracker(myParameters_);
+	    myTracker_ = new SDFTracker(myParameters_);
 
 	    if(loadVolume_.compare(std::string("none"))!=0 && offlineTracker)
-
 	    {
 		//Assume we are operating offline
-		myTracker_ = new SDFTracker(myParameters_);
 	    	myTracker_->LoadSDF(loadVolume_);
-	    } else {
-		myTracker_ = NULL;
-	    }
-	    
+	    } 
+
 	    //subscribe / advertise
 	    //gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
 	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
 	    depth_camera_info_subscriber_ = n_.subscribe(depth_info_topic_name_, 1, &GraspPlannerNode::depthInfoCallback, this);
+	   
+	    if(depth_topic_name2_!="none") { 
+		depth_subscriber2_ = n_.subscribe(depth_topic_name2_, 1, &GraspPlannerNode::depthCallback2, this);
+		depth_camera_info_subscriber2_ = n_.subscribe(depth_info_topic_name2_, 1, &GraspPlannerNode::depthInfoCallback2, this);
+	    }
+
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
 	    save_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
@@ -178,7 +189,7 @@ class GraspPlannerNode {
 	    vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "sdf_marker", 10, true );
 	    constraint_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "constraint_marker", 10, true );
 	    
-	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.1), &GraspPlannerNode::publishTF, this);
+	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.05), &GraspPlannerNode::publishTF, this);
 	    //heartbeat_pc_ = nh_.createTimer(ros::Duration(60), &GraspPlannerNode::publishPC, this);
 
 	    frame_counter_ = 0;
@@ -198,6 +209,12 @@ class GraspPlannerNode {
 	    if(grasp_frame_set) {
 		br.sendTransform(tf::StampedTransform(gripper2map, ros::Time::now(), object_map_frame_name, gripper_frame_name));
 	    }
+	    tf::Transform ee2grasp;
+	    Eigen::Affine3d ee2grasp_eigen;
+	    //ee2grasp_eigen = Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitZ())*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX());
+	    ee2grasp_eigen = Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitZ())*Eigen::AngleAxisd(-M_PI/2,Eigen::Vector3d::UnitY());
+	    tf::transformEigenToTF(ee2grasp_eigen, ee2grasp);
+	    br.sendTransform(tf::StampedTransform(ee2grasp, ros::Time::now(), ee_frame_name, internal_grasp_fname));
 	}
         void publishPC() {
 
@@ -291,19 +308,33 @@ class GraspPlannerNode {
 	
 	void depthInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
 	{
-	    if(isInfoSet) return;
+	    if(isInfoSet1) return;
 	    //set image size, focal length and center from camera info
 	    
-	    myParameters_.image_width=msg->width;
-	    myParameters_.image_height=msg->height; 
-	    myParameters_.fx=msg->K[0];
-	    myParameters_.fy=msg->K[4];
-	    myParameters_.cx=msg->K[2];
-	    myParameters_.cy=msg->K[5];
-	    isInfoSet = true;
+	    cam1params_.image_width=msg->width;
+	    cam1params_.image_height=msg->height; 
+	    cam1params_.fx=msg->K[0];
+	    cam1params_.fy=msg->K[4];
+	    cam1params_.cx=msg->K[2];
+	    cam1params_.cy=msg->K[5];
+	    isInfoSet1 = true;
 
-	    myTracker_ = new SDFTracker(myParameters_);
-	    ROS_INFO("Parameters set and tracker initialized");
+	    ROS_INFO("Parameters set for camera 1");
+	}
+	
+	void depthInfoCallback2(const sensor_msgs::CameraInfo::ConstPtr& msg)
+	{
+	    if(isInfoSet2) return;
+	    //set image size, focal length and center from camera info
+	    cam2params_.image_width=msg->width;
+	    cam2params_.image_height=msg->height; 
+	    cam2params_.fx=msg->K[0];
+	    cam2params_.fy=msg->K[4];
+	    cam2params_.cx=msg->K[2];
+	    cam2params_.cy=msg->K[5];
+	    isInfoSet2 = true;
+
+	    ROS_INFO("Parameters set for camera 2");
 	}
 
 	void depthCallback(const sensor_msgs::Image::ConstPtr& msg)
@@ -324,7 +355,7 @@ class GraspPlannerNode {
 	    cv::Mat converted;
 	    try
 	    {
-		ROS_INFO("Encoding in message is: %s", msg->encoding.c_str());
+		//ROS_INFO("Encoding in message is: %s", msg->encoding.c_str());
 		bridge = cv_bridge::toCvCopy(msg, "32FC1");
 		double scale_factor = 1;
 		if(strncmp(msg->encoding.c_str(),"16UC1", msg->encoding.size())==0) {
@@ -333,9 +364,9 @@ class GraspPlannerNode {
 		}
 		bridge->image.convertTo(converted,CV_32FC1,scale_factor);
 
-		double min,max;
-		cv::minMaxIdx(converted, &min, &max, NULL, NULL);
-		ROS_INFO("Min/Max values are %lf,%lf",min,max);
+		//double min,max;
+		//cv::minMaxIdx(converted, &min, &max, NULL, NULL);
+		//ROS_INFO("Min/Max values are %lf,%lf",min,max);
 	    }
 	    catch (cv_bridge::Exception& e)
 	    {
@@ -363,9 +394,79 @@ class GraspPlannerNode {
 	    if(!myTracker_->Quit())
 	    {
 		    ROS_INFO("GPLAN: Fusing frame");
-		    myTracker_->SetCurrentTransformation(cam2map.matrix());
-		    myTracker_->UpdateDepth(converted);
-		    myTracker_->FuseDepth();
+		    myTracker_->FuseDepth(converted, cam1params_, cam2map.matrix());
+		    //myTracker_->SetCurrentTransformation(cam2map.matrix());
+		    //myTracker_->UpdateDepth(converted);
+		    //myTracker_->FuseDepth();
+	    }
+	    else 
+	    {
+		ros::shutdown();
+	    }
+	    tracker_m.unlock();
+	}
+	
+	void depthCallback2(const sensor_msgs::Image::ConstPtr& msg)
+	{
+	    if(myTracker_ == NULL) return;
+	    camera_link_ = msg->header.frame_id;
+	    tf::StampedTransform camera_frame_to_map;
+	    try {
+		tl.waitForTransform(object_map_frame_name, camera_link_, msg->header.stamp, ros::Duration(0.15) );
+		tl.lookupTransform(object_map_frame_name,camera_link_, msg->header.stamp, camera_frame_to_map);
+	    } catch (tf::TransformException ex) {
+		ROS_ERROR("%s",ex.what());
+		return;
+	    }
+	    tf::transformTFToEigen(camera_frame_to_map,cam2map);
+	    
+	    cv_bridge::CvImageConstPtr bridge;
+	    cv::Mat converted;
+	    try
+	    {
+		//ROS_INFO("Encoding in message is: %s", msg->encoding.c_str());
+		bridge = cv_bridge::toCvCopy(msg, "32FC1");
+		double scale_factor = 1;
+		if(strncmp(msg->encoding.c_str(),"16UC1", msg->encoding.size())==0) {
+		    //kinect v2, convert to metric scale
+		    scale_factor = 0.001;
+		}
+		bridge->image.convertTo(converted,CV_32FC1,scale_factor);
+
+		//double min,max;
+		//cv::minMaxIdx(converted, &min, &max, NULL, NULL);
+		//ROS_INFO("Min/Max values are %lf,%lf",min,max);
+	    }
+	    catch (cv_bridge::Exception& e)
+	    {
+		ROS_ERROR("Failed to transform depth image.");
+		return;
+	    }
+
+	    if(frame_counter_ < 3) {
+		++frame_counter_; 
+		prev_cam2map = cam2map;
+		return;
+	    }
+
+	    Eigen::Affine3d Tmotion;
+	    Tmotion = prev_cam2map.inverse()*cam2map;
+	    Eigen::AngleAxisd ax(Tmotion.rotation());
+	    /*if(Tmotion.translation().norm() <0.01 && ax.angle()< 0.01) {
+		//ROS_INFO("skipping frame %lf, %lf",Tmotion.translation().norm(),ax.angle());
+		return;
+	    } else {
+		prev_cam2map = cam2map;
+	    }*/
+	    
+	    tracker_m.lock();
+	    if(!myTracker_->Quit())
+	    {
+		    ROS_INFO("GPLAN: Fusing frame");
+		    myTracker_->FuseDepth(converted, cam2params_, cam2map.matrix());
+		    //myTracker_->SetCurrentTransformation(cam2map.matrix());
+		    //myTracker_->UpdateDepth(converted);
+		    //myTracker_->FuseDepth();
 	    }
 	    else 
 	    {
@@ -452,8 +553,8 @@ class GraspPlannerNode {
 	    
 	    tf::StampedTransform ee_in_plan_frame;
 	    try {
-		tl.waitForTransform(gripper_frame_name, ee_frame_name, ros::Time(0), ros::Duration(1.0) );
-		tl.lookupTransform( gripper_frame_name, ee_frame_name, ros::Time(0), ee_in_plan_frame);
+		tl.waitForTransform(gripper_frame_name, internal_grasp_fname, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform( gripper_frame_name, internal_grasp_fname, ros::Time(0), ee_in_plan_frame);
 	    } catch (tf::TransformException ex) {
 		ROS_ERROR("%s",ex.what());
 		return false;
