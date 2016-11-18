@@ -421,6 +421,7 @@ class ConstraintMap : public SimpleOccMap {
 	int n_v,n_o,n_d;
 	float min_z, max_z, min_dist, max_dist;	
 	std::vector<GripperConfiguration*> valid_configs;
+	std::vector<bool> palmCollision, fingerCollision, emptyGripper, orientationFilter;
 	ConfigurationList *** config_grid;
 
 	double getDoubleTime()
@@ -534,7 +535,7 @@ class ConstraintMap : public SimpleOccMap {
 
 	//computes the valid gripper configurations when grasping a cylinder inside object map
 	void computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, 
-		    Eigen::Affine3f &prototype_orientation, double orientation_tolerance, GripperPoseConstraint &output);
+		    Eigen::Vector3f &prototype_orientation, float orientation_tolerance, GripperPoseConstraint &output);
 	
 	bool saveGripperConstraints(const char *fname) const;
 	bool loadGripperConstraints(const char *fname);

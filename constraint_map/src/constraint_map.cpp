@@ -116,17 +116,29 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
     
     CellIndex id;
     Eigen::Affine3f pose;
-    pcl::PointXYZRGB pc, valid, select, invalid;
+    pcl::PointXYZRGB pc, valid, select, invalid, deleted, finger, empty, orient;
     // pack r/g/b into rgb
     uint8_t r = 255, g = 0, b = 0;    // Red color
     uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-    invalid.rgb = *reinterpret_cast<float*>(&rgb);
+    invalid.rgb = *reinterpret_cast<float*>(&rgb); //in collision with palm
     r = 0, g = 250, b = 0;    // Green color
     rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
     select.rgb = *reinterpret_cast<float*>(&rgb);
     r = 100, g = 50, b = 20;    // Orange color
     rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
     valid.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 10, g = 10, b = 10;    // dark gray 
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    deleted.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 255, g = 100, b = 100;    // pinky 
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    finger.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 10, g = 10, b = 200;    // blue 
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    empty.rgb = *reinterpret_cast<float*>(&rgb);
+    r = 100, g = 100, b = 100;    // light gray 
+    rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+    orient.rgb = *reinterpret_cast<float*>(&rgb);
 
     int lowY, highY;
     lowY = (n_o+cube.bl.j)%n_o;
@@ -145,7 +157,12 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		pc.z = pose.translation()(2);
 		
 		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
-		if(valid_configs[config_index] == NULL) continue;
+		if(valid_configs[config_index] == NULL) {
+		    //should never happen!
+		    pc.rgb = deleted.rgb;
+		    configs_pc.points.push_back(pc);
+		    continue;
+		}
 		if(valid_configs[config_index]->isValid) {
 		    //valid
 		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
@@ -160,12 +177,24 @@ void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &conf
 		    configs_pc.points.push_back(pc);
 		} else {
 		    //invalid
+		    /*
 		    if( ( id.k >= cube.bl.k && id.k<=cube.ur.k) && //non-looped degreed
 			( isSphereGrid ? (lowX<=highX ? (id.i >= lowX && id.i<= highX) :  (id.i >= lowX || id.i<= highX )) : (id.i >= cube.bl.i && id.i<=cube.ur.i) ) && 
-			(  lowY<=highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) {
+			(  lowY<=highY ? (id.j >= lowY && id.j<= highY) :  (id.j >= lowY || id.j<= highY ) ) ) { 
+		      } */
+		    if(orientationFilter[config_index]) {
+			pc.rgb = orient.rgb;
+		    } else if(palmCollision[config_index]) {
 			pc.rgb = invalid.rgb;
-			configs_pc.points.push_back(pc);
-		      }
+		    } else if (fingerCollision[config_index]) {
+			pc.rgb = finger.rgb;
+		    } else if (emptyGripper[config_index]) {
+			pc.rgb = empty.rgb;
+		    } else {
+			//should never happen!
+			pc.rgb = deleted.rgb;
+		    }
+		    configs_pc.points.push_back(pc);
 		}
 	    }
 	}
@@ -375,15 +404,15 @@ void ConstraintMap::sampleGripperGrid(int n_vert_slices, int n_orient, int n_dis
 }
 	
 void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Affine3f cpose, float cradius, float cheight, 
-		    Eigen::Affine3f &prototype_orientation, double orientation_tolerance, GripperPoseConstraint &output) {
+		    Eigen::Vector3f &prototype_orientation, float orientation_tolerance, GripperPoseConstraint &output) {
 
     CylinderConstraint cylinder(cpose,cradius,cheight);
     Eigen::Vector3f tmp = cpose.translation();
     SphereConstraint sphere(tmp,cradius);
     double t1 = getDoubleTime();
     Eigen::AngleAxisf aa;
-    float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2)+M_PI/2;
-    //float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2);
+    prototype_orientation.normalize();
+    //float gyaw = prototype_orientation.rotation().eulerAngles(0,1,2)(2)+M_PI/2;
     float MIN_OA,MAX_OA;
     if(isPJGripper) {
 	MIN_OA = modelPJ->min_oa;
@@ -392,18 +421,33 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 	MIN_OA = model->min_oa;
 	MAX_OA = model->max_oa;
     }
+    palmCollision.clear();
+    fingerCollision.clear();
+    emptyGripper.clear();
+    orientationFilter.clear();
     //reset grid to make all configs valid
     for(int i=0; i<valid_configs.size(); ++i) {
 	valid_configs[i]->isValid = true;
 	valid_configs[i]->min_oa = MIN_OA; 
 	valid_configs[i]->max_oa = MAX_OA;
 	//EXCEPT the ones with a wrong orientation...
+	Eigen::Vector3f zaxis = valid_configs[i]->pose.rotation()*Eigen::Vector3f::UnitY();
+	float angle = acosf(prototype_orientation.dot(zaxis.normalized()));
+	valid_configs[i]->isValid = (orientation_tolerance < 0) || ( angle < orientation_tolerance); 
+	/*
 	float cyaw = valid_configs[i]->pose.rotation().eulerAngles(0,1,2)(2);
 	float diff = fabs(gyaw-cyaw);
 	if(diff > 2*M_PI) diff -= 2*M_PI; //one period over  
 	//if(diff > M_PI) diff -= M_PI;	  //treat orientations equally in both directions
 	//note orientation_tolerance < 0 => disable orientation bias
 	valid_configs[i]->isValid = (orientation_tolerance < 0) || ( diff <= orientation_tolerance); 
+	*/
+
+	//for display
+	palmCollision.push_back(false);
+	fingerCollision.push_back(false);
+	emptyGripper.push_back(false);
+	orientationFilter.push_back(!valid_configs[i]->isValid);
     }
     
     CellIndex id;
@@ -434,6 +478,15 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 				    (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
 				//if max_oa < min_oa, or if intersect with palm, -> config is not valid delete config
 				(*config_grid[id.i][id.j][id.k].configs[j])->isValid = false;
+
+				//for display
+				int idx_linear = config_grid[id.i][id.j][id.k].config_ids[j];
+				if( (*config_grid[id.i][id.j][id.k].configs[j])->palm(x) ) {
+				    palmCollision[idx_linear] = true;
+				}
+				if((*config_grid[id.i][id.j][id.k].configs[j])->max_oa <= (*config_grid[id.i][id.j][id.k].configs[j])->min_oa) {
+				    fingerCollision[idx_linear] = true;
+				}
 			    } 
 			} else {
 			    //same check but with a sphere
@@ -479,6 +532,9 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
 		config_sample_grid->setOccupied(id);
 		//delete valid_configs[i];
 		//valid_configs[i] = NULL;
+		if(valid_configs[i]->min_oa <= 0) {
+		    emptyGripper[i] = true;
+		}
 	    }
 	} else {
 	    std::cerr<<"Config is null, should not happen!\n";
@@ -864,7 +920,7 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 			std::cerr<<"something is wrong, config id out of bounds "<<idx<<std::endl;
 			return false;
 		    }
-		    //config_grid[id.i][id.j][id.k].config_ids.push_back(idx);
+		    config_grid[id.i][id.j][id.k].config_ids.push_back(idx);
 		    config_grid[id.i][id.j][id.k].configs.push_back(&valid_configs[idx]);
 		}
 	    }

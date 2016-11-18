@@ -72,9 +72,9 @@ class GraspPlannerNode {
 	tf::Transform gripper2map;
 
 	std::string gripper_fname;
-	std::string internal_grasp_fname;
+	//std::string internal_grasp_fname; //deprecated
+	//std::string ee_frame_name; //deprecated
 	std::string gripper_frame_name;
-	std::string ee_frame_name;
 	std::string object_map_frame_name;
 	std::string gripper_map_topic;
 	std::string object_map_topic;
@@ -89,7 +89,7 @@ class GraspPlannerNode {
 
 	int skip_frames_, frame_counter_;
 	bool use_tf_, grasp_frame_set, publish_pc, isInfoSet1, isInfoSet2;
-	double cylinder_tolerance, plane_tolerance, orientation_tolerance;
+	double cylinder_tolerance, plane_tolerance;//, orientation_tolerance;
 	int MIN_ENVELOPE_VOLUME;
 
 
@@ -102,7 +102,7 @@ class GraspPlannerNode {
 
 	    nh_.param<std::string>("gripper_file",gripper_fname,"full.cons");
 	    nh_.param<std::string>("grasp_frame_name",gripper_frame_name,"planned_grasp");
-	    nh_.param<std::string>("ee_frame_name",ee_frame_name,"velvet_fingers_palm");
+	    //nh_.param<std::string>("ee_frame_name",ee_frame_name,"velvet_fingers_palm"); //deprecated
 	    nh_.param<std::string>("map_frame_name",object_map_frame_name,"map_frame");
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
@@ -153,11 +153,11 @@ class GraspPlannerNode {
 	    nh_.getParam("CenterPointX", myParameters_.cx);
 	    nh_.getParam("CenterPointY", myParameters_.cy);
 
-	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
+//	    nh_.param<double>("orientation_tolerance", orientation_tolerance, 0.5); //RADIAN
 	    nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,5); //Number of configurations
-	    cylinder_tolerance = -0.015;
-	    plane_tolerance = 0.005;
-	    internal_grasp_fname = "internal_grasp_frame_name";
+	    cylinder_tolerance = 0; //-0.015;
+	    plane_tolerance = 0; //0.005;
+	    //internal_grasp_fname = "internal_grasp_frame_name";
 
 	    myParameters_.resolution = gripper_map->getResolution();
 	    myTracker_ = new SDFTracker(myParameters_);
@@ -209,12 +209,15 @@ class GraspPlannerNode {
 	    if(grasp_frame_set) {
 		br.sendTransform(tf::StampedTransform(gripper2map, ros::Time::now(), object_map_frame_name, gripper_frame_name));
 	    }
+#if 0
+	    //This code publishes a transform in expected coordinates. 
 	    tf::Transform ee2grasp;
 	    Eigen::Affine3d ee2grasp_eigen;
 	    //ee2grasp_eigen = Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitZ())*Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitX());
 	    ee2grasp_eigen = Eigen::AngleAxisd(M_PI/2,Eigen::Vector3d::UnitZ())*Eigen::AngleAxisd(-M_PI/2,Eigen::Vector3d::UnitY());
 	    tf::transformEigenToTF(ee2grasp_eigen, ee2grasp);
 	    br.sendTransform(tf::StampedTransform(ee2grasp, ros::Time::now(), ee_frame_name, internal_grasp_fname));
+#endif
 	}
         void publishPC() {
 
@@ -462,7 +465,7 @@ class GraspPlannerNode {
 	    tracker_m.lock();
 	    if(!myTracker_->Quit())
 	    {
-		    ROS_INFO("GPLAN: Fusing frame");
+		    ROS_INFO("GPLAN: Fusing frame from camera 2");
 		    myTracker_->FuseDepth(converted, cam2params_, cam2map.matrix());
 		    //myTracker_->SetCurrentTransformation(cam2map.matrix());
 		    //myTracker_->UpdateDepth(converted);
@@ -551,25 +554,30 @@ class GraspPlannerNode {
 
 	    grasp_frame_set=true;
 	    
-	    tf::StampedTransform ee_in_plan_frame;
+	    tf::StampedTransform prototype_in_plan_frame;
 	    try {
-		tl.waitForTransform(gripper_frame_name, internal_grasp_fname, ros::Time(0), ros::Duration(1.0) );
-		tl.lookupTransform( gripper_frame_name, internal_grasp_fname, ros::Time(0), ee_in_plan_frame);
+		tl.waitForTransform(gripper_frame_name, req.approach_frame, ros::Time(0), ros::Duration(1.0) );
+		tl.lookupTransform( gripper_frame_name, req.approach_frame, ros::Time(0), prototype_in_plan_frame);
 	    } catch (tf::TransformException ex) {
 		ROS_ERROR("%s",ex.what());
 		return false;
 	    }
-	    Eigen::Affine3d ee2grasp_d;
-	    Eigen::Affine3f ee2grasp;
-	    tf::transformTFToEigen(ee_in_plan_frame, ee2grasp_d);
-	    ee2grasp = ee2grasp_d.cast<float>();
+	    Eigen::Affine3d proto2grasp_d;
+	    Eigen::Affine3f proto2grasp;
+	    tf::transformTFToEigen(prototype_in_plan_frame, proto2grasp_d);
+	    proto2grasp = proto2grasp_d.cast<float>();
 
+	    Eigen::Vector3f prototype;
+	    prototype<<req.approach_vector[0],req.approach_vector[1],req.approach_vector[2];
+	    prototype = proto2grasp.rotation()*prototype;
+
+	    std::cout<<prototype.transpose()<<std::endl;
 	    //std::cout<<"EE in grasp frame is at:\n"<<ee2grasp.matrix()<<std::endl;
 	    //CylinderConstraint cc(obj2map_f,req.object_radius,req.object_height);
 	    GripperPoseConstraint out;
 	    tracker_m.lock();
 	    ROS_INFO("[PLAN GRASP] Got lock");
-	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, ee2grasp, orientation_tolerance, out);
+	    gripper_map->computeValidConfigs(myTracker_, obj2map_f, req.object_radius, req.object_height, prototype, req.approach_angle, out);
 	    tracker_m.unlock();
 	  
 	    res.min_oa = out.min_oa;
@@ -698,11 +706,11 @@ class GraspPlannerNode {
 		Eigen::Vector3d tmpose;
 		tmpose = (out.inner_cylinder.pose.translation()).cast<double>();
 		tmpose(2) += out.lower_plane.b-plane_tolerance;
-		addCylinderMarker(marker_array, tmpose, zaxis.cast<double>(), out.inner_cylinder.radius_+cylinder_tolerance, gripper_frame_name, 
+		addCylinderMarker(marker_array, tmpose, zaxis.cast<double>(), out.inner_cylinder.radius_-cylinder_tolerance, gripper_frame_name, 
 			out.upper_plane.b-out.lower_plane.b+2*plane_tolerance);
 
 		zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
-		addCylinderMarker(marker_array, tmpose, zaxis.cast<double>(), out.outer_cylinder.radius_+cylinder_tolerance, gripper_frame_name,
+		addCylinderMarker(marker_array, tmpose, zaxis.cast<double>(), out.outer_cylinder.radius_-cylinder_tolerance, gripper_frame_name,
 		       	out.upper_plane.b-out.lower_plane.b+2*plane_tolerance);
 		//add request cylinder
 		addCylinderMarker(marker_array, Eigen::Vector3d::Zero(), Eigen::Vector3d::UnitZ(), req.object_radius, gripper_frame_name, req.object_height, "request", 0.8, 0.1, 0.1);
