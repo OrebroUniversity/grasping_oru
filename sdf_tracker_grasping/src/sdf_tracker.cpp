@@ -1858,6 +1858,35 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
     }//x
     grid_mutex_.unlock();
 }
+  
+///method to dump into an hiqp message
+void SDFTracker::toMessage(hiqp_collision_check::SDFMap &msg) {
+    //std::cerr<<"Serializing map\n";
+    msg.header.frame_id = "my_frame";
+    msg.XSize = parameters_.XSize;
+    msg.YSize = parameters_.YSize;
+    msg.ZSize = parameters_.ZSize;
+    msg.resolution = parameters_.resolution;
+    msg.Wmax = parameters_.Wmax;
+    msg.Dmax = parameters_.Dmax;
+    msg.Dmin = parameters_.Dmin;
+
+    //copy the grid... this looks very inefficient.
+    grid_mutex_.lock();
+    for(int x = 0; x<parameters_.XSize; ++x)
+    { 
+	for(int y = 0; y<parameters_.YSize;++y)
+	{ 
+	    for(int z = 0; z<2*parameters_.ZSize; ++z)
+	    {          
+		msg.grid.push_back(myGrid_[x][y][z]);	
+	    }//z	
+	}//y
+    }//x
+    grid_mutex_.unlock();
+    
+    //std::cerr<<"DONE Serializing map!\n";
+}
 
 bool SDFTracker::isOccupied(const Eigen::Vector3f &point) const {
    double I,J,K;

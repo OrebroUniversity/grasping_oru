@@ -28,6 +28,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
+#include <hiqp_collision_check/SDFMap.h>
+
 #define POINT_SCALE  0.02
 #define LINE_SCALE   0.3
 #define PLANE_SCALE  1
@@ -50,6 +52,7 @@ class GraspPlannerNode {
 	Eigen::Affine3d cam2map, prev_cam2map;
 	
 	//ros::Publisher gripper_map_publisher_;
+	ros::Publisher sdf_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
 	ros::Publisher vis_pub_;
 	ros::Publisher constraint_pub_;
@@ -58,6 +61,7 @@ class GraspPlannerNode {
 	ros::Subscriber depth_subscriber2_;
 	ros::Subscriber depth_camera_info_subscriber2_;
 	ros::Timer heartbeat_tf_;
+	ros::Timer heartbeat_map_;
 //	ros::Timer heartbeat_pc_;
 
 	ros::ServiceServer plan_grasp_serrver_;
@@ -77,6 +81,7 @@ class GraspPlannerNode {
 	std::string gripper_frame_name;
 	std::string object_map_frame_name;
 	std::string gripper_map_topic;
+	std::string sdf_map_topic;
 	std::string object_map_topic;
 	std::string depth_topic_name_;
 	std::string depth_info_topic_name_;
@@ -106,6 +111,7 @@ class GraspPlannerNode {
 	    nh_.param<std::string>("map_frame_name",object_map_frame_name,"map_frame");
 	    nh_.param<std::string>("map_topic",object_map_topic,"object_map");
 	    nh_.param<std::string>("gripper_map_topic",gripper_map_topic,"gripper_map");
+	    nh_.param<std::string>("sdf_map_topic",sdf_map_topic,"sdf_map");
 	    nh_.param<std::string>("fused_pc_topic",fused_pc_topic,"fused_pc");
 	    nh_.param<std::string>("dumpfile",dumpfile,"results.m");
 	    nh_.param<std::string>("LoadVolume", loadVolume_,"none");
@@ -164,12 +170,14 @@ class GraspPlannerNode {
 
 	    if(loadVolume_.compare(std::string("none"))!=0 && offlineTracker)
 	    {
+		ROS_INFO("Loading pre-recorded sdf volume from %s",loadVolume_.c_str());
 		//Assume we are operating offline
 	    	myTracker_->LoadSDF(loadVolume_);
 	    } 
 
 	    //subscribe / advertise
 	    //gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
+	    sdf_map_publisher_ = nh_.advertise<hiqp_collision_check::SDFMap> (sdf_map_topic,10);
 	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
@@ -190,6 +198,7 @@ class GraspPlannerNode {
 	    constraint_pub_ = nh_.advertise<visualization_msgs::MarkerArray>( "constraint_marker", 10, true );
 	    
 	    heartbeat_tf_ = nh_.createTimer(ros::Duration(0.05), &GraspPlannerNode::publishTF, this);
+	    //heartbeat_map_ = nh_.createTimer(ros::Duration(120), &GraspPlannerNode::publishMap, this);
 	    //heartbeat_pc_ = nh_.createTimer(ros::Duration(60), &GraspPlannerNode::publishPC, this);
 
 	    frame_counter_ = 0;
@@ -203,6 +212,13 @@ class GraspPlannerNode {
 	    {
 		delete myTracker_;
 	    }
+	}
+
+        void publishMap(const ros::TimerEvent& event) {
+	    hiqp_collision_check::SDFMap mapMsg;
+	    myTracker_->toMessage(mapMsg);
+	    mapMsg.header.frame_id = object_map_frame_name;
+	    sdf_map_publisher_.publish(mapMsg);
 	}
 
         void publishTF(const ros::TimerEvent& event) {
@@ -520,8 +536,10 @@ class GraspPlannerNode {
 	
 	bool publish_map_callback(std_srvs::Empty::Request  &req,
 		std_srvs::Empty::Response &res ) {
-	    
+	   
+	    ros::TimerEvent ev; 
 	    this->publishPC();
+	    this->publishMap(ev);
 	    return true;
 	}
 

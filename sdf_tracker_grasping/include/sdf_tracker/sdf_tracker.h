@@ -12,6 +12,7 @@
 #include <time.h>
 
 #include <constraint_map/MapInterface.hh>
+#include <hiqp_collision_check/SDFMap.h>
 
 #define EIGEN_USE_NEW_STDVECTOR
 
@@ -193,6 +194,9 @@ class SDFTracker : public SimpleOccMapIfce
   /// Constructor with custom parameters
   SDFTracker(SDF_Parameters &parameters);
   virtual ~SDFTracker();   
+
+  ///method to dump into an hiqp message
+  virtual void toMessage(hiqp_collision_check::SDFMap &msg);
 
   ///methods inherited from OccMap Interface
   public:
