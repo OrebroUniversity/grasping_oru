@@ -47,6 +47,7 @@ SDF_Parameters::SDF_Parameters()
   //cx = 314.5;
   //cy = 235.5;
   render_window = "Render";
+  uncertain_weight_thresh = 10;
 }
 
 SDF_CamParameters::SDF_CamParameters()
@@ -1926,6 +1927,181 @@ bool SDFTracker::isUnknown(const Eigen::Vector3f &point) const {
 
 }
 
+void SDFTracker::convertToEuclidean() {
+
+    float ***init; //new euclidean distance grid
+    float ***edt; //new euclidean distance grid
+    float ***int_yview; //view indexed by columns first
+    float ***yview; //view by columns result
+
+    float DMAX = 0.5 / parameters_.resolution;
+    float DMAX_SQ = DMAX*DMAX;
+
+    //allocate grids
+    init = new float**[parameters_.XSize];
+    edt = new float**[parameters_.XSize];
+    for (int i = 0; i < parameters_.XSize; ++i) {
+	init[i] = new float*[parameters_.YSize];
+	edt[i] = new float*[parameters_.YSize];
+
+	for (int j = 0; j < parameters_.YSize; ++j) {
+	    init[i][j] = new float[parameters_.ZSize];
+	    edt[i][j] = new float[parameters_.ZSize];
+	}
+    }
+    //y views
+    int_yview = new float**[parameters_.YSize];
+    yview = new float**[parameters_.YSize];
+    for (int j = 0; j < parameters_.YSize; ++j) {
+	int_yview[j] = new float*[parameters_.XSize];
+	yview[j] = new float*[parameters_.XSize];
+
+	for (int i = 0; i < parameters_.XSize; ++i) {
+	    int_yview[j][i] = new float[parameters_.ZSize];
+	    yview[j][i] = new float[parameters_.ZSize];
+	}
+    }
+
+    //fill in with initial values
+    for (int x = 0; x < parameters_.XSize; ++x) {
+	for (int y = 0; y < parameters_.YSize; ++y) {
+	    for (int z = 0; z < parameters_.ZSize; ++z) {
+		if(myGrid_[x][y][z*2] + 1e-6 < parameters_.Dmax ) {
+		    init[x][y][z] = pow(myGrid_[x][y][z*2]/parameters_.resolution,2);
+		} else {
+		    init[x][y][z] = DMAX_SQ;
+		}
+	    }
+	}
+    }
+
+    //pass through x view
+    for (int x = 0; x < parameters_.XSize; ++x) {
+	edt2d(init[x],edt[x], parameters_.YSize, parameters_.ZSize);
+	//copy result from slice into intermediate y_view
+	for (int y = 0; y < parameters_.YSize; ++y) {
+	    for (int z = 0; z < parameters_.ZSize; ++z) {
+		int_yview[y][x][z] = edt[x][y][z];
+	    }
+	}
+    }
+
+    //pass through y view
+    for (int y = 0; y < parameters_.YSize; ++y) {
+	edt2d(int_yview[y],yview[y], parameters_.XSize, parameters_.ZSize);
+	//copy results back into edt and deallocate slice
+	for (int x = 0; x < parameters_.XSize; ++x) {
+	    for (int z = 0; z < parameters_.ZSize; ++z) {
+		edt[x][y][z] = yview[y][x][z];
+	    }
+	    delete [] yview[y][x];
+	    delete [] int_yview[y][x];
+	}
+	delete [] yview[y];
+	delete [] int_yview[y];
+    }
+    delete [] yview;
+    delete [] int_yview;
+
+    ///update myGrid with result and deallocate
+    for (int x = 0; x < parameters_.XSize; ++x) {
+	for (int y = 0; y < parameters_.YSize; ++y) {
+	    for (int z = 0; z < parameters_.ZSize; ++z) {
+		 float sign = myGrid_[x][y][z*2] >= 0 ? 1 : -1;
+		 if(myGrid_[x][y][z*2+1] > parameters_.uncertain_weight_thresh) {
+		     myGrid_[x][y][z*2] = sign*sqrt(edt[x][y][z])*parameters_.resolution;
+		     if(myGrid_[x][y][z*2] > parameters_.Dmax) {
+			 parameters_.Dmax = myGrid_[x][y][z*2];
+		     }
+		 }
+	    }
+	    delete [] init[x][y];
+	    delete [] edt[x][y];
+	}
+	delete [] init[x];
+	delete [] edt[x];
+    }
+    delete [] init;
+    delete [] edt;
+
+}
+  
+void SDFTracker::edt1d ( float *row_in, float *row_out, int &nx) {
+
+    int k = 0;
+    std::vector<int> v;
+    std::vector<float> z;
+    v.push_back(0);
+    z.push_back(INT_MIN);
+    z.push_back(INT_MAX);
+
+    for (int q=1; q<nx; q++) {
+	float s = ((row_in[q] + q*q) - (row_in[v[k]] + v[k]*v[k] ))/(2*q - 2*v[k]); 
+	while (s <= z[k]) {
+	    k = k-1;
+	    s = ((row_in[q] + q*q) - (row_in[v[k]] + v[k]*v[k] ))/(2*q - 2*v[k]);
+	}
+
+	if(s > z[k]) {
+	    k=k+1;
+	    if(k >= v.size()) {
+		v.push_back(q);
+	    } else {
+		v[k] = q;
+	    }
+	    if(k >= z.size()) {
+		z.push_back(s);
+	    } else {
+		z[k] = s;
+	    }
+	    if(k+1 >= z.size()) {
+		z.push_back(INT_MAX);
+	    } else {
+		z[k+1] = INT_MAX;
+	    }
+	}	    
+    }
+    
+    k=0;
+    for (int q=0; q<nx; q++) { //nx-1 ??
+	while (z[k+1] < q) {
+	    k++;
+	}
+	row_out[q] = (q-v[k])*(q-v[k]) + row_in[v[k]];
+    }
+    return;
+}
+
+void SDFTracker::edt2d ( float **slice_in, float **slice_out, int &nx, int &ny) {
+
+    float **intermediate, **yview;
+    intermediate = new float*[ny];
+    yview = new float*[ny];
+    for (int j=0; j< ny; j++) {
+	intermediate[j] = new float[nx];
+	yview[j] = new float[nx];	
+    }
+
+    for (int i=0; i< nx; i++) {
+	edt1d(slice_in[i], slice_out[i], ny);
+	//copy into intermediate column view
+	for (int j=0; j< ny; j++) {
+	    intermediate[j][i] = slice_out[i][j];
+	}
+    }
+
+    //now the other direction
+    for (int j=0; j< ny; j++) {
+	edt1d(intermediate[j], yview[j], nx);
+	for (int i=0; i< nx; i++) {
+	    slice_out[i][j] = yview[j][i];
+	}
+	delete[] intermediate[j];
+	delete[] yview[j];
+    }
+    delete[] intermediate;
+    delete[] yview;
+}
 
 /*
 void SDFTracker::RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc) {

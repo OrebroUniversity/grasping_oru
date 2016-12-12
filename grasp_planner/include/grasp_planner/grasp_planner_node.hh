@@ -70,6 +70,7 @@ class GraspPlannerNode {
 	ros::ServiceServer clear_map_server_;
 	ros::ServiceServer load_volume_server_;
 	ros::ServiceServer load_constraints_server_;
+	ros::ServiceServer map_to_edt_;
 
 	tf::TransformBroadcaster br;
 	tf::TransformListener tl;
@@ -191,6 +192,7 @@ class GraspPlannerNode {
 	    plan_grasp_serrver_ = nh_.advertiseService("plan_grasp", &GraspPlannerNode::plan_grasp_callback, this);
 	    publish_map_server_ = nh_.advertiseService("publish_map", &GraspPlannerNode::publish_map_callback, this);
 	    save_map_server_ = nh_.advertiseService("save_map", &GraspPlannerNode::save_map_callback, this);
+	    map_to_edt_ = nh_.advertiseService("map_to_edt", &GraspPlannerNode::map_to_edt_callback, this);
 	    clear_map_server_ = nh_.advertiseService("clear_map", &GraspPlannerNode::clear_map_callback, this);
 	    load_volume_server_ = nh_.advertiseService("load_volume", &GraspPlannerNode::load_volume_callback, this);
 	    load_constraints_server_ = nh_.advertiseService("load_constraints", &GraspPlannerNode::load_constraints_callback, this);
@@ -511,6 +513,16 @@ class GraspPlannerNode {
 	    myTracker_->LoadSDF(req.name);
 	    tracker_m.unlock();
 
+	    return true;
+	}
+	
+	bool map_to_edt_callback(std_srvs::Empty::Request  &req,
+		std_srvs::Empty::Response &res ) {
+	    
+	    if(myTracker_ == NULL) return false;
+	    tracker_m.lock();
+	    myTracker_->convertToEuclidean();
+	    tracker_m.unlock();
 	    return true;
 	}
 	

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
-set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE RelWithDebinfo)
 project(grasp_planner)
 
 ## Find catkin macros and libraries

@@ -43,7 +43,8 @@ public:
   double min_parameter_update;
   double min_pose_change;
   std::string render_window;
-
+  double uncertain_weight_thresh;
+  
   SDF_Parameters();
   virtual ~SDF_Parameters();
 };
@@ -195,15 +196,23 @@ class SDFTracker : public SimpleOccMapIfce
   SDFTracker(SDF_Parameters &parameters);
   virtual ~SDFTracker();   
 
-  ///method to dump into an hiqp message
-  virtual void toMessage(hiqp_collision_check::SDFMap &msg);
-
   ///methods inherited from OccMap Interface
   public:
   virtual void toMessage(constraint_map::SimpleOccMapMsg &msg);
   virtual bool isOccupied(const Eigen::Vector3f &point) const;
   virtual bool isUnknown(const Eigen::Vector3f &point) const;
 //  void RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc);
+  
+  ///method to dump into an hiqp message
+  virtual void toMessage(hiqp_collision_check::SDFMap &msg);
+
+  virtual void convertToEuclidean();
+
+  private:
+
+  //both functions assume memory has been allocated aprropriately
+  void edt1d ( float *row_in, float *row_out, int &x);
+  void edt2d ( float **slice_in, float **slice_out, int &x, int &y);
 
 };
 
