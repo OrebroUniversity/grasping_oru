@@ -520,9 +520,15 @@ class GraspPlannerNode {
 		std_srvs::Empty::Response &res ) {
 	    
 	    if(myTracker_ == NULL) return false;
+	    hiqp_collision_check::SDFMap mapMsg;
+	    
 	    tracker_m.lock();
 	    myTracker_->convertToEuclidean();
+	    myTracker_->toMessage(mapMsg);
 	    tracker_m.unlock();
+	    
+	    mapMsg.header.frame_id = object_map_frame_name;
+	    sdf_map_publisher_.publish(mapMsg);
 	    return true;
 	}
 	
@@ -551,7 +557,7 @@ class GraspPlannerNode {
 	   
 	    ros::TimerEvent ev; 
 	    this->publishPC();
-	    this->publishMap(ev);
+	    //this->publishMap(ev);
 	    return true;
 	}
 

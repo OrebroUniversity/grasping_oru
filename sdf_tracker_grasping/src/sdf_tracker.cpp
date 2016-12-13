@@ -2008,12 +2008,12 @@ void SDFTracker::convertToEuclidean() {
 	for (int y = 0; y < parameters_.YSize; ++y) {
 	    for (int z = 0; z < parameters_.ZSize; ++z) {
 		 float sign = myGrid_[x][y][z*2] >= 0 ? 1 : -1;
-		 if(myGrid_[x][y][z*2+1] > parameters_.uncertain_weight_thresh) {
+		 //if(myGrid_[x][y][z*2+1] > parameters_.uncertain_weight_thresh) {
 		     myGrid_[x][y][z*2] = sign*sqrt(edt[x][y][z])*parameters_.resolution;
 		     if(myGrid_[x][y][z*2] > parameters_.Dmax) {
 			 parameters_.Dmax = myGrid_[x][y][z*2];
 		     }
-		 }
+		 //}
 	    }
 	    delete [] init[x][y];
 	    delete [] edt[x][y];
