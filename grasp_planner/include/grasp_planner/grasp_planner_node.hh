@@ -28,7 +28,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
-#include <hiqp_collision_check/SDFMap.h>
+#include <hiqp_msgs/SDFMap.h>
 
 #define POINT_SCALE  0.02
 #define LINE_SCALE   0.3
@@ -178,7 +178,7 @@ class GraspPlannerNode {
 
 	    //subscribe / advertise
 	    //gripper_map_publisher_ = nh_.advertise<constraint_map::SimpleOccMapMsg> (gripper_map_topic,10);
-	    sdf_map_publisher_ = nh_.advertise<hiqp_collision_check::SDFMap> (sdf_map_topic,10);
+	    sdf_map_publisher_ = nh_.advertise<hiqp_msgs::SDFMap> (sdf_map_topic,10);
 	    fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
 	    depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlannerNode::depthCallback, this);
@@ -217,7 +217,7 @@ class GraspPlannerNode {
 	}
 
         void publishMap(const ros::TimerEvent& event) {
-	    hiqp_collision_check::SDFMap mapMsg;
+	    hiqp_msgs::SDFMap mapMsg;
 	    myTracker_->toMessage(mapMsg);
 	    mapMsg.header.frame_id = object_map_frame_name;
 	    sdf_map_publisher_.publish(mapMsg);
@@ -520,7 +520,7 @@ class GraspPlannerNode {
 		std_srvs::Empty::Response &res ) {
 	    
 	    if(myTracker_ == NULL) return false;
-	    hiqp_collision_check::SDFMap mapMsg;
+	    hiqp_msgs::SDFMap mapMsg;
 	    
 	    tracker_m.lock();
 	    myTracker_->convertToEuclidean();

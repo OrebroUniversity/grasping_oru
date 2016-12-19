@@ -1861,7 +1861,7 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
 }
   
 ///method to dump into an hiqp message
-void SDFTracker::toMessage(hiqp_collision_check::SDFMap &msg) {
+void SDFTracker::toMessage(hiqp_msgs::SDFMap &msg) {
     //std::cerr<<"Serializing map\n";
     msg.header.frame_id = "my_frame";
     msg.XSize = parameters_.XSize;
