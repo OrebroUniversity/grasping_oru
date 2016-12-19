@@ -9,11 +9,11 @@ project(sdf_tracker_grasping)
 
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
-find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map hiqp_collision_check)
+find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map hiqp_msgs)
 
 catkin_package(
     DEPENDS eigen opencv2 libvtk
-    CATKIN_DEPENDS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map hiqp_collision_check
+    CATKIN_DEPENDS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map hiqp_msgs
     INCLUDE_DIRS include
     LIBRARIES ${PROJECT_NAME}
 )
