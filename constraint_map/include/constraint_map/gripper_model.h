@@ -11,6 +11,8 @@ class GripperPoseConstraint {
 	float min_oa, max_oa;
 };
 
+//TODO: Specify a parent class and derive different gripper models from there
+
 ///model for the velvet fingers RR gripper
 class GripperModel {
     public:

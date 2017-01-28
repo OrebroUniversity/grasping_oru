@@ -14,6 +14,18 @@
 
 #define _FILE_VERSION_IROS2016 "#F V0.2"
 #define _FILE_VERSION_ "#F V0.3"
+/**
+  Constraint map is the central class of this package.
+  The map contains: 
+    * a reference to a sampling grid (initialized either from file, or computed on the fly)
+    * a set of constraints that can be used to modify the occupancy contents of the map
+    * a gripper model
+    * a grid in task space (3D) containing pointers to configurations in the sampling grid 
+      that occupy particular regions of physical space
+    * a set of methods to initialize the map, load and save to file, and most important 
+      compute constraint envelopes.
+   TODO: update here to include new functionalities
+*/
 
 class ConstraintMap : public SimpleOccMap {
 
@@ -33,14 +45,19 @@ class ConstraintMap : public SimpleOccMap {
 	GripperModel *model;
 	GripperModelPJ *modelPJ;
 	SimpleOccMap *config_sample_grid;
+	
 	bool hasGripper;
 	bool isSphereGrid;
 	bool isPJGripper;
 
+	///sampling grid parameters (vertical, orientation and distance)
 	int n_v,n_o,n_d;
 	float min_z, max_z, min_dist, max_dist;	
+
 	std::vector<GripperConfiguration*> valid_configs;
+	
 	std::vector<bool> palmCollision, fingerCollision, emptyGripper, orientationFilter;
+	
 	ConfigurationList *** config_grid;
 
 	double getDoubleTime()
@@ -117,15 +134,21 @@ class ConstraintMap : public SimpleOccMap {
 	    }
 	}
 
-	//high-level drawing functions
+	///These functions directly add constraints to the map. 
+	///They will be deprecated and removed.
 	void drawBox (Eigen::Affine3f pose, Eigen::Vector3f size) {
 	    BoxConstraint bc(pose,size);
 	    boxes.push_back(bc);
 	}
+	///These functions directly add constraints to the map. 
+	///They will be deprecated and removed.
 	void drawCylinder (Eigen::Affine3f pose, float radius, float height) {
 	    CylinderConstraint cc(pose,radius,height);
 	    cylinders.push_back(cc);
 	}
+
+#if 0
+	///This function is only useful for visualization within an occ map.
 	void drawGripper( GripperConfigurationSimple &config) {
 	    if(hasGripper) {
 		config.model = model;
@@ -135,12 +158,14 @@ class ConstraintMap : public SimpleOccMap {
 		boxes.push_back(config.rightFinger);
 	    }
 	}
-
 	void drawValidConfigs();
 	void drawValidConfigsSmall();
+#endif
+
+	///generates a matlab file for debugging purposes
 	void generateOpeningAngleDump(std::string &fname);
 
-	//returns a colored point cloud of configs. red are invalid, orange valid, green valid and selected
+	///returns a colored point cloud of configs. red are invalid, orange valid, green valid and selected
 	void getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs);
 
 	void sampleGripperGrid(int n_vert_slices, int n_orient, int n_dist_samples,

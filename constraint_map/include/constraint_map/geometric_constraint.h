@@ -1,6 +1,13 @@
 #ifndef GEOMETRIC_CONSTRAINT_HH
 #define GEOMETRIC_CONSTRAINT_HH
 
+/** Different classes that implement various geometric primitives. 
+  They all have an overloaded operator () over an Eigen vector. 
+  The operator returns true if the constraint is satisfied.
+  */
+
+//TODO: Base class for constraints and derive
+
 class PlaneConstraint {
     public:
 	Eigen::Vector3f a;

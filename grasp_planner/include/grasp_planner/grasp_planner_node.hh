@@ -37,7 +37,14 @@
 #define CONE_SCALE   0.3
 #define LINE_WIDTH   0.005
 
+/** This class implements the grasp planner node.
+    It contains:
+    * a constraint map, loaded from file
+    * a TSDF map constructed online or loaded from file
+    * functionalities to compute constraint envelopes
 
+TODO: Here update service calls to return constraints in terms of hiqp controller messages
+*/
 class GraspPlannerNode {
 
     private:

@@ -1,44 +1,13 @@
 #ifndef GRIPPER_CONFIGURATION_HH
 #define GRIPPER_CONFIGURATION_HH
 
-class GripperConfigurationSimple {
-    ///position of the gripper
-    //Eigen::Vector3f position;
-    ///vector pointing from the gripper to the center of the target
-    //Eigen::Vector3f approach_direction;
-    public:
-	GripperConfigurationSimple() {};
-	GripperConfigurationSimple(Eigen::Affine3f &pose_, float &oa, GripperModel *model_) {
-	    pose = pose_;
-	    opening_angle = oa;
-	    model = model_;
-	};
-	GripperModel *model;
-	Eigen::Affine3f pose;
-	//opening angle of the gripper
-	float opening_angle;
-	BoxConstraint leftFinger, rightFinger, palm;
-
-	void calculateConstraints() {
-	    
-	    Eigen::Affine3f ps;
-	    ps = pose*model->palm2palm_box;
-	    palm.calculateConstraints(ps,model->palm_size);
-	      
-	    Eigen::Affine3f opening_trans;
-	    opening_trans = Eigen::AngleAxisf(opening_angle/2,Eigen::Vector3f::UnitZ());
-	    ps = pose*model->palm2left*opening_trans*model->left2left_box;
-	    leftFinger.calculateConstraints(ps,model->finger_size);
-	    
-	    opening_trans = Eigen::AngleAxisf(-opening_angle/2,Eigen::Vector3f::UnitZ());
-	    ps = pose*model->palm2right*opening_trans*model->right2right_box;
-	    rightFinger.calculateConstraints(ps,model->finger_size);
-	}
-    public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-};
-
+//FIXME: This class should be derived from a common base with the other GripperConfiguration class
+/**
+  A gripped configuration is a set of constraints that are calculated for a particular gripper model,
+  at a particular gripper pose. 
+  Provides functions to update the configuration with an occupied point.
+  @brief This class provides a configuration for a rotary type gripper
+  */
 class GripperConfiguration {
     protected:
 	BoxConstraint palm_;
@@ -100,6 +69,13 @@ class GripperConfiguration {
 
 };
 
+//FIXME: This class should be derived from a common base with the other GripperConfiguration class
+/**
+  A gripped configuration is a set of constraints that are calculated for a particular gripper model,
+  at a particular gripper pose. 
+  Provides functions to update the configuration with an occupied point.
+  @brief This class provides a configuration for a parallel jaw type gripper
+  */
 class GripperConfigurationPJ : public GripperConfiguration {
     protected:
 	BoxConstraint fingerSweepPJ;
@@ -155,5 +131,46 @@ struct ConfigurationList {
 	std::vector<GripperConfiguration**> configs;
 	std::vector<int> config_ids;
 };
+
+//Old stuff to be removed
+#if 0
+class GripperConfigurationSimple {
+    ///position of the gripper
+    //Eigen::Vector3f position;
+    ///vector pointing from the gripper to the center of the target
+    //Eigen::Vector3f approach_direction;
+    public:
+	GripperConfigurationSimple() {};
+	GripperConfigurationSimple(Eigen::Affine3f &pose_, float &oa, GripperModel *model_) {
+	    pose = pose_;
+	    opening_angle = oa;
+	    model = model_;
+	};
+	GripperModel *model;
+	Eigen::Affine3f pose;
+	//opening angle of the gripper
+	float opening_angle;
+	BoxConstraint leftFinger, rightFinger, palm;
+
+	void calculateConstraints() {
+	    
+	    Eigen::Affine3f ps;
+	    ps = pose*model->palm2palm_box;
+	    palm.calculateConstraints(ps,model->palm_size);
+	      
+	    Eigen::Affine3f opening_trans;
+	    opening_trans = Eigen::AngleAxisf(opening_angle/2,Eigen::Vector3f::UnitZ());
+	    ps = pose*model->palm2left*opening_trans*model->left2left_box;
+	    leftFinger.calculateConstraints(ps,model->finger_size);
+	    
+	    opening_trans = Eigen::AngleAxisf(-opening_angle/2,Eigen::Vector3f::UnitZ());
+	    ps = pose*model->palm2right*opening_trans*model->right2right_box;
+	    rightFinger.calculateConstraints(ps,model->finger_size);
+	}
+    public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+};
+#endif
 
 #endif

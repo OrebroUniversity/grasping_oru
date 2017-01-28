@@ -69,49 +69,8 @@ void ConstraintMap::updateMapAndGripperLookup() {
     std::cerr<<"Gripper map update took "<<t2-t1<<" seconds for "<<valid_configs.size()<<" constraints\n";
 
 }
-	
-void ConstraintMap::drawValidConfigs() {
-   
-    if(isPJGripper) return; 
-    double t1 = getDoubleTime();
-    std::vector<GripperConfigurationSimple> simple_configs;
-    for(int i=0; i<valid_configs.size(); ++i) {
-	if(valid_configs[i] == NULL) continue;
-	if(!valid_configs[i]->isValid) continue;
-	GripperConfigurationSimple sc (valid_configs[i]->pose, valid_configs[i]->min_oa, model);
-	sc.calculateConstraints();
-	simple_configs.push_back(sc);
-	GripperConfigurationSimple scm (valid_configs[i]->pose, valid_configs[i]->max_oa, model);
-	scm.calculateConstraints();
-	simple_configs.push_back(scm);
-    }
 
-#define n_threads 6
-#pragma omp parallel num_threads(n_threads)
-    {
-#pragma omp for
-	for (unsigned int index=0; index<size_x; ++index) {
-	    CellIndex id;
-	    id.i = index;
-	    for (id.j=0; id.j<size_y; ++id.j) {
-		for (id.k=0; id.k<size_z; ++id.k) {
-		    Eigen::Vector3f x;
-		    this->getCenterCell(id, x);
-		    for(int i=0; i<simple_configs.size(); ++i) {
-			if(simple_configs[i].palm(x) || simple_configs[i].leftFinger(x) || simple_configs[i].rightFinger(x)) {
-			    grid[id.i][id.j][id.k] = SimpleOccMap::OCC;
-			}
-		    }	
-		}
-	    }
-	}
-    }
-    double t2 = getDoubleTime();
 
-    std::cerr<<"Drawing valid configs took "<<t2-t1<<" seconds for "<<simple_configs.size()<<" constraints\n";
-
-}
-	
 void ConstraintMap::getConfigsForDisplay(pcl::PointCloud<pcl::PointXYZRGB> &configs_pc) {
     
     CellIndex id;
@@ -249,46 +208,7 @@ void ConstraintMap::generateOpeningAngleDump(std::string &fname) {
 
 }
 
-void ConstraintMap::drawValidConfigsSmall() {
-    CellIndex id, id2;
-    Eigen::Vector3f pt;
-    //the non-selected valid configs in green...
-    for (id.i=0; id.i<n_v; ++id.i) {
-	for (id.j=0; id.j<n_o; ++id.j) {
-	    for (id.k=0; id.k<n_d; ++id.k) {
-		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
-		if(valid_configs[config_index] == NULL) continue;
-		if(valid_configs[config_index]->isValid) {
-		    pt = valid_configs[config_index]->pose.translation();
-		    this->getIdxPoint(pt,id2);
-		    this->setFree(id2);
-		}
-	    }
-	}
-    }
 
-    for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
-	for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
-	    for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) { 
-		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
-		//std::cerr<<config_index<<" "<<valid_configs.size()<<std::endl;
-		if(valid_configs[config_index] == NULL) {
-		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
-		    continue;
-		}
-		if(valid_configs[config_index]->isValid) {
-		    pt = valid_configs[config_index]->pose.translation();
-		    this->getIdxPoint(pt,id2);
-		    this->setOccupied(id2);
-		    //std::cerr<<"set valid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
-		} else {
-		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
-		}
-	    }
-	}
-    }
-}
-	
 bool ConstraintMap::getPoseForConfig(CellIndex &id, Eigen::Affine3f &pose) {
 
     if(id.i<0 || id.i >= n_v) return false;
@@ -968,3 +888,88 @@ bool ConstraintMap::loadGripperConstraints(const char *fname) {
 
     return true;
 }
+
+#if 0
+void ConstraintMap::drawValidConfigsSmall() {
+    CellIndex id, id2;
+    Eigen::Vector3f pt;
+    //the non-selected valid configs in green...
+    for (id.i=0; id.i<n_v; ++id.i) {
+	for (id.j=0; id.j<n_o; ++id.j) {
+	    for (id.k=0; id.k<n_d; ++id.k) {
+		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
+		if(valid_configs[config_index] == NULL) continue;
+		if(valid_configs[config_index]->isValid) {
+		    pt = valid_configs[config_index]->pose.translation();
+		    this->getIdxPoint(pt,id2);
+		    this->setFree(id2);
+		}
+	    }
+	}
+    }
+
+    for(id.i = cube.bl.i; id.i<=cube.ur.i; ++id.i) {
+	for(id.j = cube.bl.j; id.j<=cube.ur.j; ++id.j) {
+	    for(id.k = cube.bl.k; id.k<=cube.ur.k; ++id.k) { 
+		int config_index =  id.k + n_d*id.j + n_d*n_o*id.i;
+		//std::cerr<<config_index<<" "<<valid_configs.size()<<std::endl;
+		if(valid_configs[config_index] == NULL) {
+		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
+		    continue;
+		}
+		if(valid_configs[config_index]->isValid) {
+		    pt = valid_configs[config_index]->pose.translation();
+		    this->getIdxPoint(pt,id2);
+		    this->setOccupied(id2);
+		    //std::cerr<<"set valid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
+		} else {
+		    std::cerr<<"there is an invalid config at "<<id.i<<","<<id.j<<","<<id.k<<std::endl;
+		}
+	    }
+	}
+    }
+}
+#endif
+#if 0
+void ConstraintMap::drawValidConfigs() {
+   
+    if(isPJGripper) return; 
+    double t1 = getDoubleTime();
+    std::vector<GripperConfigurationSimple> simple_configs;
+    for(int i=0; i<valid_configs.size(); ++i) {
+	if(valid_configs[i] == NULL) continue;
+	if(!valid_configs[i]->isValid) continue;
+	GripperConfigurationSimple sc (valid_configs[i]->pose, valid_configs[i]->min_oa, model);
+	sc.calculateConstraints();
+	simple_configs.push_back(sc);
+	GripperConfigurationSimple scm (valid_configs[i]->pose, valid_configs[i]->max_oa, model);
+	scm.calculateConstraints();
+	simple_configs.push_back(scm);
+    }
+
+#define n_threads 6
+#pragma omp parallel num_threads(n_threads)
+    {
+#pragma omp for
+	for (unsigned int index=0; index<size_x; ++index) {
+	    CellIndex id;
+	    id.i = index;
+	    for (id.j=0; id.j<size_y; ++id.j) {
+		for (id.k=0; id.k<size_z; ++id.k) {
+		    Eigen::Vector3f x;
+		    this->getCenterCell(id, x);
+		    for(int i=0; i<simple_configs.size(); ++i) {
+			if(simple_configs[i].palm(x) || simple_configs[i].leftFinger(x) || simple_configs[i].rightFinger(x)) {
+			    grid[id.i][id.j][id.k] = SimpleOccMap::OCC;
+			}
+		    }	
+		}
+	    }
+	}
+    }
+    double t2 = getDoubleTime();
+
+    std::cerr<<"Drawing valid configs took "<<t2-t1<<" seconds for "<<simple_configs.size()<<" constraints\n";
+
+}
+#endif
