@@ -33,13 +33,10 @@ int main() {
 	extractor.loopX = true;
 	extractor.loopY = true;
 	//extractor.loopZ = true;
-	CellIdxCube cube, cube2;
+	CellIdxCube cube;
 	cube = extractor.getMaxCube(&sm);
 	double t2 = getDoubleTime();
-	cube2 = extractor.getMaxCube2(&sm);
-	double t3 = getDoubleTime();
 	std::cout<<"extract 1 took :"<<t2-t1<<" sec\n";
-	std::cout<<"extract 2 took :"<<t3-t2<<" sec\n";
 	/*int xlen, ylen, zlen;
 	xlen = ;
 	ylen = ;
@@ -48,7 +45,6 @@ int main() {
 		     (abs((cube.ur.k+map_size)%map_size-(cube.bl.k+map_size)%map_size)+1)*
 		     ;*/
 	std::cout<<"MAX cube at ("<<cube.bl.i<<","<<cube.bl.j<<","<<cube.bl.k<<") : ("<<cube.ur.i<<","<<cube.ur.j<<","<<cube.ur.k<<") volume "<<cube.volume()<<endl;
-	std::cout<<"MAX cube2 at ("<<cube2.bl.i<<","<<cube2.bl.j<<","<<cube2.bl.k<<") : ("<<cube2.ur.i<<","<<cube2.ur.j<<","<<cube2.ur.k<<") volume "<<cube2.volume()<<endl;
 	
 
 	bool isokay = true;
@@ -70,23 +66,6 @@ int main() {
 	}
 	if(isokay) std::cerr<<"OKAY and v is "<<v<<"\n";
 
-	isokay = true;
-	v=0;
-	for(id.i = cube2.bl.i; id.i<=cube2.ur.i; ++id.i) {
-		for(id.j = cube2.bl.j; id.j<=cube2.ur.j; ++id.j) {
-			for(id.k = cube2.bl.k; id.k<=cube2.ur.k; ++id.k) {
-				id2.i = (id.i + map_size)%map_size;
-				id2.j = (id.j + map_size)%map_size;
-				id2.k = (id.k + map_size)%map_size;
-				if(sm.isOccupied(id2)) {
-					std::cout<<id2.i<<","<<id2.j<<","<<id2.k<<" really? "<<sm.isOccupied(id2)<<std::endl;
-					isokay=false;
-				}
-				v++;
-			}
-		}
-	}
-	if(isokay) std::cerr<<"OKAY and v is "<<v<<"\n";
 /* 
         ConstraintMap object_map (0,0,0,resolution,map_size,map_size,map_size);
 	Eigen::Affine3f pose;

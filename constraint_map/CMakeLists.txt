@@ -87,7 +87,8 @@ add_definitions(${EIGEN_DEFINITIONS})
 add_library(${PROJECT_NAME}
    src/simple_occ_map.cpp
    src/constraint_map.cpp
-   src/region_extraction.cpp
+   src/region_extract_distance_field.cpp
+   src/region_extract_segment_tree.cpp
  )
 
 # Declare a cpp executable

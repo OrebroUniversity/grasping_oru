@@ -546,7 +546,7 @@ void ConstraintMap::computeValidConfigs(SimpleOccMapIfce *object_map, Eigen::Aff
     extractor.loopY = true;
     if(isSphereGrid) extractor.loopX = true;
     //MaxEmptyCubeExtractor extractor;
-    cube = extractor.getMaxCube2(config_sample_grid);
+    cube = extractor.getMaxCube(config_sample_grid);
 
     double t2 = getDoubleTime();
     std::cerr<<"Had "<<valid_configs.size()<<" configs, now we have "<<valid_configs2.size()<<" and it took "<<t2-t1<<" seconds\n";
