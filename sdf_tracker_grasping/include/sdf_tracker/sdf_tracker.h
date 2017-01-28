@@ -11,7 +11,7 @@
 #include <Eigen/StdVector>
 #include <time.h>
 
-#include <constraint_map/MapInterface.hh>
+#include <constraint_map/map_interface.h>
 #include <hiqp_msgs/SDFMap.h>
 
 #define EIGEN_USE_NEW_STDVECTOR

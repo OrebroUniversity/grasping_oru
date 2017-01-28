@@ -1,9 +1,10 @@
 #ifndef __GRASP_PLANNER_NODE_HH
 #define __GRASP_PLANNER_NODE_HH
 
-#include <constraint_map/SimpleOccMap.hh>
-#include <constraint_map/ConstraintMap.hh>
+#include <constraint_map/simple_occ_map.h>
+#include <constraint_map/constraint_map.h>
 #include <constraint_map/SimpleOccMapMsg.h>
+
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>

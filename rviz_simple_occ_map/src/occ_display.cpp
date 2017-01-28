@@ -11,7 +11,7 @@
 
 #include "occ_visual.hpp"
 #include "occ_display.hpp"
-#include <constraint_map/SimpleOccMap.hh>
+#include <constraint_map/simple_occ_map.h>
 
 OCCDisplay::OCCDisplay(){
     color_property_ = new rviz::ColorProperty( "Color", QColor( 200, 20, 20 ),

@@ -3,9 +3,10 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <constraint_map/MapInterface.hh>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+#include <constraint_map/map_interface.h>
 
 class SimpleOccMap : public SimpleOccMapIfce {
 

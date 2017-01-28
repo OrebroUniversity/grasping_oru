@@ -1,4 +1,4 @@
-#include <constraint_map/ConstraintMap.hh>
+#include <constraint_map/constraint_map.h>
 #include <cstdio>
 void ConstraintMap::updateMap() {
 #define n_threads 6

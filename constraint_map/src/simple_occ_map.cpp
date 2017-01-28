@@ -1,4 +1,4 @@
-#include <constraint_map/SimpleOccMap.hh>
+#include <constraint_map/simple_occ_map.h>
 
 SimpleOccMap::SimpleOccMap(float _cen_x, float _cen_y, float _cen_z, 
 	float _resolution, int _size_x, int _size_y, int _size_z) {

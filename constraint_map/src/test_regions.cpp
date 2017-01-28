@@ -1,6 +1,8 @@
-#include <constraint_map/RegionExtraction.hh>
+#include <constraint_map/region_extraction.h>
+#include <constraint_map/constraint_map.h>
+
 #include <iostream>
-#include <constraint_map/ConstraintMap.hh>
+
 using namespace std;
 
 double getDoubleTime()
