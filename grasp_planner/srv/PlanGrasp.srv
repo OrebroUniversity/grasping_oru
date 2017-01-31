@@ -14,7 +14,7 @@ float32 object_radius
 float32 object_height
 ---
 string frame_id
-hqp_controllers_msgs/TaskGeometry[] constraints
+hiqp_msgs/Primitive[] constraints
 float32 min_oa
 float32 max_oa
 float32 volume
