@@ -1,18 +1,18 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(occ_rviz_visualisation)
+project(constraint_map_rviz)
+
+set(CMAKE_CXX_STANDARD 14)
 
 find_package(catkin REQUIRED COMPONENTS rviz constraint_map)
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED)
+
+# add_definitions(-DQT_NO_KEYWORDS)
+
+# This must be corrected.
 catkin_package()
-include_directories(${catkin_INCLUDE_DIRS})
-link_directories(${catkin_LIBRARY_DIRS})
 
-find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
-include(${QT_USE_FILE})
-
-add_definitions(-DQT_NO_KEYWORDS)
-
-
-qt4_wrap_cpp(MOC_FILES
+qt5_wrap_cpp(MOC_FILES
   src/occ_display.hpp
 )
 
@@ -22,6 +22,13 @@ set(SOURCE_FILES
   src/occ_display.cpp
   src/occ_visual.cpp
   ${MOC_FILES}
+)
+
+include_directories(
+  ${Qt5Core_INCLUDE_DIRS}
+  ${Qt5Gui_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${catkin_INCLUDE_DIRS}
 )
 
 ## An rviz plugin is just a shared library, so here we declare the
@@ -40,12 +47,12 @@ add_library(${PROJECT_NAME} ${SOURCE_FILES})
 ## library and names the actual file something like
 ## "librviz_plugin_tutorials.so", or whatever is appropriate for your
 ## particular OS.
-target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-## END_TUTORIAL
-
+target_link_libraries(${PROJECT_NAME}
+  Qt5::Core
+  Qt5::Gui
+  ${catkin_LIBRARIES})
 
 ## Install rules
-
 install(TARGETS
   ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
