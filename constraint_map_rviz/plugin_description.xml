@@ -1,4 +1,4 @@
-<library path="lib/libocc_rviz_visualisation">
+<library path="lib/libconstraint_map_rviz">
   <class name="constraint_map_rviz/OCC"
          type="OCCDisplay"
          base_class_type="rviz::Display">

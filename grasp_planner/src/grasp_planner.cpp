@@ -562,7 +562,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
     outer.name = "outer"; outer.type = "cylinder"; outer.frame_id = grasping_frame;
     outer.visible = true;
     outer.color = {0.0, 0.0, 1.0, 1.0};
-    inner.parameters = {zaxis(0), zaxis(1), zaxis(2),
+    outer.parameters = {zaxis(0), zaxis(1), zaxis(2),
                         grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0),
                         grasp2global.translation()(1)+out.outer_cylinder.pose.translation()(1),
                         grasp2global.translation()(2)+out.outer_cylinder.pose.translation()(2),
