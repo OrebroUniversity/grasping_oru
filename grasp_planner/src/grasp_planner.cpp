@@ -496,94 +496,99 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   ROS_INFO("Publishing results");
 
-  //fill in results
-  //order is: bottom, top, left, right, inner, outer
-  hqp_controllers_msgs::TaskGeometry task;
-  task.g_type = hqp_controllers_msgs::TaskGeometry::PLANE;
-	   
   Eigen::Vector3f normal;
   float d = 0;
 
-  //bottom 
+  //fill in results
+  //order is: bottom, top, left, right, inner, outer
+  hiqp_msgs::Primitive bottom, top, left, right, inner, outer;
+  // TODO: Make sure grasping is done in this frame.
+  const std::string grasping_frame = "world";
+
+  // bottom
   normal = grasp2global.rotation()*out.lower_plane.a;
   d = out.lower_plane.b+normal.dot(grasp2global.translation());
-  task.g_data.clear();	    
-  task.g_data.push_back(-normal(0));
-  task.g_data.push_back(-normal(1));
-  task.g_data.push_back(-normal(2));
-  task.g_data.push_back(-d-plane_tolerance);
-  res.constraints.push_back(task);
+
+  bottom.name = "bottom"; bottom.type = "plane"; bottom.frame_id = grasping_frame; // TODO: Check this.
+  bottom.visible = true;
+  bottom.color = {0.0, 0.0, 1.0, 1.0};
+  bottom.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
+  
   //top 
   normal = grasp2global.rotation()*out.upper_plane.a;
   d = out.upper_plane.b+normal.dot(grasp2global.translation());
-  task.g_data.clear();	    
-  task.g_data.push_back(normal(0));
-  task.g_data.push_back(normal(1));
-  task.g_data.push_back(normal(2));
-  task.g_data.push_back(d+plane_tolerance);
-  res.constraints.push_back(task);
+
+  top.name = "top"; top.type = "plane"; top.frame_id = grasping_frame; // TODO: Check this.
+  top.visible = true;
+  top.color = {0.0, 0.0, 1.0, 1.0};
+  top.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
+
   //left
   normal = grasp2global.rotation()*out.left_bound_plane.a;
   d = out.left_bound_plane.b+normal.dot(grasp2global.translation());
-  task.g_data.clear();	    
-  task.g_data.push_back(-normal(0));
-  task.g_data.push_back(-normal(1));
-  task.g_data.push_back(-normal(2));
-  task.g_data.push_back(-d-plane_tolerance);
-  res.constraints.push_back(task);
+
+  left.name = "left"; left.type = "plane"; left.frame_id = grasping_frame; // TODO: Check this.
+  left.visible = true;
+  left.color = {0.0, 0.0, 1.0, 1.0};
+  left.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
+
   //right
   normal = grasp2global.rotation()*out.right_bound_plane.a;
   d = out.right_bound_plane.b+normal.dot(grasp2global.translation());
-  task.g_data.clear();	    
-  task.g_data.push_back(normal(0));
-  task.g_data.push_back(normal(1));
-  task.g_data.push_back(normal(2));
-  task.g_data.push_back(d+plane_tolerance);
-  res.constraints.push_back(task);
-	    
+
+  right.name = "right"; right.type = "plane"; right.frame_id = grasping_frame; // TODO: Check this.
+  right.visible = true;
+  right.color = {0.0, 0.0, 1.0, 1.0};
+  right.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
 
   Eigen::Vector3f zaxis = grasp2global.rotation()*out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
+  
   if(!out.isSphere) {
-		task.g_type = hqp_controllers_msgs::TaskGeometry::CYLINDER;
+    
 		//inner
-		task.g_data.clear();	    
-		task.g_data.push_back(grasp2global.translation()(0)+out.inner_cylinder.pose.translation()(0));
-		task.g_data.push_back(grasp2global.translation()(1)+out.inner_cylinder.pose.translation()(1));
-		task.g_data.push_back(grasp2global.translation()(2)+out.inner_cylinder.pose.translation()(2));
-		task.g_data.push_back(zaxis(0));
-		task.g_data.push_back(zaxis(1));
-		task.g_data.push_back(zaxis(2));
-		task.g_data.push_back(out.inner_cylinder.radius_ - cylinder_tolerance);
-		res.constraints.push_back(task);
-		//outer
-		zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
-		task.g_data.clear();	    
-		task.g_data.push_back(grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0));
-		task.g_data.push_back(grasp2global.translation()(1)+out.outer_cylinder.pose.translation()(1));
-		task.g_data.push_back(grasp2global.translation()(2)+out.outer_cylinder.pose.translation()(2));
-		task.g_data.push_back(zaxis(0));
-		task.g_data.push_back(zaxis(1));
-		task.g_data.push_back(zaxis(2));
-		task.g_data.push_back(out.outer_cylinder.radius_ - cylinder_tolerance);
-		res.constraints.push_back(task);
-  } else {
-		task.g_type = hqp_controllers_msgs::TaskGeometry::SPHERE;
-		task.g_data.clear();	    
-		task.g_data.push_back(grasp2global.translation()(0)+out.outer_sphere.center(0));
-		task.g_data.push_back(grasp2global.translation()(1)+out.outer_sphere.center(1));
-		task.g_data.push_back(grasp2global.translation()(2)+out.outer_sphere.center(2));
-		task.g_data.push_back(out.outer_sphere.radius - cylinder_tolerance);
-		res.constraints.push_back(task);
+    inner.name = "inner"; inner.type = "cylinder"; inner.frame_id = grasping_frame; // TODO: Check this.
+    inner.visible = true;
+    inner.color = {0.0, 0.0, 1.0, 1.0};
+    inner.parameters = {zaxis(0), zaxis(1), zaxis(2), // Axis first.
+                        grasp2global.translation()(0)+out.inner_cylinder.pose.translation()(0), // Position x
+                        grasp2global.translation()(1)+out.inner_cylinder.pose.translation()(1), // Position y
+                        grasp2global.translation()(2)+out.inner_cylinder.pose.translation()(2), // Position z
+                        out.inner_cylinder.radius_ - cylinder_tolerance, // radius
+                        1.0}; // height - shouldn't really matter unless the gripper is "YUGE".
+                          
 
-		task.g_data.clear();	    
-		task.g_data.push_back(grasp2global.translation()(0)+out.inner_sphere.center(0));
-		task.g_data.push_back(grasp2global.translation()(1)+out.inner_sphere.center(1));
-		task.g_data.push_back(grasp2global.translation()(2)+out.inner_sphere.center(2));
-		task.g_data.push_back(out.inner_sphere.radius - cylinder_tolerance);
-		res.constraints.push_back(task);
+    //outer
+    zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
+    outer.name = "outer"; outer.type = "cylinder"; outer.frame_id = grasping_frame;
+    outer.visible = true;
+    outer.color = {0.0, 0.0, 1.0, 1.0};
+    inner.parameters = {zaxis(0), zaxis(1), zaxis(2),
+                        grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0),
+                        grasp2global.translation()(1)+out.outer_cylinder.pose.translation()(1),
+                        grasp2global.translation()(2)+out.outer_cylinder.pose.translation()(2),
+                        out.outer_cylinder.radius_ - cylinder_tolerance,
+                        1.0}; // TODO: verify.
+
+  } else {
+    // outer
+    outer.name = "outer"; outer.type = "sphere"; outer.frame_id = grasping_frame;
+    outer.visible = true; outer.color = {0.0, 0.0, 1.0, 1.0};
+    outer.parameters = {grasp2global.translation()(0)+out.outer_sphere.center(0),
+                        grasp2global.translation()(1)+out.outer_sphere.center(1),
+                        grasp2global.translation()(2)+out.outer_sphere.center(2),
+                        out.outer_sphere.radius - cylinder_tolerance};
+
+    inner.name = "inner"; inner.type = "sphere"; inner.frame_id = grasping_frame;
+    inner.visible = true; inner.color = {0.0, 0.0, 1.0, 1.0};
+    inner.parameters = {grasp2global.translation()(0)+out.inner_sphere.center(0),
+                        grasp2global.translation()(1)+out.inner_sphere.center(1),
+                        grasp2global.translation()(2)+out.inner_sphere.center(2),
+                        out.inner_sphere.radius - cylinder_tolerance};
 		
   }
   res.frame_id = req.header.frame_id;
+  // NOTE: C++11 aggregate initialization.
+  res.constraints = {bottom, top, left, right, inner, outer};
   res.success = res.volume > MIN_ENVELOPE_VOLUME;
 
   //Display functions
