@@ -511,8 +511,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   bottom.name = "bottom"; bottom.type = "plane"; bottom.frame_id = grasping_frame; // TODO: Check this.
   bottom.visible = true;
-  bottom.color = {0.0, 0.0, 1.0, 1.0};
-  bottom.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
+  bottom.color = {0.0, 0.0, 1.0, 0.2};
+  bottom.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
   
   //top 
   normal = grasp2global.rotation()*out.upper_plane.a;
@@ -520,8 +520,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   top.name = "top"; top.type = "plane"; top.frame_id = grasping_frame; // TODO: Check this.
   top.visible = true;
-  top.color = {0.0, 0.0, 1.0, 1.0};
-  top.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
+  top.color = {0.0, 0.0, 1.0, 0.2};
+  top.parameters = { -normal(0), -normal(1), -normal(2), - d - plane_tolerance };
 
   //left
   normal = grasp2global.rotation()*out.left_bound_plane.a;
@@ -529,7 +529,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   left.name = "left"; left.type = "plane"; left.frame_id = grasping_frame; // TODO: Check this.
   left.visible = true;
-  left.color = {0.0, 0.0, 1.0, 1.0};
+  left.color = {0.0, 0.0, 1.0, 0.2};
   left.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
 
   //right
@@ -538,7 +538,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   right.name = "right"; right.type = "plane"; right.frame_id = grasping_frame; // TODO: Check this.
   right.visible = true;
-  right.color = {0.0, 0.0, 1.0, 1.0};
+  right.color = {0.0, 0.0, 1.0, 0.2};
   right.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
 
   Eigen::Vector3f zaxis = grasp2global.rotation()*out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();
@@ -548,38 +548,38 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 		//inner
     inner.name = "inner"; inner.type = "cylinder"; inner.frame_id = grasping_frame; // TODO: Check this.
     inner.visible = true;
-    inner.color = {0.0, 0.0, 1.0, 1.0};
+    inner.color = {0.0, 0.0, 1.0, 0.2};
     inner.parameters = {zaxis(0), zaxis(1), zaxis(2), // Axis first.
                         grasp2global.translation()(0)+out.inner_cylinder.pose.translation()(0), // Position x
                         grasp2global.translation()(1)+out.inner_cylinder.pose.translation()(1), // Position y
                         grasp2global.translation()(2)+out.inner_cylinder.pose.translation()(2), // Position z
                         out.inner_cylinder.radius_ - cylinder_tolerance, // radius
-                        1.0}; // height - shouldn't really matter unless the gripper is "YUGE".
+                        req.object_height}; // height - shouldn't really matter unless the gripper is "YUGE".
                           
 
     //outer
     zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
     outer.name = "outer"; outer.type = "cylinder"; outer.frame_id = grasping_frame;
     outer.visible = true;
-    outer.color = {0.0, 0.0, 1.0, 1.0};
+    outer.color = {0.0, 0.0, 1.0, 0.2};
     outer.parameters = {zaxis(0), zaxis(1), zaxis(2),
                         grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0),
                         grasp2global.translation()(1)+out.outer_cylinder.pose.translation()(1),
                         grasp2global.translation()(2)+out.outer_cylinder.pose.translation()(2),
                         out.outer_cylinder.radius_ - cylinder_tolerance,
-                        1.0}; // TODO: verify.
+                        req.object_height}; // TODO: verify.
 
   } else {
     // outer
     outer.name = "outer"; outer.type = "sphere"; outer.frame_id = grasping_frame;
-    outer.visible = true; outer.color = {0.0, 0.0, 1.0, 1.0};
+    outer.visible = true; outer.color = {0.0, 0.0, 1.0, 0.2};
     outer.parameters = {grasp2global.translation()(0)+out.outer_sphere.center(0),
                         grasp2global.translation()(1)+out.outer_sphere.center(1),
                         grasp2global.translation()(2)+out.outer_sphere.center(2),
                         out.outer_sphere.radius - cylinder_tolerance};
 
     inner.name = "inner"; inner.type = "sphere"; inner.frame_id = grasping_frame;
-    inner.visible = true; inner.color = {0.0, 0.0, 1.0, 1.0};
+    inner.visible = true; inner.color = {0.0, 0.0, 1.0, 0.2};
     inner.parameters = {grasp2global.translation()(0)+out.inner_sphere.center(0),
                         grasp2global.translation()(1)+out.inner_sphere.center(1),
                         grasp2global.translation()(2)+out.inner_sphere.center(2),
