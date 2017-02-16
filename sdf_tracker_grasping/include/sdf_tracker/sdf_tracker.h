@@ -12,7 +12,7 @@
 #include <time.h>
 
 #include <constraint_map/map_interface.h>
-#include <hiqp_msgs/SDFMap.h>
+#include <sdf_tracker_msgs/SDFMap.h>
 
 #define EIGEN_USE_NEW_STDVECTOR
 
@@ -204,7 +204,7 @@ class SDFTracker : public SimpleOccMapIfce
 //  void RenderPointCloud(pcl::PointCloud<pcl::PointXYZ> &pc);
   
   ///method to dump into an hiqp message
-  virtual void toMessage(hiqp_msgs::SDFMap &msg);
+  virtual void toMessage(sdf_tracker_msgs::SDFMap &msg);
 
   virtual void convertToEuclidean();
 

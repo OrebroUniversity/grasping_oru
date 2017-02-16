@@ -77,7 +77,7 @@ GraspPlanner::GraspPlanner(SDF_Parameters& parameters) {
       myTracker_->LoadSDF(loadVolume_);
     } 
 
-  sdf_map_publisher_ = nh_.advertise<hiqp_msgs::SDFMap> (sdf_map_topic,10);
+  sdf_map_publisher_ = nh_.advertise<sdf_tracker_msgs::SDFMap> (sdf_map_topic,10);
   fused_pc_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (fused_pc_topic,10);
 
   depth_subscriber_ = n_.subscribe(depth_topic_name_, 1, &GraspPlanner::depthCallback, this);
@@ -115,7 +115,7 @@ GraspPlanner::~GraspPlanner() {
 }
 
 void GraspPlanner::publishMap(const ros::TimerEvent& event) {
-  hiqp_msgs::SDFMap mapMsg;
+  sdf_tracker_msgs::SDFMap mapMsg;
   myTracker_->toMessage(mapMsg);
   mapMsg.header.frame_id = object_map_frame_name;
   sdf_map_publisher_.publish(mapMsg);
@@ -394,7 +394,7 @@ bool GraspPlanner::mapToEdtCallback(std_srvs::Empty::Request  &req,
                                     std_srvs::Empty::Response &res ) {
   
   if(myTracker_ == NULL) return false;
-  hiqp_msgs::SDFMap mapMsg;
+  sdf_tracker_msgs::SDFMap mapMsg;
 	
   tracker_m.lock();
   myTracker_->convertToEuclidean();

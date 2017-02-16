@@ -28,7 +28,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
-#include <hiqp_msgs/SDFMap.h>
+#include <sdf_tracker_msgs/SDFMap.h>
 
 #define POINT_SCALE  0.02
 #define LINE_SCALE   0.3
