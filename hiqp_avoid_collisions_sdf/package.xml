@@ -20,6 +20,6 @@
   <run_depend>visualization_msgs</run_depend>
 
   <export>
-    <controller_interface plugin="${prefix}/plugins.xml"/>
+    <hiqp_core plugin="${prefix}/plugins.xml"/>
   </export>
 </package>

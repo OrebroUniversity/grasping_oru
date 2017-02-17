@@ -28,6 +28,7 @@
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <pluginlib/class_loader.h>
 
 namespace hiqp {
 namespace tasks {
@@ -49,6 +50,7 @@ struct KinematicQuantities {
  *  \author Robert Krug */
 class TDefAvoidCollisionsSDF : public TaskDefinition {
  public:
+  inline TDefAvoidCollisionsSDF() : TaskDefinition() {}
   TDefAvoidCollisionsSDF(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
                          std::shared_ptr<Visualizer> visualizer);
   ~TDefAvoidCollisionsSDF() noexcept;

@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <pluginlib/class_list_macros.h>
 #include <hiqp/tasks/tdef_avoid_collisions_sdf.h>
 #include <sdf_collision_check/sdf_collision_checker.h>
 #include <iostream>
 
-#define SAFETY_DISTANCE \
-  0.005  // distance added to the gradient norm to act as a safety margin
+// distance added to the gradient norm to act as a safety margin
+#define SAFETY_DISTANCE 0.005  
 
 namespace hiqp {
 namespace tasks {
@@ -481,3 +482,5 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
 }  // namespace tasks
 
 }  // namespace hiqp
+
+PLUGINLIB_EXPORT_CLASS(hiqp::tasks::TDefAvoidCollisionsSDF, hiqp::TaskDefinition)
