@@ -29,11 +29,6 @@ TDefAvoidCollisionsSDF::TDefAvoidCollisionsSDF(
     std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
     std::shared_ptr<Visualizer> visualizer)
     : TaskDefinition(geom_prim_map, visualizer) {
-  printHiqpInfo("Initializing collision checker");
-  collision_checker_ =
-      std::make_shared<sdf_collision_check::SDFCollisionChecker>();
-  collision_checker_->init();
-  collision_checker_->activate();
 }
 //==================================================================================
 TDefAvoidCollisionsSDF::~TDefAvoidCollisionsSDF() noexcept {
@@ -43,6 +38,13 @@ TDefAvoidCollisionsSDF::~TDefAvoidCollisionsSDF() noexcept {
 
 int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
                                  RobotStatePtr robot_state) {
+
+  printHiqpInfo("Initializing collision checker");
+  collision_checker_ =
+      std::make_shared<sdf_collision_check::SDFCollisionChecker>();
+  collision_checker_->init();
+  collision_checker_->activate();
+  
   int size = parameters.size();
   if (size < 2) {
     printHiqpWarning(
@@ -195,9 +197,6 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     // primitive
     appendTaskFunction(point_primitives_[i], kin_q_list, gradients);
   }
-
-  e_.resize(0);
-  J_.resize(0, robot_state->getNumJoints());
 
   for (unsigned int i = 0; i < sphere_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented

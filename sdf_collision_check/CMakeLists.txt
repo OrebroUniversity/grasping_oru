@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(sdf_collision_check)
 
+set(CMAKE_BUILD_TYPE RelWithDebinfo)
 set(CMAKE_CXX_STANDARD 11)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   sdf_tracker_msgs
+  tf
 )
 
 find_package(Eigen3 REQUIRED)
@@ -13,7 +15,7 @@ find_package(Eigen3 REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES sdf_collision_checker
-  CATKIN_DEPENDS roscpp sdf_tracker_msgs
+  CATKIN_DEPENDS roscpp sdf_tracker_msgs tf
 )
 
 include_directories(
