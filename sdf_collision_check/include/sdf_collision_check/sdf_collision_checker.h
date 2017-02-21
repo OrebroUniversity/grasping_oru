@@ -22,7 +22,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   // where to listen to for new maps
   std::string sdf_map_topic;
   // for getting into the correct frame
-  tf::TransformListener tl;
+  tf::TransformListener tl_;
 
   std::mutex buffer_mutex, data_mutex;
   /// two 3d arrays of floats: one for the current map and one for receive
@@ -32,6 +32,9 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   float ****myGrid_;
   /// sets to true once we have a first valid map
   bool validMap;
+
+  // is simulation
+  bool use_sim_time_;
 
   std::string request_frame_id;
   Eigen::Affine3d request2map;
@@ -59,6 +62,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   // void SaveSDF(const std::string &filename);
 
  public:
+  virtual void waitForMap();
   virtual bool obstacleGradient(const Eigen::Vector3d &x, Eigen::Vector3d &g,
                                 std::string frame_id = "");
   virtual bool obstacleGradientBulk(

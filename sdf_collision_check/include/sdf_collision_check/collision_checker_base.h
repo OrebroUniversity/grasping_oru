@@ -28,6 +28,8 @@ class CollisionCheckerBase {
   // to check if a gradient to an obstacle is valid
   virtual bool isValid(const Eigen::Vector3d &grad) = 0;
 
+  virtual void waitForMap() = 0;
+
   inline void activate() {
     active_mutex.lock();
     isActive_ = true;

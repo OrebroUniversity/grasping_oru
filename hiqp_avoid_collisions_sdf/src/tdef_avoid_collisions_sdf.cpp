@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <pluginlib/class_list_macros.h>
 #include <hiqp/tasks/tdef_avoid_collisions_sdf.h>
+#include <pluginlib/class_list_macros.h>
 #include <sdf_collision_check/sdf_collision_checker.h>
 #include <iostream>
 
 // distance added to the gradient norm to act as a safety margin
-#define SAFETY_DISTANCE 0.005  
+#define SAFETY_DISTANCE 0.005
 
 namespace hiqp {
 namespace tasks {
@@ -28,13 +28,7 @@ namespace tasks {
 TDefAvoidCollisionsSDF::TDefAvoidCollisionsSDF(
     std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
     std::shared_ptr<Visualizer> visualizer)
-    : TaskDefinition(geom_prim_map, visualizer) {
-  printHiqpInfo("Initializing collision checker");
-  collision_checker_ =
-      std::make_shared<sdf_collision_check::SDFCollisionChecker>();
-  collision_checker_->init();
-  collision_checker_->activate();
-}
+    : TaskDefinition(geom_prim_map, visualizer) {}
 //==================================================================================
 TDefAvoidCollisionsSDF::~TDefAvoidCollisionsSDF() noexcept {
   collision_checker_->deactivate();
@@ -43,6 +37,15 @@ TDefAvoidCollisionsSDF::~TDefAvoidCollisionsSDF() noexcept {
 
 int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
                                  RobotStatePtr robot_state) {
+  ROS_INFO("Initializing collision checker");
+  collision_checker_ =
+      std::make_shared<sdf_collision_check::SDFCollisionChecker>();
+  collision_checker_->init();
+  collision_checker_->activate();
+  collision_checker_->waitForMap();
+
+  ROS_INFO("Collision checker initialized.");
+
   int size = parameters.size();
   if (size < 2) {
     printHiqpWarning(
@@ -196,9 +199,6 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     appendTaskFunction(point_primitives_[i], kin_q_list, gradients);
   }
 
-  e_.resize(0);
-  J_.resize(0, robot_state->getNumJoints());
-
   for (unsigned int i = 0; i < sphere_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented
     // primitives such as capsules could have more than one ee_/J associated
@@ -220,6 +220,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
                         kin_q_list[j].ee_p_.z());
       test_pts.push_back(p);
     }
+
     SamplesVector gradients;
     if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
                                                   root_frame_id_)) {
@@ -250,6 +251,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     // primitive
     appendTaskFunction(sphere_primitives_[i], kin_q_list, gradients);
   }
+
   return 0;
 }
 //==================================================================================
@@ -323,7 +325,7 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
       e_(e_.size() - 1) = 0.0;  // insert zero
       continue;
     }
-    
+
     double d = gradient.norm() - SAFETY_DISTANCE;
     // append the gradient length to the task function vector
     e_(e_.size() - 1) = d;
@@ -440,9 +442,13 @@ int TDefAvoidCollisionsSDF::pointForwardKinematics(
 void TDefAvoidCollisionsSDF::publishGradientVisualization(
     const SamplesVector& gradients, const SamplesVector& test_pts) {
   assert(gradients.size() == test_pts.size());
+  ROS_INFO("%ld Grads", gradients.size());
   grad_markers_.markers.clear();
   for (unsigned int i = 0; i < gradients.size(); i++) {
-    if (!collision_checker_->isValid(gradients[i])) continue;
+    if (!collision_checker_->isValid(gradients[i])) {
+      ROS_WARN_THROTTLE(3, "Invalid Gradient.");
+        continue;
+    }
 
     Eigen::Vector3d grad = gradients[i];
     Eigen::Vector3d test_pt = test_pts[i];
@@ -483,4 +489,5 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
 
 }  // namespace hiqp
 
-PLUGINLIB_EXPORT_CLASS(hiqp::tasks::TDefAvoidCollisionsSDF, hiqp::TaskDefinition)
+PLUGINLIB_EXPORT_CLASS(hiqp::tasks::TDefAvoidCollisionsSDF,
+                       hiqp::TaskDefinition)
