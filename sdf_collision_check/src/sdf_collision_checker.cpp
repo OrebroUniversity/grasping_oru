@@ -8,8 +8,13 @@ SDFCollisionChecker::SDFCollisionChecker() {
   n_ = ros::NodeHandle();
 
   nh_.param<std::string>("sdf_map_topic", sdf_map_topic, "sdf_map");
+  n_.param("use_sim_time", use_sim_time_, false);
+  if (use_sim_time_) {
+    ROS_INFO("Collision checker running in simulation.");
+  }
   myGrid_ = new float***;
   validMap = false;
+
   ROS_INFO("Constructor done");
 }
 
@@ -36,7 +41,15 @@ void SDFCollisionChecker::init() {
   ROS_INFO("subscribed to topics");
 }
 
-void SDFCollisionChecker::mapCallback(const sdf_tracker_msgs::SDFMap::ConstPtr& msg) {
+void SDFCollisionChecker::waitForMap() {
+  while (!validMap && ros::ok()) {
+    ROS_INFO("Collision checker waiting for map.");
+    sleep(1);
+  }
+}
+
+void SDFCollisionChecker::mapCallback(
+    const sdf_tracker_msgs::SDFMap::ConstPtr& msg) {
   if (!this->isActive()) return;
 
   ROS_INFO("got a new map");
@@ -117,8 +130,14 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
       tf::StampedTransform r2m;
       ros::Time now = ros::Time::now();
       try {
-        tl.waitForTransform(map_frame_id, frame_id, now, ros::Duration(0.15));
-        tl.lookupTransform(map_frame_id, frame_id, now, r2m);
+        if (!use_sim_time_) {
+          tl_.waitForTransform(map_frame_id, frame_id, now,
+                               ros::Duration(0.15));
+          tl_.lookupTransform(map_frame_id, frame_id, now, r2m);
+        }
+        else {
+          tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
+        }
       } catch (tf::TransformException ex) {
         ROS_ERROR("%s", ex.what());
         return false;
@@ -169,18 +188,26 @@ bool SDFCollisionChecker::obstacleGradientBulk(
       tf::StampedTransform r2m;
       ros::Time now = ros::Time::now();
       try {
-        tl.waitForTransform(map_frame_id, frame_id, now, ros::Duration(0.25));
-        tl.lookupTransform(map_frame_id, frame_id, now, r2m);
+        if (!use_sim_time_) {
+          tl_.waitForTransform(map_frame_id, frame_id, now,
+                               ros::Duration(0.15));
+          tl_.lookupTransform(map_frame_id, frame_id, now, r2m);
+        }
+        else {
+          tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
+        }
       } catch (tf::TransformException ex) {
         ROS_ERROR("%s", ex.what());
         return false;
       }
+
       tf::transformTFToEigen(r2m, request2map);
       request_frame_id = frame_id;
     }
   } else {
     request2map.setIdentity();
   }
+
   data_mutex.lock();
 
   // std::cout<<"Transform is "<<request2map.matrix()<<std::endl;
@@ -330,7 +357,8 @@ double SDFCollisionChecker::SDFGradient(const Eigen::Vector3d& location,
 
 //   vtkSmartPointer<vtkFloatArray> distance =
 //       vtkSmartPointer<vtkFloatArray>::New();
-//   vtkSmartPointer<vtkFloatArray> weight = vtkSmartPointer<vtkFloatArray>::New();
+//   vtkSmartPointer<vtkFloatArray> weight =
+//   vtkSmartPointer<vtkFloatArray>::New();
 
 //   int numCells = ZSize * YSize * XSize;
 
