@@ -16,6 +16,7 @@ namespace sdf_collision_check {
   */
 class CollisionCheckerBase {
  public:
+  bool map_available_;
   typedef std::vector<Eigen::Vector3d,
                       Eigen::aligned_allocator<Eigen::Vector3d> >
       SamplesVector;
@@ -27,8 +28,6 @@ class CollisionCheckerBase {
   virtual void init() = 0;
   // to check if a gradient to an obstacle is valid
   virtual bool isValid(const Eigen::Vector3d &grad) = 0;
-
-  virtual void waitForMap() = 0;
 
   inline void activate() {
     active_mutex.lock();

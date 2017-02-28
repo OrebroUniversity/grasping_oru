@@ -430,7 +430,7 @@ bool GraspPlanner::publishMapCallback(std_srvs::Empty::Request  &req,
                                       std_srvs::Empty::Response &res ) {	   
   ros::TimerEvent ev; 
   this->publishPC();
-  this->publishMap(ev);
+  //this->publishMap(ev);
   return true;
 }
 

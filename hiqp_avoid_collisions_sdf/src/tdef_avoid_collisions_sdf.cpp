@@ -42,7 +42,6 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
       std::make_shared<sdf_collision_check::SDFCollisionChecker>();
   collision_checker_->init();
   collision_checker_->activate();
-  collision_checker_->waitForMap();
 
   ROS_INFO("Collision checker initialized.");
 
@@ -147,6 +146,18 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
   e_.resize(0);
   J_.resize(0, robot_state->getNumJoints());
 
+  if (!collision_checker_->map_available_) {
+    //  ROS_INFO_THROTTLE(1,"Map not available yet.");
+    for (size_t i = 0; i < point_primitives_.size() + sphere_primitives_.size();
+         i++) {
+      e_.conservativeResize(e_.size() + 1);
+      J_.conservativeResize(J_.rows() + 1, Eigen::NoChange);
+      e_(e_.size() - 1) = 0;
+      J_.row(J_.rows() - 1).setZero();
+    }
+    return 0;
+  }
+
   for (unsigned int i = 0; i < point_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented
     // primitives such as capsules could have more than one ee_/J associated
@@ -230,20 +241,12 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     }
     assert(gradients.size() > 0);  // make sure a gradient was found
 
-    // DEBUG ====================================
-    // for(int k=0; k<gradients.size();k++)
-    //   {
-    //     if(!collision_checker_->isValid(gradients[k]))
-    // 	continue;
+    // for(auto grad : gradients) {
+    //   ROS_INFO_THROTTLE(3, "Gradient: %lf, %lf, %lf", grad(0), grad(1),
+    //   grad(2));
+    // }
 
-    //       std::cerr<<"Collision checker test point:
-    //       "<<test_pts[k].transpose()<<std::endl;
-    //     std::cerr<<"Collision checker computed gradient:
-    //     "<<gradients[k].transpose()<<", norm:
-    //     "<<gradients[k].norm()<<std::endl;
-    //   }
     publishGradientVisualization(gradients, test_pts);
-    // DEBUG END =====================================
 
     // compute the task jacobian for the current geometric primitive
     appendTaskJacobian(kin_q_list, gradients);
@@ -442,12 +445,12 @@ int TDefAvoidCollisionsSDF::pointForwardKinematics(
 void TDefAvoidCollisionsSDF::publishGradientVisualization(
     const SamplesVector& gradients, const SamplesVector& test_pts) {
   assert(gradients.size() == test_pts.size());
-  ROS_INFO("%ld Grads", gradients.size());
+
+  // ROS_INFO("%ld Grads", gradients.size());
   grad_markers_.markers.clear();
   for (unsigned int i = 0; i < gradients.size(); i++) {
     if (!collision_checker_->isValid(gradients[i])) {
-      ROS_WARN_THROTTLE(3, "Invalid Gradient.");
-        continue;
+      continue;
     }
 
     Eigen::Vector3d grad = gradients[i];
@@ -458,7 +461,7 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     g_marker.header.stamp = ros::Time::now();
     g_marker.type = visualization_msgs::Marker::ARROW;
     g_marker.action = visualization_msgs::Marker::ADD;
-    g_marker.lifetime = ros::Duration(0);
+    g_marker.lifetime = ros::Duration(1);
     g_marker.id = grad_markers_.markers.size();
 
     geometry_msgs::Point start, end;

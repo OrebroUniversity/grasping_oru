@@ -1,7 +1,7 @@
 #pragma once
 
-#include <sdf_tracker_msgs/SDFMap.h>
 #include <sdf_collision_check/collision_checker_base.h>
+#include <sdf_tracker_msgs/SDFMap.h>
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
@@ -33,9 +33,6 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   /// sets to true once we have a first valid map
   bool validMap;
 
-  // is simulation
-  bool use_sim_time_;
-
   std::string request_frame_id;
   Eigen::Affine3d request2map;
 
@@ -46,6 +43,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   double Dmax;
   double Dmin;
   int XSize, YSize, ZSize;
+  int raycast_steps;
 
   /// methods
  private:
@@ -60,9 +58,10 @@ class SDFCollisionChecker : public CollisionCheckerBase {
 
   // debug: save to vti
   // void SaveSDF(const std::string &filename);
+  Eigen::Vector3d ShootSingleRay(const Eigen::Vector3d &start,
+                                 const Eigen::Vector3d &direction);
 
  public:
-  virtual void waitForMap();
   virtual bool obstacleGradient(const Eigen::Vector3d &x, Eigen::Vector3d &g,
                                 std::string frame_id = "");
   virtual bool obstacleGradientBulk(

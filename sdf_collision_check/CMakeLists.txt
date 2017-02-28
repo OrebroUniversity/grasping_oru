@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   sdf_tracker_msgs
   tf
   tf_conversions
+  std_srvs
 )
 
 find_package(Eigen3 REQUIRED)
@@ -16,7 +17,7 @@ find_package(Eigen3 REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES sdf_collision_checker
-  CATKIN_DEPENDS roscpp sdf_tracker_msgs tf tf_conversions
+  CATKIN_DEPENDS roscpp sdf_tracker_msgs tf tf_conversions std_srvs
 )
 
 include_directories(

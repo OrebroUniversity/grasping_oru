@@ -1,17 +1,14 @@
 #include <sdf_collision_check/sdf_collision_checker.h>
+#include <std_srvs/Empty.h>
 #include <Eigen/Geometry>
 
 namespace sdf_collision_check {
 
-SDFCollisionChecker::SDFCollisionChecker() {
+SDFCollisionChecker::SDFCollisionChecker() : raycast_steps(12) {
   nh_ = ros::NodeHandle("~");
   n_ = ros::NodeHandle();
 
   nh_.param<std::string>("sdf_map_topic", sdf_map_topic, "sdf_map");
-  n_.param("use_sim_time", use_sim_time_, false);
-  if (use_sim_time_) {
-    ROS_INFO("Collision checker running in simulation.");
-  }
   myGrid_ = new float***;
   validMap = false;
 
@@ -38,13 +35,18 @@ void SDFCollisionChecker::init() {
   // subscribe to topic
   sdf_map_sub_ =
       n_.subscribe(sdf_map_topic, 1, &SDFCollisionChecker::mapCallback, this);
+  map_available_ = false;
   ROS_INFO("subscribed to topics");
-}
-
-void SDFCollisionChecker::waitForMap() {
-  while (!validMap && ros::ok()) {
-    ROS_INFO("Collision checker waiting for map.");
-    sleep(1);
+  ros::ServiceClient client =
+      n_.serviceClient<std_srvs::Empty>("/gplanner/map_to_edt");
+  client.waitForExistence();
+  std_srvs::Empty msg;
+  if (client.call(msg)) {
+    ROS_INFO("Asked GraspPlanner for map.");
+  } else {
+    ROS_ERROR(
+        "There was a problem calling the grasp planner for map. Collision "
+        "avoidance may not work.");
   }
 }
 
@@ -111,6 +113,7 @@ void SDFCollisionChecker::mapCallback(
   buffer_mutex.unlock();
 
   ROS_INFO("Cleaned up and done");
+  map_available_ = true;
 }
 
 bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
@@ -128,22 +131,16 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
     if (frame_id != request_frame_id) {
       // update transform
       tf::StampedTransform r2m;
-      ros::Time now = ros::Time::now();
       try {
-        if (!use_sim_time_) {
-          tl_.waitForTransform(map_frame_id, frame_id, now,
-                               ros::Duration(0.15));
-          tl_.lookupTransform(map_frame_id, frame_id, now, r2m);
-        }
-        else {
-          tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
-        }
+        tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
+                             ros::Duration(1.00));
+        tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
+        request_frame_id = frame_id;
       } catch (tf::TransformException ex) {
         ROS_ERROR("%s", ex.what());
-        return false;
+        request2map.setIdentity();
       }
       tf::transformTFToEigen(r2m, request2map);
-      request_frame_id = frame_id;
     }
   } else {
     request2map.setIdentity();
@@ -157,13 +154,67 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
     g(0) = SDFGradient(x_new, 0);
     g(1) = SDFGradient(x_new, 1);
     g(2) = SDFGradient(x_new, 2);
-    g.normalize();        // normal vector
-    g = -g * SDF(x_new);  // scale by interpolated SDF value
+    g.normalize();  // normal vector
+    g = ShootSingleRay(x, g);
+//  g = -g * SDF(x_new);  // scale by interpolated SDF value
     g = request2map.inverse().rotation() * g;
   }
   data_mutex.unlock();
 
   return true;
+}
+
+Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
+    const Eigen::Vector3d& start, const Eigen::Vector3d& direction_) {
+  Eigen::Vector4d camera;
+  camera << start(0), start(1), start(2), 1;
+  Eigen::Vector3d direction = direction_;
+  direction.normalize();
+  Eigen::Vector4d p;
+  p << direction(0), direction(1), direction(2), 0;
+
+  bool hit = false;
+
+  double scaling = Dmax + Dmin;
+  double scaling_prev = 0;
+  int steps = 0;
+  double D = resolution;
+
+  while (steps < raycast_steps * 2 && !hit) {
+    double D_prev = D;
+    Eigen::Vector4d temp4d = camera + p*scaling;
+    Eigen::Vector3d temp3d;
+    temp3d << temp4d(0), temp4d(1), temp4d(2);
+    D = SDF(temp3d);
+
+    if (D < 0.0)  // hit
+    {
+      double i, j, k;
+
+      scaling = scaling_prev + (scaling - scaling_prev) * D_prev / (D_prev - D);
+      hit = true;
+      Eigen::Vector4d currentPoint = camera + p * scaling;
+
+      modf(currentPoint(0) / resolution + XSize / 2, &i);
+      modf(currentPoint(1) / resolution + YSize / 2, &j);
+      modf(currentPoint(2) / resolution + ZSize / 2, &k);
+      int I = static_cast<int>(i);
+      int J = static_cast<int>(j);
+      int K = static_cast<int>(k);
+
+      // If raycast terminates within the reconstructed volume, keep the surface
+      // point.
+      if (I >= 0 && I < XSize && J >= 0 && J < YSize && K >= 0 && K < ZSize) {
+        return currentPoint.head<3>();
+      } else
+        return Eigen::Vector3d(1, 1, 1) *
+               std::numeric_limits<double>::quiet_NaN();
+    }
+    scaling_prev = scaling;
+    scaling += std::max(resolution, D);
+    ++steps;
+  }
+  return Eigen::Vector3d(1, 1, 1) * std::numeric_limits<double>::infinity();
 }
 
 bool SDFCollisionChecker::obstacleGradientBulk(
@@ -186,23 +237,17 @@ bool SDFCollisionChecker::obstacleGradientBulk(
     if (frame_id != request_frame_id) {
       // update transform
       tf::StampedTransform r2m;
-      ros::Time now = ros::Time::now();
       try {
-        if (!use_sim_time_) {
-          tl_.waitForTransform(map_frame_id, frame_id, now,
-                               ros::Duration(0.15));
-          tl_.lookupTransform(map_frame_id, frame_id, now, r2m);
-        }
-        else {
-          tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
-        }
+        tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
+                             ros::Duration(1.0));
+        tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
+        request_frame_id = frame_id;
       } catch (tf::TransformException ex) {
         ROS_ERROR("%s", ex.what());
-        return false;
+        request2map.setIdentity();
       }
 
       tf::transformTFToEigen(r2m, request2map);
-      request_frame_id = frame_id;
     }
   } else {
     request2map.setIdentity();
@@ -223,6 +268,10 @@ bool SDFCollisionChecker::obstacleGradientBulk(
       g[i].normalize();           // normal vector
       g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
       g[i] = request2map.inverse().rotation() * g[i];
+      // ROS_INFO_THROTTLE(3, "Grad: %lf, %lf, %lf", g[i](0), g[i](1), g[i](2));
+    } else {
+      // ROS_WARN_THROTTLE(5, "Gradient at this point seems invalid. %lf, %lf,
+      // %lf", x_new(0), x_new(1), x_new(2));
     }
   }
 

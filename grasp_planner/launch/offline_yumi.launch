@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-<!-- param name="use_sim_time" value="true"/ -->
+<param name="use_sim_time" value="true"/>
 
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen">
     
@@ -19,7 +19,7 @@
 
     <!-- SDF related parameters -->
     <!--param name="LoadVolume" value= "$(find grasp_planner)/cfg/example.vti" /-->
-    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/map_good.vti" />
+    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/newmap.vti" />
     <param name="runTrackerFromVolume" value= "true" />
     <param name="GridSizeX" value= "190"/>
     <param name="GridSizeY" value= "80"/>
@@ -73,6 +73,6 @@
 -->
   </node>
   <node pkg="tf" type="static_transform_publisher" name="roipub"
-         args="0.32 0 0.22 -0.707 0 0 0.707 world sdf_map_frame 100" />
+         args="0.32 0 0.22 -0.707 0 0 0.707 world sdf_map_frame 50" />
 
 </launch>
