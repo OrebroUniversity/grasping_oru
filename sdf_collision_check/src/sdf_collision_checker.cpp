@@ -4,7 +4,7 @@
 
 namespace sdf_collision_check {
 
-SDFCollisionChecker::SDFCollisionChecker() : raycast_steps(12) {
+SDFCollisionChecker::SDFCollisionChecker() : raycast_steps(200) {
   nh_ = ros::NodeHandle("~");
   n_ = ros::NodeHandle();
 
@@ -16,6 +16,8 @@ SDFCollisionChecker::SDFCollisionChecker() : raycast_steps(12) {
 }
 
 SDFCollisionChecker::~SDFCollisionChecker() {
+  sdf_map_sub_.shutdown();
+  ROS_INFO("Unsubscribe");
   if (validMap && myGrid_ != NULL) {
     // clean up memory
     float*** grid;
@@ -133,7 +135,7 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
       tf::StampedTransform r2m;
       try {
         tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
-                             ros::Duration(1.00));
+                             ros::Duration(0.80));
         tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
         request_frame_id = frame_id;
       } catch (tf::TransformException ex) {
@@ -151,12 +153,12 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
 
   data_mutex.lock();
   if (ValidGradient(x_new)) {
-    g(0) = SDFGradient(x_new, 0);
-    g(1) = SDFGradient(x_new, 1);
-    g(2) = SDFGradient(x_new, 2);
+    g(0) = SDFGradient2(x_new, 0);
+    g(1) = SDFGradient2(x_new, 1);
+    g(2) = SDFGradient2(x_new, 2);
     g.normalize();  // normal vector
-    g = ShootSingleRay(x, g);
-//  g = -g * SDF(x_new);  // scale by interpolated SDF value
+    g = ShootSingleRay(x_new, g);
+    g = -g * SDF(x_new);  // scale by interpolated SDF value
     g = request2map.inverse().rotation() * g;
   }
   data_mutex.unlock();
@@ -175,26 +177,43 @@ Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
 
   bool hit = false;
 
-  double scaling = Dmax + Dmin;
-  double scaling_prev = 0;
+  //  double scaling = Dmax + Dmin;
+  double scaling = 0.0;
+  double scaling_prev = 0.0;
   int steps = 0;
   double D = resolution;
 
   while (steps < raycast_steps * 2 && !hit) {
     double D_prev = D;
-    Eigen::Vector4d temp4d = camera + p*scaling;
+    Eigen::Vector4d temp4d = camera + p * scaling;
     Eigen::Vector3d temp3d;
     temp3d << temp4d(0), temp4d(1), temp4d(2);
+
+    double i, j, k;
+    modf(temp3d(0) / resolution + XSize / 2, &i);
+    modf(temp3d(1) / resolution + YSize / 2, &j);
+    modf(temp3d(2) / resolution + ZSize / 2, &k);
+    int I = static_cast<int>(i);
+    int J = static_cast<int>(j);
+    int K = static_cast<int>(k);
+
+    if (!(I >= 0 && I < XSize && J >= 0 && J < YSize && K >= 0 && K < ZSize)) {
+      //ROS_INFO("Test point outside map: %lf, %lf %lf", temp3d(0), temp3d(1), temp3d(2));
+      return Eigen::Vector3d(1, 1, 1) * std::numeric_limits<double>::quiet_NaN();
+    }
+
     D = SDF(temp3d);
+    //ROS_INFO("D: %lf", D);
+    //ROS_INFO("Test point: %lf, %lf %lf", temp3d(0), temp3d(1), temp3d(2));
+    //ROS_INFO("Scaling: %lf, P: %lf, %lf, %lf", scaling, p(0), p(1), p(2));
 
     if (D < 0.0)  // hit
     {
-      double i, j, k;
-
       scaling = scaling_prev + (scaling - scaling_prev) * D_prev / (D_prev - D);
       hit = true;
       Eigen::Vector4d currentPoint = camera + p * scaling;
 
+      double i, j, k;
       modf(currentPoint(0) / resolution + XSize / 2, &i);
       modf(currentPoint(1) / resolution + YSize / 2, &j);
       modf(currentPoint(2) / resolution + ZSize / 2, &k);
@@ -204,16 +223,20 @@ Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
 
       // If raycast terminates within the reconstructed volume, keep the surface
       // point.
+      //ROS_INFO("Steps: %d", steps);
       if (I >= 0 && I < XSize && J >= 0 && J < YSize && K >= 0 && K < ZSize) {
-        return currentPoint.head<3>();
+        return (p * scaling).head<3>();
+        //        return currentPoint.head<3>();
       } else
         return Eigen::Vector3d(1, 1, 1) *
                std::numeric_limits<double>::quiet_NaN();
     }
     scaling_prev = scaling;
-    scaling += std::max(resolution, D);
+    //    scaling += std::max(resolution, D);
+    scaling += D;
     ++steps;
   }
+//  ROS_INFO("[FAILED] Steps: %d", steps);
   return Eigen::Vector3d(1, 1, 1) * std::numeric_limits<double>::infinity();
 }
 
@@ -239,7 +262,7 @@ bool SDFCollisionChecker::obstacleGradientBulk(
       tf::StampedTransform r2m;
       try {
         tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
-                             ros::Duration(1.0));
+                             ros::Duration(0.8));
         tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
         request_frame_id = frame_id;
       } catch (tf::TransformException ex) {
@@ -262,11 +285,12 @@ bool SDFCollisionChecker::obstacleGradientBulk(
     x_new = request2map * x[i];
 
     if (ValidGradient(x_new)) {
-      g[i](0) = SDFGradient(x_new, 0);
-      g[i](1) = SDFGradient(x_new, 1);
-      g[i](2) = SDFGradient(x_new, 2);
-      g[i].normalize();           // normal vector
-      g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
+      g[i](0) = SDFGradient2(x_new, 0);
+      g[i](1) = SDFGradient2(x_new, 1);
+      g[i](2) = SDFGradient2(x_new, 2);
+      g[i].normalize();  // normal vector
+      //      g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
+      g[i] = ShootSingleRay(x_new, -g[i]);
       g[i] = request2map.inverse().rotation() * g[i];
       // ROS_INFO_THROTTLE(3, "Grad: %lf, %lf, %lf", g[i](0), g[i](1), g[i](2));
     } else {
@@ -378,6 +402,20 @@ bool SDFCollisionChecker::ValidGradient(const Eigen::Vector3d& location) {
     return false;
   else
     return true;
+}
+
+double SDFCollisionChecker::SDFGradient2(const Eigen::Vector3d& location,
+                                         int dim) {
+  double delta = resolution;
+  Eigen::Vector3d location_offset = Eigen::Vector3d(0, 0, 0);
+  location_offset(dim) = delta;
+
+  auto fx2 = SDF(location + (2*location_offset));
+  auto fx_2 = SDF(location - (2*location_offset));
+  auto fx = SDF(location + location_offset);
+  auto fx_ = SDF(location - location_offset);
+  
+  return (fx2 - fx_2 + 8*(fx - fx_))/(12*delta);
 }
 
 /// NOTE: not thread safe! lock data_mutex before calling

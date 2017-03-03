@@ -20,7 +20,7 @@
 #include <iostream>
 
 // distance added to the gradient norm to act as a safety margin
-#define SAFETY_DISTANCE 0.005
+#define SAFETY_DISTANCE 0.010
 
 namespace hiqp {
 namespace tasks {
@@ -70,10 +70,11 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
 
   for (unsigned int i = 1; i < size; i += 2) {
     // Make sure the type is either a point or a sphere.
-    if (parameters.at(i) != "sphere" && parameters.at(i) != "point") {
+    if (parameters.at(i) != "sphere" && parameters.at(i) != "point" &&
+        parameters.at(i) != "cylinder") {
       ROS_ERROR(
-          "Primitive is not a sphere or point. Only sphere and point are "
-          "supported. FAILED!");
+          "Primitive is not a sphere or point or cylinder. Only sphere, point "
+          "and cylinder are supported. FAILED!");
       return -2;
     }
 
@@ -93,11 +94,11 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
             parameters.at(i + 1).c_str());
         return -2;
       }
+      ROS_INFO("Adding a sphere.");
       sphere_primitives_.push_back(sphere);
-      n_dimensions_++;
     }
 
-    else {
+    else if (parameters.at(i) == "point") {
       std::shared_ptr<GeometricPoint> point =
           gpm->getGeometricPrimitive<GeometricPoint>(parameters.at(i + 1));
       if (point == nullptr) {
@@ -114,8 +115,27 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
         return -2;
       }
       point_primitives_.push_back(point);
-      n_dimensions_++;
     }
+
+    else {
+      std::shared_ptr<GeometricCylinder> cylinder =
+          gpm->getGeometricPrimitive<GeometricCylinder>(parameters.at(i + 1));
+      if (cylinder == nullptr) {
+        ROS_ERROR("Can't find a cylinder called \'%s\'. FAILED",
+                  parameters.at(i + 1).c_str());
+        return -2;
+      }
+      if (kdl_getQNrFromLinkName(robot_state->kdl_tree_,
+                                 cylinder->getFrameId()) == -1) {
+        ROS_ERROR(
+            "TDefAvoidCollisionsSDF::init, avoidance cylinder %s isn't "
+            "attached to manipulator.",
+            parameters.at(i + 1).c_str());
+        return -2;
+      }
+      cylinder_primitives_.push_back(cylinder);
+    }
+    n_dimensions_++;
   }
 
   performance_measures_.resize(0);
@@ -148,7 +168,9 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
 
   if (!collision_checker_->map_available_) {
     //  ROS_INFO_THROTTLE(1,"Map not available yet.");
-    for (size_t i = 0; i < point_primitives_.size() + sphere_primitives_.size();
+    for (size_t i = 0;
+         i < point_primitives_.size() + sphere_primitives_.size() +
+                 cylinder_primitives_.size();
          i++) {
       e_.conservativeResize(e_.size() + 1);
       J_.conservativeResize(J_.rows() + 1, Eigen::NoChange);
@@ -157,6 +179,8 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     }
     return 0;
   }
+
+  SamplesVector gradientsViz, testPointsViz;
 
   for (unsigned int i = 0; i < point_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented
@@ -178,6 +202,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       Eigen::Vector3d p(kin_q_list[j].ee_p_.x(), kin_q_list[j].ee_p_.y(),
                         kin_q_list[j].ee_p_.z());
       test_pts.push_back(p);
+      testPointsViz.push_back(p);
     }
     SamplesVector gradients;
     if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
@@ -187,27 +212,13 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
     assert(gradients.size() > 0);  // make sure a gradient was found
-
-    // DEBUG ====================================
-    // for(int k=0; k<gradients.size();k++)
-    //   {
-    //     if(!collision_checker_->isValid(gradients[k]))
-    // 	continue;
-
-    //       std::cerr<<"Collision checker test point:
-    //       "<<test_pts[k].transpose()<<std::endl;
-    //     std::cerr<<"Collision checker computed gradient:
-    //     "<<gradients[k].transpose()<<", norm:
-    //     "<<gradients[k].norm()<<std::endl;
-    //   }
-    publishGradientVisualization(gradients, test_pts);
-    // DEBUG END =====================================
+    gradientsViz = gradients;
 
     // compute the task jacobian for the current geometric primitive
     appendTaskJacobian(kin_q_list, gradients);
     // compute the task function value vector for the current geometric
     // primitive
-    appendTaskFunction(point_primitives_[i], kin_q_list, gradients);
+    appendTaskFunction(kin_q_list, gradients);
   }
 
   for (unsigned int i = 0; i < sphere_primitives_.size(); i++) {
@@ -230,6 +241,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       Eigen::Vector3d p(kin_q_list[j].ee_p_.x(), kin_q_list[j].ee_p_.y(),
                         kin_q_list[j].ee_p_.z());
       test_pts.push_back(p);
+      testPointsViz.push_back(p);
     }
 
     SamplesVector gradients;
@@ -240,26 +252,73 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
     assert(gradients.size() > 0);  // make sure a gradient was found
+    gradientsViz.insert(gradientsViz.end(), gradients.begin(), gradients.end());
 
     // for(auto grad : gradients) {
     //   ROS_INFO_THROTTLE(3, "Gradient: %lf, %lf, %lf", grad(0), grad(1),
     //   grad(2));
     // }
 
-    publishGradientVisualization(gradients, test_pts);
+    // compute the task jacobian for the current geometric primitive
+    appendTaskJacobian(kin_q_list, gradients);
+    // compute the task function value vector for the current geometric
+    // primitive
+    appendTaskFunction(kin_q_list, gradients,
+                       sphere_primitives_[i]->getRadius());
+  }
+
+  for (unsigned int i = 0; i < cylinder_primitives_.size(); i++) {
+    // compute forward kinematics for each primitive (yet unimplemented
+    // primitives such as capsules could have more than one ee_/J associated
+    // with them, hence the vector-valued argument
+    std::vector<KinematicQuantities> kin_q_list;
+    if (cylinderForwardKinematics(kin_q_list, cylinder_primitives_[i],
+                                  robot_state) < 0) {
+      printHiqpWarning(
+          "TDefAvoidCollisionsSDF::update, primitive forward kinematics "
+          "computation failed.");
+      return -2;
+    }
+
+    // get the gradient vectors associated with the ee points of the current
+    // primitive from the SDF map
+    SamplesVector test_pts;
+    for (unsigned int j = 0; j < kin_q_list.size(); j++) {
+      Eigen::Vector3d p(kin_q_list[j].ee_p_.x(), kin_q_list[j].ee_p_.y(),
+                        kin_q_list[j].ee_p_.z());
+      test_pts.push_back(p);
+      testPointsViz.push_back(p);
+    }
+
+    SamplesVector gradients;
+    if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
+                                                  root_frame_id_)) {
+      printHiqpWarning(
+          "TDefAvoidCollisionsSDF::update, collision checker failed.");
+      return -2;
+    }
+    assert(gradients.size() > 0);  // make sure a gradient was found
+    gradientsViz.insert(gradientsViz.end(), gradients.begin(), gradients.end());
+
+    // for(auto grad : gradients) {
+    //   ROS_INFO_THROTTLE(3, "Gradient: %lf, %lf, %lf", grad(0), grad(1),
+    //   grad(2));
+    // }
 
     // compute the task jacobian for the current geometric primitive
     appendTaskJacobian(kin_q_list, gradients);
     // compute the task function value vector for the current geometric
     // primitive
-    appendTaskFunction(sphere_primitives_[i], kin_q_list, gradients);
+    appendTaskFunction(kin_q_list, gradients,
+                       cylinder_primitives_[i]->getRadius());
   }
 
+  publishGradientVisualization(gradientsViz, testPointsViz);
   return 0;
 }
 //==================================================================================
 void TDefAvoidCollisionsSDF::appendTaskJacobian(
-    const std::vector<KinematicQuantities> kin_q_list,
+    const std::vector<KinematicQuantities>& kin_q_list,
     const SamplesVector& gradients) {
   assert(kin_q_list.size() == gradients.size());
   for (unsigned int i = 0; i < gradients.size(); i++) {
@@ -288,9 +347,8 @@ void TDefAvoidCollisionsSDF::appendTaskJacobian(
 }
 //==================================================================================
 void TDefAvoidCollisionsSDF::appendTaskFunction(
-    const std::shared_ptr<geometric_primitives::GeometricSphere>& sphere,
-    const std::vector<KinematicQuantities> kin_q_list,
-    const SamplesVector& gradients) {
+    const std::vector<KinematicQuantities>& kin_q_list,
+    const SamplesVector& gradients, const double& offset) {
   assert(kin_q_list.size() == gradients.size());
 
   for (size_t i = 0; i < gradients.size(); i++) {
@@ -304,34 +362,7 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
     }
 
     double d = gradient.norm() - SAFETY_DISTANCE;
-    e_(e_.size() - 1) = d - sphere->getRadius();
-  }
-  // DEBUG===============================
-  // std::cerr<<"Task function value vector: "<<e_.transpose()<<std::endl;
-  // DEBUG END===============================
-  // if(e_(0)<0.0)
-  // 	  ROS_WARN("negative e: %f",e_(0));
-}
-
-void TDefAvoidCollisionsSDF::appendTaskFunction(
-    const std::shared_ptr<geometric_primitives::GeometricPoint>& point,
-    const std::vector<KinematicQuantities> kin_q_list,
-    const SamplesVector& gradients) {
-  assert(kin_q_list.size() == gradients.size());
-
-  for (size_t i = 0; i < gradients.size(); i++) {
-    Eigen::Vector3d gradient(gradients[i]);
-    e_.conservativeResize(e_.size() + 1);
-    // check if a gradient to an obstacle is valid
-    if (!collision_checker_->isValid(gradient)) {
-      /// \bug this implicitly assumes that e*(e=0) = 0!
-      e_(e_.size() - 1) = 0.0;  // insert zero
-      continue;
-    }
-
-    double d = gradient.norm() - SAFETY_DISTANCE;
-    // append the gradient length to the task function vector
-    e_(e_.size() - 1) = d;
+    e_(e_.size() - 1) = d - offset;
   }
   // DEBUG===============================
   // std::cerr<<"Task function value vector: "<<e_.transpose()<<std::endl;
@@ -406,6 +437,67 @@ int TDefAvoidCollisionsSDF::sphereForwardKinematics(
   return 0;
 }
 
+// For cylinder we are trying to move the point with the least gradient on the
+// cylinder.
+int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
+    std::vector<KinematicQuantities>& kin_q_list,
+    const std::shared_ptr<geometric_primitives::GeometricCylinder>& cylinder,
+    RobotStatePtr const robot_state) const {
+  kin_q_list.clear();
+  KinematicQuantities kin_q;
+  kin_q.ee_J_.resize(robot_state->kdl_jnt_array_vel_.q.rows());
+  kin_q.frame_id_ = cylinder->getFrameId();
+
+  if (forwardKinematics(kin_q, robot_state) < 0) {
+    printHiqpWarning(
+        "TDefAvoidCollisionsSDF::primitiveForwardKinematics, primitive "
+        "forward kinematics for GeometricCylinder primitive '" +
+        cylinder->getName() + "' failed.");
+    return -2;
+  }
+
+  SamplesVector test_pts;
+  double step = cylinder->getHeight() / 3.00;
+  for (int i = 0; i < 4; i++) {
+    KDL::Vector thisPointKDL =
+        (kin_q.ee_frame_.p) +
+        (kin_q.ee_frame_.M * KDL::Vector(0.0, 0.0, i * step));
+    Eigen::Vector3d thisPoint(thisPointKDL(0), thisPointKDL(1),
+                              thisPointKDL(2));
+    test_pts.push_back(thisPoint);
+  }
+
+  SamplesVector gradients;
+  if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
+                                                root_frame_id_)) {
+    printHiqpWarning(
+        "TDefAvoidCollisionsSDF::update, collision checker failed.");
+    return -2;
+  }
+  assert(gradients.size() == 4);  // make sure a gradient was found
+
+  size_t index = 0;
+  double min_norm = gradients[0].norm();
+  for (size_t i = 0; i < gradients.size(); i++) {
+    if (gradients[i].norm() < min_norm) {
+      min_norm = gradients[i].norm();
+      index = i;
+    }
+  }
+
+  // shift the Jacobian reference point
+  kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
+                             KDL::Vector(0.0, 0.0, index * step));
+
+  // compute the ee position in the base frame
+  // Compute position of the base point of cylinder.
+  kin_q.ee_p_ =
+      KDL::Vector(test_pts[index](0), test_pts[index](1), test_pts[index](2));
+
+  kin_q_list.push_back(kin_q);
+  return 0;
+}
+
 int TDefAvoidCollisionsSDF::pointForwardKinematics(
     std::vector<KinematicQuantities>& kin_q_list,
     const std::shared_ptr<geometric_primitives::GeometricPoint>& point,
@@ -461,7 +553,7 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     g_marker.header.stamp = ros::Time::now();
     g_marker.type = visualization_msgs::Marker::ARROW;
     g_marker.action = visualization_msgs::Marker::ADD;
-    g_marker.lifetime = ros::Duration(1);
+    g_marker.lifetime = ros::Duration(0);
     g_marker.id = grad_markers_.markers.size();
 
     geometry_msgs::Point start, end;

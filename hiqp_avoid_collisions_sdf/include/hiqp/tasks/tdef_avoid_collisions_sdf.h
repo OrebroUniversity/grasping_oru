@@ -25,10 +25,10 @@
 #include <kdl/treefksolverpos_recursive.hpp>
 #include <kdl/treejnttojacsolver.hpp>
 
+#include <pluginlib/class_loader.h>
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <pluginlib/class_loader.h>
 
 namespace hiqp {
 namespace tasks {
@@ -83,22 +83,21 @@ class TDefAvoidCollisionsSDF : public TaskDefinition {
       const std::shared_ptr<geometric_primitives::GeometricSphere>& sphere,
       RobotStatePtr const robot_state) const;
 
+  int cylinderForwardKinematics(
+      std::vector<KinematicQuantities>& kin_q_list,
+      const std::shared_ptr<geometric_primitives::GeometricCylinder>& cylinder,
+      RobotStatePtr const robot_state) const;
+
   /*! Helper function which computes ee pose and Jacobian w.r.t. a given frame*/
   int forwardKinematics(KinematicQuantities& kin_q,
                         RobotStatePtr const robot_state) const;
 
-  void appendTaskJacobian(const std::vector<KinematicQuantities> kin_q_list,
+  void appendTaskJacobian(const std::vector<KinematicQuantities>& kin_q_list,
                           const SamplesVector& gradients);
 
-  void appendTaskFunction(
-      const std::shared_ptr<geometric_primitives::GeometricPoint>& point,
-      const std::vector<KinematicQuantities> kin_q_list,
-      const SamplesVector& gradients);
-
-  void appendTaskFunction(
-      const std::shared_ptr<geometric_primitives::GeometricSphere>& sphere,
-      const std::vector<KinematicQuantities> kin_q_list,
-      const SamplesVector& gradients);
+  void appendTaskFunction(const std::vector<KinematicQuantities>& kin_q_list,
+                          const SamplesVector& gradients,
+                          const double& offset = 0.0);
 
   std::shared_ptr<KDL::TreeFkSolverPos_recursive> fk_solver_pos_;
   std::shared_ptr<KDL::TreeJntToJacSolver> fk_solver_jac_;
@@ -107,6 +106,8 @@ class TDefAvoidCollisionsSDF : public TaskDefinition {
       sphere_primitives_;
   std::vector<std::shared_ptr<geometric_primitives::GeometricPoint> >
       point_primitives_;
+  std::vector<std::shared_ptr<geometric_primitives::GeometricCylinder> >
+      cylinder_primitives_;
 
   std::string root_frame_id_;
   /*! Interface to the SDF map*/

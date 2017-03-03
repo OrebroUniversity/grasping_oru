@@ -56,6 +56,10 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   /// with central differences.
   virtual double SDFGradient(const Eigen::Vector3d &location, int dim);
 
+  /// Computes the gradient of the SDF at the location, along dimension dim,
+  /// with central differences - higher accuracy.
+  virtual double SDFGradient2(const Eigen::Vector3d &location, int dim);
+
   // debug: save to vti
   // void SaveSDF(const std::string &filename);
   Eigen::Vector3d ShootSingleRay(const Eigen::Vector3d &start,
