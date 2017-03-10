@@ -390,19 +390,17 @@ bool GraspPlanner::loadVolumeCallback(grasp_planner::LoadResource::Request  &req
   return true;
 }
 
-bool GraspPlanner::mapToEdtCallback(std_srvs::Empty::Request  &req,
-                                    std_srvs::Empty::Response &res ) {
+bool GraspPlanner::mapToEdtCallback(sdf_tracker_msgs::GetSDFMap::Request  &req,
+                                    sdf_tracker_msgs::GetSDFMap::Response &res ) {
   
   if(myTracker_ == NULL) return false;
-  sdf_tracker_msgs::SDFMap mapMsg;
 	
   tracker_m.lock();
   myTracker_->convertToEuclidean();
-  myTracker_->toMessage(mapMsg);
+  myTracker_->toMessage(res.map);
   tracker_m.unlock();
 	
-  mapMsg.header.frame_id = object_map_frame_name;
-  sdf_map_publisher_.publish(mapMsg);
+  res.map.header.frame_id = object_map_frame_name;
   return true;
 }
 
@@ -529,7 +527,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   left.name = "left"; left.type = "plane"; left.frame_id = grasping_frame; // TODO: Check this.
   left.visible = true;
-  left.color = {0.0, 0.0, 1.0, 0.2};
+  left.color = {0.0, 1.0, 0.0, 0.5};
   left.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
 
   //right
@@ -538,7 +536,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
 
   right.name = "right"; right.type = "plane"; right.frame_id = grasping_frame; // TODO: Check this.
   right.visible = true;
-  right.color = {0.0, 0.0, 1.0, 0.2};
+  right.color = {1.0, 0.0, 0.0, 0.5};
   right.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
 
   Eigen::Vector3f zaxis = grasp2global.rotation()*out.inner_cylinder.pose*Eigen::Vector3f::UnitZ();

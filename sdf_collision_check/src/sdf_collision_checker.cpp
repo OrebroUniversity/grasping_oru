@@ -17,7 +17,7 @@ SDFCollisionChecker::SDFCollisionChecker() : raycast_steps(200) {
 
 SDFCollisionChecker::~SDFCollisionChecker() {
   sdf_map_sub_.shutdown();
-  ROS_INFO("Unsubscribe");
+  ROS_INFO("Unsubscribed from map topic.");
   if (validMap && myGrid_ != NULL) {
     // clean up memory
     float*** grid;
@@ -35,16 +35,17 @@ SDFCollisionChecker::~SDFCollisionChecker() {
 
 void SDFCollisionChecker::init() {
   // subscribe to topic
-  sdf_map_sub_ =
-      n_.subscribe(sdf_map_topic, 1, &SDFCollisionChecker::mapCallback, this);
+  // sdf_map_sub_ = n_.subscribe(sdf_map_topic, 1, &SDFCollisionChecker::mapCallback, this);
   map_available_ = false;
-  ROS_INFO("subscribed to topics");
+  // ROS_INFO("subscribed to topics");
   ros::ServiceClient client =
-      n_.serviceClient<std_srvs::Empty>("/gplanner/map_to_edt");
+    n_.serviceClient<sdf_tracker_msgs::GetSDFMap>("/gplanner/map_to_edt");
   client.waitForExistence();
-  std_srvs::Empty msg;
+  sdf_tracker_msgs::GetSDFMap msg;
   if (client.call(msg)) {
     ROS_INFO("Asked GraspPlanner for map.");
+    mapCallback(msg.response.map);
+    map_available_ = true;
   } else {
     ROS_ERROR(
         "There was a problem calling the grasp planner for map. Collision "
@@ -53,8 +54,11 @@ void SDFCollisionChecker::init() {
 }
 
 void SDFCollisionChecker::mapCallback(
-    const sdf_tracker_msgs::SDFMap::ConstPtr& msg) {
-  if (!this->isActive()) return;
+    const sdf_tracker_msgs::SDFMap& msg) {
+  if (!this->isActive()) {
+    ROS_INFO("Got a new map. But inactive.");
+    return;
+  }
 
   ROS_INFO("got a new map");
   // lock data duffer mutex. this should not make any difference as the que size
@@ -71,13 +75,13 @@ void SDFCollisionChecker::mapCallback(
 
   int ctr = 0;
   // allocate and copy
-  buffer = new float**[msg->XSize];
-  for (int x = 0; x < msg->XSize; ++x) {
-    buffer[x] = new float*[msg->YSize];
-    for (int y = 0; y < msg->YSize; ++y) {
-      buffer[x][y] = new float[msg->ZSize * 2];
-      for (int z = 0; z < 2 * msg->ZSize; ++z) {
-        buffer[x][y][z] = msg->grid[ctr];
+  buffer = new float**[msg.XSize];
+  for (int x = 0; x < msg.XSize; ++x) {
+    buffer[x] = new float*[msg.YSize];
+    for (int y = 0; y < msg.YSize; ++y) {
+      buffer[x][y] = new float[msg.ZSize * 2];
+      for (int z = 0; z < 2 * msg.ZSize; ++z) {
+        buffer[x][y][z] = msg.grid[ctr];
         ctr++;
       }
     }
@@ -87,14 +91,14 @@ void SDFCollisionChecker::mapCallback(
 
   data_mutex.lock();
   // data swap
-  map_frame_id = msg->header.frame_id;
-  resolution = msg->resolution;
-  Wmax = msg->Wmax;
-  Dmax = msg->Dmax;
-  Dmin = msg->Dmin;
-  XSize = msg->XSize;
-  YSize = msg->YSize;
-  ZSize = msg->ZSize;
+  map_frame_id = msg.header.frame_id;
+  resolution = msg.resolution;
+  Wmax = msg.Wmax;
+  Dmax = msg.Dmax;
+  Dmin = msg.Dmin;
+  XSize = msg.XSize;
+  YSize = msg.YSize;
+  ZSize = msg.ZSize;
 
   *myGrid_ = buffer;
   // SaveSDF("mymap.vti");
