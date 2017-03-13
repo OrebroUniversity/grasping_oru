@@ -4,8 +4,8 @@ rosservice call /yumi/hiqp_joint_velocity_controller/set_primitives "primitives:
     type: 'cylinder'
     frame_id: 'gripper_r_base'
     visible: True
-    color: [0.0, 0.0, 1.0, 0.2]
-    parameters: [0.0, 0.0, 1.0, 0.0, 0.0, 0.03, 0.075, 0.06]"
+    color: [1.0, 1.0, 0.0, 0.7]
+    parameters: [0.0, 0.0, 1.0, 0.0, 0.0, 0.05, 0.05, 0.1]"
 
 echo 'adding task now...'
 sleep 1
