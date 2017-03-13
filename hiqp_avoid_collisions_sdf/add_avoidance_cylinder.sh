@@ -18,4 +18,4 @@ rosservice call /yumi/hiqp_joint_velocity_controller/set_tasks "tasks:
     active: true
     monitored: true
     def_params: ['TDefAvoidCollisionsSDF', 'cylinder', 'cylinder_eef_r']
-    dyn_params: ['TDynLinear', '50.0']"
+    dyn_params: ['TDynLinear', '5.0']"

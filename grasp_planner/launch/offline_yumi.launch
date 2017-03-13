@@ -19,7 +19,7 @@
 
     <!-- SDF related parameters -->
     <!--param name="LoadVolume" value= "$(find grasp_planner)/cfg/example.vti" /-->
-    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/newmap.vti" />
+    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/map_good.vti" />
     <param name="runTrackerFromVolume" value= "true" />
     <param name="GridSizeX" value= "190"/>
     <param name="GridSizeY" value= "80"/>

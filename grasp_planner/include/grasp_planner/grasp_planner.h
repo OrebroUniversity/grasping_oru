@@ -29,6 +29,7 @@
 #include <visualization_msgs/Marker.h>
 
 #include <sdf_tracker_msgs/SDFMap.h>
+#include <sdf_tracker_msgs/GetSDFMap.h>
 
 #define POINT_SCALE  0.02
 #define LINE_SCALE   0.3
@@ -127,8 +128,8 @@ public:
 	bool loadVolumeCallback(grasp_planner::LoadResource::Request  &req,
                           grasp_planner::LoadResource::Response &res );
   	
-	bool mapToEdtCallback(std_srvs::Empty::Request  &req,
-                           std_srvs::Empty::Response &res );
+	bool mapToEdtCallback(sdf_tracker_msgs::GetSDFMap::Request  &req,
+                        sdf_tracker_msgs::GetSDFMap::Response &res );
 	
 	bool saveMapCallback(std_srvs::Empty::Request  &req,
                        std_srvs::Empty::Response &res );

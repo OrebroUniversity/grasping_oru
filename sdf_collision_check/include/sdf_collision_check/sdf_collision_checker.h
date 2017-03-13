@@ -2,6 +2,7 @@
 
 #include <sdf_collision_check/collision_checker_base.h>
 #include <sdf_tracker_msgs/SDFMap.h>
+#include <sdf_tracker_msgs/GetSDFMap.h>
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
@@ -47,7 +48,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
 
   /// methods
  private:
-  void mapCallback(const sdf_tracker_msgs::SDFMap::ConstPtr &msg);
+  void mapCallback(const sdf_tracker_msgs::SDFMap &msg);
   /// returns the trilinear interpolated SDF value at location
   double SDF(const Eigen::Vector3d &location);
   /// Checks the validity of the gradient of the SDF at the current point
