@@ -56,8 +56,7 @@ void SDFCollisionChecker::init() {
 void SDFCollisionChecker::mapCallback(
     const sdf_tracker_msgs::SDFMap& msg) {
   if (!this->isActive()) {
-    ROS_INFO("Got a new map. But inactive.");
-    return;
+    this->activate();
   }
 
   ROS_INFO("got a new map");

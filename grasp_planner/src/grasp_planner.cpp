@@ -508,7 +508,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
   d = out.lower_plane.b+normal.dot(grasp2global.translation());
 
   bottom.name = "bottom"; bottom.type = "plane"; bottom.frame_id = grasping_frame; // TODO: Check this.
-  bottom.visible = true;
+  bottom.visible = false;
   bottom.color = {0.0, 0.0, 1.0, 0.2};
   bottom.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
   
@@ -517,7 +517,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
   d = out.upper_plane.b+normal.dot(grasp2global.translation());
 
   top.name = "top"; top.type = "plane"; top.frame_id = grasping_frame; // TODO: Check this.
-  top.visible = true;
+  top.visible = false;
   top.color = {0.0, 0.0, 1.0, 0.2};
   top.parameters = { -normal(0), -normal(1), -normal(2), - d - plane_tolerance };
 
@@ -526,7 +526,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
   d = out.left_bound_plane.b+normal.dot(grasp2global.translation());
 
   left.name = "left"; left.type = "plane"; left.frame_id = grasping_frame; // TODO: Check this.
-  left.visible = true;
+  left.visible = false;
   left.color = {0.0, 1.0, 0.0, 0.5};
   left.parameters = { -normal(0), -normal(1), -normal(2), -d - plane_tolerance };
 
@@ -535,7 +535,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
   d = out.right_bound_plane.b+normal.dot(grasp2global.translation());
 
   right.name = "right"; right.type = "plane"; right.frame_id = grasping_frame; // TODO: Check this.
-  right.visible = true;
+  right.visible = false;
   right.color = {1.0, 0.0, 0.0, 0.5};
   right.parameters = { normal(0), normal(1), normal(2), d + plane_tolerance };
 
@@ -545,7 +545,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
     
 		//inner
     inner.name = "inner"; inner.type = "cylinder"; inner.frame_id = grasping_frame; // TODO: Check this.
-    inner.visible = true;
+    inner.visible = false;
     inner.color = {0.0, 0.0, 1.0, 0.2};
     inner.parameters = {zaxis(0), zaxis(1), zaxis(2), // Axis first.
                         grasp2global.translation()(0)+out.inner_cylinder.pose.translation()(0), // Position x
@@ -558,7 +558,7 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
     //outer
     zaxis = out.outer_cylinder.pose*Eigen::Vector3f::UnitZ();
     outer.name = "outer"; outer.type = "cylinder"; outer.frame_id = grasping_frame;
-    outer.visible = true;
+    outer.visible = false;
     outer.color = {0.0, 0.0, 1.0, 0.2};
     outer.parameters = {zaxis(0), zaxis(1), zaxis(2),
                         grasp2global.translation()(0)+out.outer_cylinder.pose.translation()(0),
@@ -570,14 +570,14 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
   } else {
     // outer
     outer.name = "outer"; outer.type = "sphere"; outer.frame_id = grasping_frame;
-    outer.visible = true; outer.color = {0.0, 0.0, 1.0, 0.2};
+    outer.visible = false; outer.color = {0.0, 0.0, 1.0, 0.2};
     outer.parameters = {grasp2global.translation()(0)+out.outer_sphere.center(0),
                         grasp2global.translation()(1)+out.outer_sphere.center(1),
                         grasp2global.translation()(2)+out.outer_sphere.center(2),
                         out.outer_sphere.radius - cylinder_tolerance};
 
     inner.name = "inner"; inner.type = "sphere"; inner.frame_id = grasping_frame;
-    inner.visible = true; inner.color = {0.0, 0.0, 1.0, 0.2};
+    inner.visible = false; inner.color = {0.0, 0.0, 1.0, 0.2};
     inner.parameters = {grasp2global.translation()(0)+out.inner_sphere.center(0),
                         grasp2global.translation()(1)+out.inner_sphere.center(1),
                         grasp2global.translation()(2)+out.inner_sphere.center(2),

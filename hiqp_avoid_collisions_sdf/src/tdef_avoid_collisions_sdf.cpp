@@ -95,6 +95,7 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
         return -2;
       }
       ROS_INFO("Adding a sphere.");
+      gpm->addDependencyToPrimitive(parameters.at(i + 1), this->getTaskName());
       sphere_primitives_.push_back(sphere);
     }
 
@@ -114,6 +115,7 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
             parameters.at(i + 1).c_str());
         return -2;
       }
+      gpm->addDependencyToPrimitive(parameters.at(i + 1), this->getTaskName());
       point_primitives_.push_back(point);
     }
 
@@ -133,6 +135,7 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
             parameters.at(i + 1).c_str());
         return -2;
       }
+      gpm->addDependencyToPrimitive(parameters.at(i + 1), this->getTaskName());
       cylinder_primitives_.push_back(cylinder);
     }
     n_dimensions_++;
@@ -461,7 +464,7 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   for (int i = 0; i < 4; i++) {
     KDL::Vector thisPointKDL =
         (kin_q.ee_frame_.p) +
-        (kin_q.ee_frame_.M * KDL::Vector(0.0, 0.0, i * step));
+      (kin_q.ee_frame_.M * (cylinder->getDirectionKDL()*i*step/cylinder->getDirectionKDL().Norm()));
     Eigen::Vector3d thisPoint(thisPointKDL(0), thisPointKDL(1),
                               thisPointKDL(2));
     test_pts.push_back(thisPoint);
@@ -486,8 +489,7 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   }
 
   // shift the Jacobian reference point
-  kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-                             KDL::Vector(0.0, 0.0, index * step));
+  kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *  (cylinder->getDirectionKDL()*index*step/cylinder->getDirectionKDL().Norm()));
 
   // compute the ee position in the base frame
   // Compute position of the base point of cylinder.
