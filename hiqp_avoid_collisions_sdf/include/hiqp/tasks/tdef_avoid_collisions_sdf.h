@@ -109,6 +109,8 @@ class TDefAvoidCollisionsSDF : public TaskDefinition {
   std::vector<std::shared_ptr<geometric_primitives::GeometricCylinder> >
       cylinder_primitives_;
 
+  const int no_of_samples = 4;
+
   std::string root_frame_id_;
   /*! Interface to the SDF map*/
   std::shared_ptr<sdf_collision_check::CollisionCheckerBase> collision_checker_;
