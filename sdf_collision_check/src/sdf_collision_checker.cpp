@@ -35,11 +35,12 @@ SDFCollisionChecker::~SDFCollisionChecker() {
 
 void SDFCollisionChecker::init() {
   // subscribe to topic
-  // sdf_map_sub_ = n_.subscribe(sdf_map_topic, 1, &SDFCollisionChecker::mapCallback, this);
+  // sdf_map_sub_ = n_.subscribe(sdf_map_topic, 1,
+  // &SDFCollisionChecker::mapCallback, this);
   map_available_ = false;
   // ROS_INFO("subscribed to topics");
   ros::ServiceClient client =
-    n_.serviceClient<sdf_tracker_msgs::GetSDFMap>("/gplanner/map_to_edt");
+      n_.serviceClient<sdf_tracker_msgs::GetSDFMap>("/gplanner/map_to_edt");
   client.waitForExistence();
   sdf_tracker_msgs::GetSDFMap msg;
   if (client.call(msg)) {
@@ -53,8 +54,7 @@ void SDFCollisionChecker::init() {
   }
 }
 
-void SDFCollisionChecker::mapCallback(
-    const sdf_tracker_msgs::SDFMap& msg) {
+void SDFCollisionChecker::mapCallback(const sdf_tracker_msgs::SDFMap& msg) {
   if (!this->isActive()) {
     this->activate();
   }
@@ -161,7 +161,7 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
     g(2) = SDFGradient2(x_new, 2);
     g.normalize();  // normal vector
     g = ShootSingleRay(x_new, g);
-    g = -g * SDF(x_new);  // scale by interpolated SDF value
+    // g = -g * SDF(x_new);  // scale by interpolated SDF value
     g = request2map.inverse().rotation() * g;
   }
   data_mutex.unlock();
@@ -201,14 +201,16 @@ Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
     int K = static_cast<int>(k);
 
     if (!(I >= 0 && I < XSize && J >= 0 && J < YSize && K >= 0 && K < ZSize)) {
-      //ROS_INFO("Test point outside map: %lf, %lf %lf", temp3d(0), temp3d(1), temp3d(2));
-      return Eigen::Vector3d(1, 1, 1) * std::numeric_limits<double>::quiet_NaN();
+      // ROS_INFO("Test point outside map: %lf, %lf %lf", temp3d(0), temp3d(1),
+      // temp3d(2));
+      return Eigen::Vector3d(1, 1, 1) *
+             std::numeric_limits<double>::quiet_NaN();
     }
 
     D = SDF(temp3d);
-    //ROS_INFO("D: %lf", D);
-    //ROS_INFO("Test point: %lf, %lf %lf", temp3d(0), temp3d(1), temp3d(2));
-    //ROS_INFO("Scaling: %lf, P: %lf, %lf, %lf", scaling, p(0), p(1), p(2));
+    // ROS_INFO("D: %lf", D);
+    // ROS_INFO("Test point: %lf, %lf %lf", temp3d(0), temp3d(1), temp3d(2));
+    // ROS_INFO("Scaling: %lf, P: %lf, %lf, %lf", scaling, p(0), p(1), p(2));
 
     if (D < 0.0)  // hit
     {
@@ -226,7 +228,7 @@ Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
 
       // If raycast terminates within the reconstructed volume, keep the surface
       // point.
-      //ROS_INFO("Steps: %d", steps);
+      // ROS_INFO("Steps: %d", steps);
       if (I >= 0 && I < XSize && J >= 0 && J < YSize && K >= 0 && K < ZSize) {
         return (p * scaling).head<3>();
         //        return currentPoint.head<3>();
@@ -239,7 +241,7 @@ Eigen::Vector3d SDFCollisionChecker::ShootSingleRay(
     scaling += D;
     ++steps;
   }
-//  ROS_INFO("[FAILED] Steps: %d", steps);
+  //  ROS_INFO("[FAILED] Steps: %d", steps);
   return Eigen::Vector3d(1, 1, 1) * std::numeric_limits<double>::infinity();
 }
 
@@ -292,7 +294,7 @@ bool SDFCollisionChecker::obstacleGradientBulk(
       g[i](1) = SDFGradient2(x_new, 1);
       g[i](2) = SDFGradient2(x_new, 2);
       g[i].normalize();  // normal vector
-      //      g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
+      // g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
       g[i] = ShootSingleRay(x_new, -g[i]);
       g[i] = request2map.inverse().rotation() * g[i];
       // ROS_INFO_THROTTLE(3, "Grad: %lf, %lf, %lf", g[i](0), g[i](1), g[i](2));
@@ -413,12 +415,12 @@ double SDFCollisionChecker::SDFGradient2(const Eigen::Vector3d& location,
   Eigen::Vector3d location_offset = Eigen::Vector3d(0, 0, 0);
   location_offset(dim) = delta;
 
-  auto fx2 = SDF(location + (2*location_offset));
-  auto fx_2 = SDF(location - (2*location_offset));
+  auto fx2 = SDF(location + (2 * location_offset));
+  auto fx_2 = SDF(location - (2 * location_offset));
   auto fx = SDF(location + location_offset);
   auto fx_ = SDF(location - location_offset);
-  
-  return (fx2 - fx_2 + 8*(fx - fx_))/(12*delta);
+
+  return (fx2 - fx_2 + 8 * (fx - fx_)) / (12 * delta);
 }
 
 /// NOTE: not thread safe! lock data_mutex before calling

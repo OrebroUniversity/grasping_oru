@@ -141,7 +141,8 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
       cylinder_primitives_.push_back(cylinder);
       // For cylinders we have many points being constrained on a single
       // cylinder.
-      n_dimensions_ += no_of_samples;
+      // n_dimensions_ += no_of_samples_;
+      n_dimensions_++;
     }
   }
 
@@ -368,8 +369,8 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
       continue;
     }
 
-    double d = gradient.norm() - SAFETY_DISTANCE;
-    e_(e_.size() - 1) = d - offset;
+    double d = gradient.norm() - SAFETY_DISTANCE - offset;
+    e_(e_.size() - 1) = d > activation_distance_ ? 0.0 : d;
   }
   // DEBUG===============================
   // std::cerr<<"Task function value vector: "<<e_.transpose()<<std::endl;
@@ -464,8 +465,8 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   }
 
   SamplesVector test_pts;
-  double step = cylinder->getHeight() / (no_of_samples - 1);
-  for (int i = 0; i < no_of_samples; i++) {
+  double step = cylinder->getHeight() / (no_of_samples_ - 1);
+  for (int i = 0; i < no_of_samples_; i++) {
     KDL::Vector thisPointKDL =
         (kin_q.ee_frame_.p) +
         (kin_q.ee_frame_.M * (cylinder->getDirectionKDL() * i * step /
@@ -475,34 +476,36 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
     test_pts.push_back(thisPoint);
   }
 
-  // SamplesVector gradients;
-  // if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
-  //                                               root_frame_id_)) {
-  //   printHiqpWarning(
-  //       "TDefAvoidCollisionsSDF::update, collision checker failed.");
-  //   return -2;
-  // }
-  // assert(gradients.size() == no_of_samples);  // make sure a gradient was
-  // found
-
-  // size_t index = 0;
-  // double min_norm = gradients[0].norm();
-  // for (size_t i = 0; i < gradients.size(); i++) {
-  //   if (gradients[i].norm() < min_norm) {
-  //     min_norm = gradients[i].norm();
-  //     index = i;
-  //   }
-  // }
-
-  for (int i = 0; i < no_of_samples; i++) {
-    KinematicQuantities kin_q_ = kin_q;
-    // shift the Jacobian reference point
-    kin_q_.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-                                (cylinder->getDirectionKDL() * i * step /
-                                 cylinder->getDirectionKDL().Norm()));
-    kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
-    kin_q_list.push_back(kin_q_);
+  std::vector<double> sdf;
+  double min_sdf = std::numeric_limits<double>::max();
+  int i = 0;
+  int index = i;
+  for (auto test_pt : test_pts) {
+    double sdf_at_this_point = collision_checker_->obstacleDistance(test_pt);
+    if (sdf_at_this_point < min_sdf) {
+      index = i;
+      min_sdf = sdf_at_this_point;
+    }
+    i++;
   }
+
+  // // Constrain all points.
+  // for (int i = 0; i < no_of_samples_; i++) {
+  //   KinematicQuantities kin_q_ = kin_q;
+  //   // shift the Jacobian reference point
+  //   kin_q_.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
+  //                               (cylinder->getDirectionKDL() * i * step /
+  //                                cylinder->getDirectionKDL().Norm()));
+  //   kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
+  //   kin_q_list.push_back(kin_q_);
+  // }
+
+  // shift the Jacobian reference point
+  kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
+                              (cylinder->getDirectionKDL() * index * step /
+                               cylinder->getDirectionKDL().Norm()));
+  kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1), test_pts[index](2));
+  kin_q_list.push_back(kin_q);
 
   return 0;
 }

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <sdf_collision_check/collision_checker_base.h>
-#include <sdf_tracker_msgs/SDFMap.h>
 #include <sdf_tracker_msgs/GetSDFMap.h>
+#include <sdf_tracker_msgs/SDFMap.h>
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
@@ -67,6 +67,9 @@ class SDFCollisionChecker : public CollisionCheckerBase {
                                  const Eigen::Vector3d &direction);
 
  public:
+  inline virtual double obstacleDistance(const Eigen::Vector3d &x) {
+    return SDF(x);
+  }
   virtual bool obstacleGradient(const Eigen::Vector3d &x, Eigen::Vector3d &g,
                                 std::string frame_id = "");
   virtual bool obstacleGradientBulk(

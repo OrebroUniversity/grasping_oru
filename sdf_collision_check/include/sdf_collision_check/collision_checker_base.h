@@ -25,6 +25,7 @@ class CollisionCheckerBase {
                                 std::string frame_id = "") = 0;
   virtual bool obstacleGradientBulk(const SamplesVector &x, SamplesVector &g,
                                     std::string frame_id = "") = 0;
+  virtual double obstacleDistance(const Eigen::Vector3d &x) = 0;
   virtual void init() = 0;
   // to check if a gradient to an obstacle is valid
   virtual bool isValid(const Eigen::Vector3d &grad) = 0;

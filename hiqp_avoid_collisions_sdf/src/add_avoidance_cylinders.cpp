@@ -18,8 +18,8 @@ int main(int argn, char** args) {
   std::array<std::string, 4> lh_frames = {"yumi_link_4_l", "yumi_link_5_l",
                                           "yumi_link_6_l", "yumi_link_7_l"};
 
-  // std::array<std::string, 2> rh_frames = {"yumi_link_7_r", "yumi_link_6_r"};
-  // std::array<std::string, 2> lh_frames = {"yumi_link_7_l", "yumi_link_6_l"};
+  // std::array<std::string, 2> rh_frames = {"yumi_link_tool_r", "yumi_link_7_r"};
+  // std::array<std::string, 2> lh_frames = {"yumi_link_tool_l", "yumi_link_7_l"};
 
   std::vector<std::string> def = {"TDefAvoidCollisionsSDF"};
 
@@ -58,17 +58,21 @@ int main(int argn, char** args) {
     tf::Vector3 axis_r = transform_r.getOrigin();
     tf::Vector3 axis_l = transform_l.getOrigin();
 
+    auto radius = 0.06;
+
+    if(i < 2) radius = 0.04;
+
     double length = axis_r.length();
     hiqp_client.setPrimitive(rh_frames[i], "cylinder", rh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_r.getX(), axis_r.getY(), axis_r.getZ(), 0.00,
-                              0.00, 0.00, 0.06, length});
+                              0.00, 0.00, radius, length});
 
     length = axis_l.length();
     hiqp_client.setPrimitive(lh_frames[i], "cylinder", lh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_l.getX(), axis_l.getY(), axis_l.getZ(), 0.00,
-                              0.00, 0.00, 0.06, length});
+                              0.00, 0.00, radius, length});
 
     def.push_back("cylinder");
     def.push_back(rh_frames[i]);
