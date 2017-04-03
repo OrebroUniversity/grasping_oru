@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<library path="lib/libtask_dynamic_plugins">
+  <class type="hiqp::tasks::TDynRandom" base_class_type="hiqp::TaskDynamics">
+    <description>
+      A plugin for task dynamics - random dynamics.
+    </description>
+  </class>
+
+  <class type="hiqp::tasks::TDynPolicy" base_class_type="hiqp::TaskDynamics">
+    <description>
+      A plugin for task dynamics - policy dynamics.
+    </description>
+  </class>
+
+  <class type="hiqp::tasks::TDynConstant" base_class_type="hiqp::TaskDynamics">
+    <description>
+      A plugin for task dynamics - constant dynamics.
+    </description>
+  </class>
+
+</library>
