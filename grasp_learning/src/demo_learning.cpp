@@ -320,9 +320,11 @@ bool DemoLearning::doGraspAndLift() {
   // Load this task for following task dynamics given by the neural network policy
  gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
   "point_to_horizontal_plane", 1, true, true, true,
-  {"TDefGeomProj", "point", "plane",
-  eef_point.name + " = " + grasp_horizontal_.plane.name},
-  {"TDynPolicy", std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
+  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
+  eef_point.name + " = " + grasp_horizontal_.plane.name,
+  "TDefGeomProj", "point", "plane",
+  eef_point.name + " = " + grasp_vertical_.plane.name},
+  {"TDynRandom", std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
 
 
  // gripperToVerticalPlane = hiqp_ros::createTaskMsg(
@@ -358,10 +360,8 @@ bool DemoLearning::doGraspAndLift() {
   // hiqp_client_.setPrimitives(
   // {eef_point, grasp_horizontal_.plane});
 
- // hiqp_client_.setPrimitives(
- //  {eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
  hiqp_client_.setPrimitives(
-  {eef_point, grasp_horizontal_.plane});
+  {eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
 
  start_recording_.publish(start_msg_);
 

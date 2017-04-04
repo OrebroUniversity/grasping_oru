@@ -65,8 +65,7 @@ namespace tasks
   int TDynPolicy::update(RobotStatePtr robot_state,
                                  const Eigen::VectorXd& e,
                                  const Eigen::MatrixXd& J) {
-    //e_dot_star_.resize(e.size());
-    // e_dot_star_ = -lambda_ * e;
+    e_dot_star_.resize(e.size());
 
     const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
 

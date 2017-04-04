@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<library path="lib/libtdef_avoid_collisions_sdf">
+<library path="lib/libtask_definition_plugins">
   <class type="hiqp::tasks::TDefAvoidCollisionsSDF" base_class_type="hiqp::TaskDefinition">
     <description>
       A plugin for task definition - avoid obstacles.

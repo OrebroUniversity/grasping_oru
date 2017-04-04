@@ -9,7 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
   sdf_collision_check
   visualization_msgs
   pluginlib
-  grasp_learning
   std_msgs
 )
 
@@ -17,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES hiqp_avoid_collisions_sdf
-  CATKIN_DEPENDS hiqp_core sdf_collision_check visualization_msgs pluginlib grasp_learning
+  CATKIN_DEPENDS hiqp_core sdf_collision_check visualization_msgs pluginlib
 #  DEPENDS system_lib
 )
 
@@ -27,7 +26,7 @@ include_directories(
 )
 
 
-add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp)
+add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp src/tdef_meta_task.cpp)
 add_dependencies(task_definition_plugins ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_definition_plugins ${catkin_LIBRARIES})
 
