@@ -322,14 +322,14 @@ bool DemoLearning::doGraspAndLift() {
   "point_to_horizontal_plane", 1, true, true, true,
   {"TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_horizontal_.plane.name},
-  {"TDynRandom", std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
+  {"TDynPolicy", std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
 
 
- gripperToVerticalPlane = hiqp_ros::createTaskMsg(
-  "point_to_vertical_plane", 1, true, true, true,
-  {"TDefGeomProj", "point", "plane",
-  eef_point.name + " = " + grasp_vertical_.plane.name},
-  {"TDynRandom",  std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
+ // gripperToVerticalPlane = hiqp_ros::createTaskMsg(
+ //  "point_to_vertical_plane", 1, true, true, true,
+ //  {"TDefGeomProj", "point", "plane",
+ //  eef_point.name + " = " + grasp_vertical_.plane.name},
+ //  {"TDynRandom",  std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
 
   // Load this task for following a constant task dynamics policy
   // gripperToPlane = hiqp_ros::createTaskMsg(
@@ -358,28 +358,30 @@ bool DemoLearning::doGraspAndLift() {
   // hiqp_client_.setPrimitives(
   // {eef_point, grasp_horizontal_.plane});
 
+ // hiqp_client_.setPrimitives(
+ //  {eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
  hiqp_client_.setPrimitives(
-  {eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
+  {eef_point, grasp_horizontal_.plane});
 
  start_recording_.publish(start_msg_);
 
   // Set the tasks
  hiqp_client_.setTasks({gripperToHorizontalPlane});
- hiqp_client_.setTasks({gripperToVerticalPlane});
+ // hiqp_client_.setTasks({gripperToVerticalPlane});
 
 
  using hiqp_ros::TaskDoneReaction;
 
   // Wait for completion.
- // hiqp_client_.waitForCompletion(
- //  {gripperToHorizontalPlane.name},
- //  {TaskDoneReaction::REMOVE},
- //  {1e-10}, 1);
+ hiqp_client_.waitForCompletion(
+  {gripperToHorizontalPlane.name},
+  {TaskDoneReaction::REMOVE},
+  {1e-10}, 1);
 
-  hiqp_client_.waitForCompletion(
-  {gripperToHorizontalPlane.name, gripperToVerticalPlane.name},
-  {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-  {1e-10, 1e-4}, 3);
+  // hiqp_client_.waitForCompletion(
+  // {gripperToHorizontalPlane.name, gripperToVerticalPlane.name},
+  // {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
+  // {1e-10, 1e-4}, 1.5);
 
 
  finish_recording_.publish(finish_msg_);

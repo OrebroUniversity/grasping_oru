@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<library path="lib/libtdef_avoid_collisions_sdf">
+  <class type="hiqp::tasks::TDefAvoidCollisionsSDF" base_class_type="hiqp::TaskDefinition">
+    <description>
+      A plugin for task definition - avoid obstacles.
+    </description>
+  </class>
+
+  <class type="hiqp::tasks::TDefMetaTask" base_class_type="hiqp::TaskDefinition">
+    <description>
+      A plugin for task definition - Meta Task. This task can bundle together several
+      tasks preferably at the same priority level. The main usage of this task is for
+      learning the task dynamics as the neural network policy requires all tasks to be
+      both sampled and updated at the same sampling time.
+    </description>
+  </class>
+
+</library>
