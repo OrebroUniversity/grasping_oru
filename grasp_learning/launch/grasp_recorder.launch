@@ -1,0 +1,4 @@
+<launch>
+
+	<node name="grasp_recorder_node" pkg="grasp_learning" type="grasp_recorder_node" output="screen"/>
+</launch>

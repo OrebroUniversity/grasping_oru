@@ -1,0 +1,4 @@
+float64[] joint_angles
+float64[] task_measures
+---
+float64[] task_dynamics

@@ -1,0 +1,4 @@
+<launch>
+
+	<node name="run_demo_node" pkg="grasp_learning" type="run_demo_node" output="screen"/>
+</launch>
