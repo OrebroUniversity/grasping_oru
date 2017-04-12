@@ -1,6 +1,8 @@
 #ifndef GRIPPER_MODEL_HH
 #define GRIPPER_MODEL_HH
 
+#include <constraint_map/geometric_constraint.h>
+
 class GripperPoseConstraint {
     public:
 	bool isSphere;

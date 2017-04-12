@@ -109,8 +109,7 @@ class TDefAvoidCollisionsSDF : public TaskDefinition {
   std::vector<std::shared_ptr<geometric_primitives::GeometricCylinder> >
       cylinder_primitives_;
 
-  const int no_of_samples_ = 50;
-  const int activation_distance_ = 0.2;
+  double resolution_;
 
   std::string root_frame_id_;
   /*! Interface to the SDF map*/

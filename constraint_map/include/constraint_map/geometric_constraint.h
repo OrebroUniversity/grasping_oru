@@ -1,6 +1,8 @@
 #ifndef GEOMETRIC_CONSTRAINT_HH
 #define GEOMETRIC_CONSTRAINT_HH
 
+#include <Eigen/Core>
+
 /** Different classes that implement various geometric primitives. 
   They all have an overloaded operator () over an Eigen vector. 
   The operator returns true if the constraint is satisfied.

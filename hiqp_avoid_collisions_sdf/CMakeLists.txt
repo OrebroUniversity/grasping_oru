@@ -14,24 +14,30 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
+find_package(Boost REQUIRED COMPONENTS timer)
+
 # find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES hiqp_avoid_collisions_sdf
+  LIBRARIES tdef_avoid_collisions_sdf
   CATKIN_DEPENDS hiqp_core sdf_collision_check visualization_msgs pluginlib tf hiqp_ros
-#  DEPENDS system_lib
 )
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 
 add_library(tdef_avoid_collisions_sdf src/tdef_avoid_collisions_sdf.cpp)
 add_dependencies(tdef_avoid_collisions_sdf ${catkin_EXPORTED_TARGETS})
-target_link_libraries(tdef_avoid_collisions_sdf ${catkin_LIBRARIES})
+target_link_libraries(tdef_avoid_collisions_sdf ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(add_avoidance_cylinders src/add_avoidance_cylinders.cpp)
 add_dependencies(add_avoidance_cylinders ${catkin_EXPORTED_TARGETS})
 target_link_libraries(add_avoidance_cylinders ${catkin_LIBRARIES})
+
+add_executable(right_gripper_capsule src/right_gripper_capsule.cpp)
+add_dependencies(right_gripper_capsule ${catkin_EXPORTED_TARGETS})
+target_link_libraries(right_gripper_capsule ${catkin_LIBRARIES})

@@ -18,6 +18,7 @@
 #include <pluginlib/class_list_macros.h>
 #include <sdf_collision_check/sdf_collision_checker.h>
 #include <iostream>
+#include <boost/timer/timer.hpp>
 
 // distance added to the gradient norm to act as a safety margin
 #define SAFETY_DISTANCE 0.010
@@ -46,14 +47,14 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
   ROS_INFO("Collision checker initialized.");
 
   int size = parameters.size();
-  if (size < 2) {
+  if (size < 3) {
     printHiqpWarning(
-        "TDefAvoidCollisionsSDF requires at least 2 parameters, got " +
+        "TDefAvoidCollisionsSDF requires at least 3 parameters, got " +
         std::to_string(size) + "! Initialization failed!");
     return -2;
   }
 
-  if (size % 2 == 0) {
+  if (size % 2 != 0) {
     ROS_ERROR(
         "TDefAvoidCollisionsSDF requires even number of parameters after the "
         "task type. First the primitive type, then the primitive name. Got: "
@@ -64,11 +65,14 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
 
   reset();
 
+  // Get the number of samples from parameters.
+  sscanf(parameters[1].c_str(), "%lf", &resolution_);
+
   // loop through all the geometric primitives intended for the obstacle
   // avoidance and extract the pointers
   std::shared_ptr<GeometricPrimitiveMap> gpm = this->getGeometricPrimitiveMap();
 
-  for (unsigned int i = 1; i < size; i += 2) {
+  for (unsigned int i = 2; i < size; i += 2) {
     // Make sure the type is either a point or a sphere.
     if (parameters.at(i) != "sphere" && parameters.at(i) != "point" &&
         parameters.at(i) != "cylinder") {
@@ -141,8 +145,9 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
       cylinder_primitives_.push_back(cylinder);
       // For cylinders we have many points being constrained on a single
       // cylinder.
-      // n_dimensions_ += no_of_samples_;
-      n_dimensions_++;
+
+      n_dimensions_ += static_cast<int>(cylinder->getHeight() / resolution_);
+      // n_dimensions_++;
     }
   }
 
@@ -290,6 +295,8 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
 
     // get the gradient vectors associated with the ee points of the current
     // primitive from the SDF map
+    boost::timer::cpu_timer opt_timer;
+    
     SamplesVector test_pts;
     for (unsigned int j = 0; j < kin_q_list.size(); j++) {
       Eigen::Vector3d p(kin_q_list[j].ee_p_.x(), kin_q_list[j].ee_p_.y(),
@@ -305,6 +312,10 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
           "TDefAvoidCollisionsSDF::update, collision checker failed.");
       return -2;
     }
+
+    std::cout << "*************************************************\n";
+    std::cout << "Gradient computation time:"<< opt_timer.format() << "\n";
+    
     assert(gradients.size() > 0);  // make sure a gradient was found
     gradientsViz.insert(gradientsViz.end(), gradients.begin(), gradients.end());
 
@@ -370,7 +381,7 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
     }
 
     double d = gradient.norm() - SAFETY_DISTANCE - offset;
-    e_(e_.size() - 1) = d > activation_distance_ ? 0.0 : d;
+    e_(e_.size() - 1) = d;// > activation_distance_ ? 0.0 : d;
   }
   // DEBUG===============================
   // std::cerr<<"Task function value vector: "<<e_.transpose()<<std::endl;
@@ -464,9 +475,11 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
     return -2;
   }
 
+  int no_of_samples = static_cast<int>(cylinder->getHeight() / resolution_);
+  
   SamplesVector test_pts;
-  double step = cylinder->getHeight() / (no_of_samples_ - 1);
-  for (int i = 0; i < no_of_samples_; i++) {
+  double step = cylinder->getHeight() / no_of_samples;
+  for (int i = 1; i <= no_of_samples; i++) {
     KDL::Vector thisPointKDL =
         (kin_q.ee_frame_.p) +
         (kin_q.ee_frame_.M * (cylinder->getDirectionKDL() * i * step /
@@ -476,37 +489,36 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
     test_pts.push_back(thisPoint);
   }
 
-  std::vector<double> sdf;
-  double min_sdf = std::numeric_limits<double>::max();
-  int i = 0;
-  int index = i;
-  for (auto test_pt : test_pts) {
-    double sdf_at_this_point = collision_checker_->obstacleDistance(test_pt);
-    if (sdf_at_this_point < min_sdf) {
-      index = i;
-      min_sdf = sdf_at_this_point;
-    }
-    i++;
-  }
-
-  // // Constrain all points.
-  // for (int i = 0; i < no_of_samples_; i++) {
-  //   KinematicQuantities kin_q_ = kin_q;
-  //   // shift the Jacobian reference point
-  //   kin_q_.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-  //                               (cylinder->getDirectionKDL() * i * step /
-  //                                cylinder->getDirectionKDL().Norm()));
-  //   kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
-  //   kin_q_list.push_back(kin_q_);
+  // std::vector<double> sdf;
+  // double min_sdf = std::numeric_limits<double>::max();
+  // int i = 0;
+  // int index = i;
+  // for (auto test_pt : test_pts) {
+  //   double sdf_at_this_point = collision_checker_->obstacleDistance(test_pt);
+  //   if (sdf_at_this_point < min_sdf) {
+  //     index = i;
+  //     min_sdf = sdf_at_this_point;
+  //   }
+  //   i++;
   // }
 
-  // shift the Jacobian reference point
-  kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-                              (cylinder->getDirectionKDL() * index * step /
-                               cylinder->getDirectionKDL().Norm()));
-  kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1), test_pts[index](2));
-  kin_q_list.push_back(kin_q);
+  // Constrain all points.
+  for (int i = 1; i <= no_of_samples; i++) {
+    KinematicQuantities kin_q_ = kin_q;
+    // shift the Jacobian reference point
+    kin_q_.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
+                                (cylinder->getDirectionKDL() * i * step /
+                                 cylinder->getDirectionKDL().Norm()));
+    kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
+    kin_q_list.push_back(kin_q_);
+  }
 
+  // shift the Jacobian reference point
+  // kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
+  //                           (cylinder->getDirectionKDL() * index * step /
+  //                           cylinder->getDirectionKDL().Norm()));
+  // kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1), test_pts[index](2));
+  // kin_q_list.push_back(kin_q);
   return 0;
 }
 
@@ -550,7 +562,7 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     const SamplesVector& gradients, const SamplesVector& test_pts) {
   assert(gradients.size() == test_pts.size());
 
-  // ROS_INFO("%ld Grads", gradients.size());
+  ROS_INFO("%ld Grads", gradients.size());
   grad_markers_.markers.clear();
   for (unsigned int i = 0; i < gradients.size(); i++) {
     if (!collision_checker_->isValid(gradients[i])) {

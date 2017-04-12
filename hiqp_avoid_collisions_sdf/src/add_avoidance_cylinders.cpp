@@ -1,4 +1,5 @@
 #include <array>
+#include <iostream>
 
 #include <ros/ros.h>
 #include <tf/tf.h>
@@ -8,26 +9,30 @@
 
 int main(int argn, char** args) {
   ros::init(argn, args, "add_avoidance_cylinders");
+  std::string res;
+  std::cout << "Enter resolution: " << std::endl;
+  std::cin >> res;
+  
   ros::NodeHandle nh;
   tf::TransformListener tl;
 
   hiqp_ros::HiQPClient hiqp_client("yumi", "hiqp_joint_velocity_controller");
 
-  std::array<std::string, 4> rh_frames = {"yumi_link_4_r", "yumi_link_5_r",
-                                          "yumi_link_6_r", "yumi_link_7_r"};
-  std::array<std::string, 4> lh_frames = {"yumi_link_4_l", "yumi_link_5_l",
-                                          "yumi_link_6_l", "yumi_link_7_l"};
+  std::array<std::string, 5> rh_frames = {"yumi_link_4_r", "yumi_link_5_r",
+                                          "yumi_link_6_r", "yumi_link_7_r", "yumi_link_tool_r"};
+  std::array<std::string, 5> lh_frames = {"yumi_link_4_l", "yumi_link_5_l",
+                                          "yumi_link_6_l", "yumi_link_7_l", "yumi_link_tool_l"};
 
   // std::array<std::string, 2> rh_frames = {"yumi_link_tool_r", "yumi_link_7_r"};
   // std::array<std::string, 2> lh_frames = {"yumi_link_tool_l", "yumi_link_7_l"};
 
-  std::vector<std::string> def = {"TDefAvoidCollisionsSDF"};
+  std::vector<std::string> def = {"TDefAvoidCollisionsSDF", res};
 
   for (size_t i = 0; i < rh_frames.size() - 1; i++) {
     tf::StampedTransform transform_r, transform_l;
 
     bool tfAvailable = false;
-    while (!tfAvailable) {
+    while (!tfAvailable && ros::ok()) {
       try {
         tl.waitForTransform(rh_frames[i], rh_frames[i + 1], ros::Time(0),
                             ros::Duration(0.5));
@@ -41,7 +46,7 @@ int main(int argn, char** args) {
     }
 
     tfAvailable = false;
-    while (!tfAvailable) {
+    while (!tfAvailable && ros::ok()) {
       try {
         tl.waitForTransform(lh_frames[i], lh_frames[i + 1], ros::Time(0),
                             ros::Duration(0.5));
@@ -63,22 +68,29 @@ int main(int argn, char** args) {
     if(i < 2) radius = 0.04;
 
     double length = axis_r.length();
+    if(rh_frames[i+1].find("tool")!=std::string::npos) length = length + 0.05;
     hiqp_client.setPrimitive(rh_frames[i], "cylinder", rh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_r.getX(), axis_r.getY(), axis_r.getZ(), 0.00,
                               0.00, 0.00, radius, length});
 
     length = axis_l.length();
+    if(lh_frames[i+1].find("tool")!=std::string::npos) length = length + 0.05;
+    
     hiqp_client.setPrimitive(lh_frames[i], "cylinder", lh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_l.getX(), axis_l.getY(), axis_l.getZ(), 0.00,
                               0.00, 0.00, radius, length});
 
-    def.push_back("cylinder");
-    def.push_back(rh_frames[i]);
-    def.push_back("cylinder");
-    def.push_back(lh_frames[i]);
+    //def.push_back("cylinder");
+    //def.push_back(rh_frames[i]);
+    //def.push_back("cylinder");
+    //def.push_back(lh_frames[i]);
   }
+
+  def.push_back("cylinder");
+  def.push_back(rh_frames[2]);
+
 
   hiqp_client.setTask("avoid_collisions_sdf", 1, true, true, true, def,
                       {"TDynLinear", "5.0"});

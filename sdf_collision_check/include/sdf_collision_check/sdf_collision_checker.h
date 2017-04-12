@@ -78,6 +78,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   virtual void init();
   /// is the gradient smaller than the truncation size?
   virtual bool isValid(const Eigen::Vector3d &grad) {
+//    ROS_INFO("%lf, %lf, %lf", grad(0), grad(1), grad(2));
     return (!std::isnan(grad(0) + grad(1) + grad(2)));
     /*		return (grad(0) > Dmin && grad(0) < Dmax &&
                             grad(1) > Dmin && grad(1) < Dmax &&
