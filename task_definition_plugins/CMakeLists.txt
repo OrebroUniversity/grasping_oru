@@ -30,11 +30,11 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
 )
 
-add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp src/tdef_meta_task.cpp)
+add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp) #src/tdef_meta_task.cpp)
 add_dependencies(task_definition_plugins ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_definition_plugins ${catkin_LIBRARIES})
 
-# Some helper programs to add the avoidance task.
+# Some helper programs to add the avoidance task. 
 
 add_executable(right_gripper_capsule src/right_gripper_capsule.cpp)
 add_dependencies(right_gripper_capsule ${catkin_EXPORTED_TARGETS})
