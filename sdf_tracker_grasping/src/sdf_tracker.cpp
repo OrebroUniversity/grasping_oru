@@ -1643,6 +1643,7 @@ void SDFTracker::LoadSDF(const std::string &filename) {
 
   // will segfault if not specified
   int *sizes = sdf_volume->GetDimensions();
+  ROS_INFO("Sizes: %d, %d, %d", sizes[0], sizes[1], sizes[2]);
   parameters_.XSize = sizes[0];
   parameters_.YSize = sizes[1];
   parameters_.ZSize = sizes[2];
@@ -1650,6 +1651,7 @@ void SDFTracker::LoadSDF(const std::string &filename) {
   double *cell_sizes = sdf_volume->GetSpacing();
   parameters_.resolution = float(
       cell_sizes[0]);  // TODO add support for different scalings along x,y,z.
+  ROS_INFO("Cell size is: %lf", cell_sizes[0]);
 
   this->Init(parameters_);
 
