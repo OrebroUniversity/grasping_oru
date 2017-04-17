@@ -5,7 +5,8 @@
 #include <sdf_tracker_msgs/SDFMap.h>
 
 #include <ros/ros.h>
-#include <tf/transform_listener.h>
+#include <tf/transform_datatypes.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <mutex>
@@ -22,8 +23,6 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   ros::NodeHandle n_;
   // where to listen to for new maps
   std::string sdf_map_topic;
-  // for getting into the correct frame
-  tf::TransformListener tl_;
 
   std::mutex buffer_mutex, data_mutex;
   /// two 3d arrays of floats: one for the current map and one for receive

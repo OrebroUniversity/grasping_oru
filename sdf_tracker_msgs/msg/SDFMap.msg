@@ -18,3 +18,6 @@ float64 Dmin
 
 # the actual map data. size is x*y*z*2
 float32[] grid
+
+# Transform from world to sdf map frame
+geometry_msgs/Transform tf_world2sdf

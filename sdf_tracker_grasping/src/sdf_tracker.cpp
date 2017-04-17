@@ -1660,6 +1660,13 @@ void SDFTracker::LoadSDF(const std::string &filename) {
   weight = (vtkFloatArray *)reader->GetOutput()->GetPointData()->GetScalars(
       "Weight");
 
+  if(weight) {
+    std::cout << "SDF file contains weights.";
+  }
+  else {
+    std::cout << "SDF file doesn't contain weights.";
+  }
+
   int i, j, k, offset_k, offset_j;
   for (k = 0; k < parameters_.ZSize; ++k) {
     offset_k = k * parameters_.XSize * parameters_.YSize;
@@ -1668,7 +1675,10 @@ void SDFTracker::LoadSDF(const std::string &filename) {
       for (i = 0; i < parameters_.XSize; ++i) {
         int offset = i + offset_j + offset_k;
         myGrid_[i][j][k * 2] = distance->GetValue(offset);
-        myGrid_[i][j][k * 2 + 1] = weight->GetValue(offset);
+        if(weight)
+          myGrid_[i][j][k * 2 + 1] = weight->GetValue(offset);
+        else
+          myGrid_[i][j][k * 2 + 1] = 50;
       }
     }
   }
@@ -1804,6 +1814,7 @@ Eigen::Vector3d SDFTracker::ShootSingleRay(Eigen::Vector3d &start,
 }
 
 void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
+   
   msg.header.frame_id = "my_frame";
   msg.cell_size = parameters_.resolution;
   msg.x_cen = 0;  // parameters_.XSize*parameters_.resolution/2;
@@ -1838,6 +1849,12 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
 
 /// method to dump into an hiqp message
 void SDFTracker::toMessage(sdf_tracker_msgs::SDFMap &msg) {
+  
+  if(!parameters_.map_is_euclidean) this->convertToEuclidean();
+  else ROS_INFO("Map is Euclidean!");
+
+  tf::transformEigenToMsg(parameters_.tf_world2sdf, msg.tf_world2sdf);
+
   // std::cerr<<"Serializing map\n";
   msg.header.frame_id = "my_frame";
   msg.XSize = parameters_.XSize;

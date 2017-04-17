@@ -4,7 +4,7 @@ set(CMAKE_BUILD_TYPE RelWithDebinfo)
 project(sdf_tracker_grasping)
 
 find_package(Eigen3 REQUIRED)
-find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map sdf_tracker_msgs cmake_modules)
+find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map sdf_tracker_msgs cmake_modules eigen_conversions)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenMP)
@@ -24,7 +24,7 @@ endif()
 
 catkin_package(
     DEPENDS Eigen3 VTK OpenCV
-    CATKIN_DEPENDS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map sdf_tracker_msgs
+    CATKIN_DEPENDS roscpp visualization_msgs std_srvs std_msgs cv_bridge constraint_map sdf_tracker_msgs eigen_conversions
     INCLUDE_DIRS include
     LIBRARIES ${PROJECT_NAME}
 )

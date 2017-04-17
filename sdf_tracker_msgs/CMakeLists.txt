@@ -3,7 +3,8 @@ project(sdf_tracker_msgs)
 
 find_package(catkin REQUIRED
   message_generation
-  std_msgs 
+  std_msgs
+  geometry_msgs
 )
 
 add_message_files(
@@ -26,6 +27,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 catkin_package(

@@ -82,15 +82,11 @@ int main(int argn, char** args) {
                              {axis_l.getX(), axis_l.getY(), axis_l.getZ(), 0.00,
                               0.00, 0.00, radius, length});
 
-    //def.push_back("cylinder");
-    //def.push_back(rh_frames[i]);
-    //def.push_back("cylinder");
-    //def.push_back(lh_frames[i]);
+    def.push_back("cylinder");
+    def.push_back(rh_frames[i]);
+    def.push_back("cylinder");
+    def.push_back(lh_frames[i]);
   }
-
-  def.push_back("cylinder");
-  def.push_back(rh_frames[2]);
-
 
   hiqp_client.setTask("avoid_collisions_sdf", 1, true, true, true, def,
                       {"TDynLinear", "5.0"});

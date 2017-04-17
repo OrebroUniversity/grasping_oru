@@ -17,8 +17,8 @@
 #include <hiqp/tasks/tdef_avoid_collisions_sdf.h>
 #include <pluginlib/class_list_macros.h>
 #include <sdf_collision_check/sdf_collision_checker.h>
-#include <iostream>
 #include <boost/timer/timer.hpp>
+#include <iostream>
 
 // distance added to the gradient norm to act as a safety margin
 #define SAFETY_DISTANCE 0.010
@@ -296,7 +296,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     // get the gradient vectors associated with the ee points of the current
     // primitive from the SDF map
     boost::timer::cpu_timer opt_timer;
-    
+
     SamplesVector test_pts;
     for (unsigned int j = 0; j < kin_q_list.size(); j++) {
       Eigen::Vector3d p(kin_q_list[j].ee_p_.x(), kin_q_list[j].ee_p_.y(),
@@ -313,9 +313,11 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
 
-    std::cout << "*************************************************\n";
-    std::cout << "Gradient computation time:"<< opt_timer.format() << "\n";
-    
+    ROS_INFO_THROTTLE(1,
+                      "*************************************************"
+                      "\nGradient computation time:%s",
+                      opt_timer.format().c_str());
+
     assert(gradients.size() > 0);  // make sure a gradient was found
     gradientsViz.insert(gradientsViz.end(), gradients.begin(), gradients.end());
 
@@ -381,7 +383,7 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
     }
 
     double d = gradient.norm() - SAFETY_DISTANCE - offset;
-    e_(e_.size() - 1) = d;// > activation_distance_ ? 0.0 : d;
+    e_(e_.size() - 1) = d;  // > activation_distance_ ? 0.0 : d;
   }
   // DEBUG===============================
   // std::cerr<<"Task function value vector: "<<e_.transpose()<<std::endl;
@@ -476,7 +478,7 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   }
 
   int no_of_samples = static_cast<int>(cylinder->getHeight() / resolution_);
-  
+
   SamplesVector test_pts;
   double step = cylinder->getHeight() / no_of_samples;
   for (int i = 1; i <= no_of_samples; i++) {
@@ -517,7 +519,8 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   // kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
   //                           (cylinder->getDirectionKDL() * index * step /
   //                           cylinder->getDirectionKDL().Norm()));
-  // kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1), test_pts[index](2));
+  // kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1),
+  // test_pts[index](2));
   // kin_q_list.push_back(kin_q);
   return 0;
 }
@@ -562,7 +565,6 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     const SamplesVector& gradients, const SamplesVector& test_pts) {
   assert(gradients.size() == test_pts.size());
 
-  ROS_INFO("%ld Grads", gradients.size());
   grad_markers_.markers.clear();
   for (unsigned int i = 0; i < gradients.size(); i++) {
     if (!collision_checker_->isValid(gradients[i])) {

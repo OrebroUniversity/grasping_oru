@@ -64,6 +64,9 @@ void SDFCollisionChecker::mapCallback(const sdf_tracker_msgs::SDFMap& msg) {
   // is 1, but just in case
   buffer_mutex.lock();
 
+  tf::transformMsgToEigen(msg.tf_world2sdf, request2map);
+
+  //std::cout << request2map.matrix();
   // old sizes, needed for dealloc
   double xs, ys, zs;
   xs = XSize;
@@ -132,27 +135,10 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
 
   // if a new frame_id, check on TF for a transformation to the correct frame
   // and buffer
-  if (frame_id != "") {
-    if (frame_id != request_frame_id) {
-      // update transform
-      tf::StampedTransform r2m;
-      try {
-        tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
-                             ros::Duration(0.80));
-        tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
-        request_frame_id = frame_id;
-      } catch (tf::TransformException ex) {
-        ROS_ERROR("%s", ex.what());
-        request2map.setIdentity();
-      }
-      tf::transformTFToEigen(r2m, request2map);
-    }
-  } else {
-    request2map.setIdentity();
-  }
+  // Frame must be map.
   // transform x to map frame
   Eigen::Vector3d x_new;
-  x_new = request2map * x;
+  x_new = request2map.inverse() * x;
 
   data_mutex.lock();
   if (ValidGradient(x_new)) {
@@ -162,7 +148,7 @@ bool SDFCollisionChecker::obstacleGradient(const Eigen::Vector3d& x,
     g.normalize();  // normal vector
     g = ShootSingleRay(x_new, g);
     // g = -g * SDF(x_new);  // scale by interpolated SDF value
-    g = request2map.inverse().rotation() * g;
+    g = request2map.rotation() * g;
   }
   data_mutex.unlock();
 
@@ -261,25 +247,6 @@ bool SDFCollisionChecker::obstacleGradientBulk(
 
   // if a new frame_id, check on TF for a transformation to the correct frame
   // and buffer
-  if (frame_id != "") {
-    if (frame_id != request_frame_id) {
-      // update transform
-      tf::StampedTransform r2m;
-      try {
-        tl_.waitForTransform(map_frame_id, frame_id, ros::Time(0),
-                             ros::Duration(0.8));
-        tl_.lookupTransform(map_frame_id, frame_id, ros::Time(0), r2m);
-        request_frame_id = frame_id;
-      } catch (tf::TransformException ex) {
-        ROS_ERROR("%s", ex.what());
-        request2map.setIdentity();
-      }
-
-      tf::transformTFToEigen(r2m, request2map);
-    }
-  } else {
-    request2map.setIdentity();
-  }
 
   data_mutex.lock();
 
@@ -287,7 +254,7 @@ bool SDFCollisionChecker::obstacleGradientBulk(
   for (int i = 0; i < x.size(); ++i) {
     // transform x[i] to map frame
     Eigen::Vector3d x_new;
-    x_new = request2map * x[i];
+    x_new = request2map.inverse() * x[i];
 
     if (ValidGradient(x_new)) {
       g[i](0) = SDFGradient2(x_new, 0);
@@ -296,7 +263,7 @@ bool SDFCollisionChecker::obstacleGradientBulk(
       g[i].normalize();  // normal vector
       // g[i] = -g[i] * SDF(x_new);  // scale by interpolated SDF value
       g[i] = ShootSingleRay(x_new, -g[i]);
-      g[i] = request2map.inverse().rotation() * g[i];
+      g[i] = request2map.rotation() * g[i];
       // ROS_INFO_THROTTLE(3, "Grad: %lf, %lf, %lf", g[i](0), g[i](1), g[i](2));
     } else {
       // ROS_WARN_THROTTLE(5, "Gradient at this point seems invalid. %lf, %lf,

@@ -11,6 +11,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <tf/transform_datatypes.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <constraint_map/map_interface.h>
 #include <sdf_tracker_msgs/SDFMap.h>
 
@@ -43,6 +45,9 @@ class SDF_Parameters {
   double min_pose_change;
   std::string render_window;
   double uncertain_weight_thresh;
+
+  Eigen::Affine3d tf_world2sdf;
+  bool map_is_euclidean;
 
   SDF_Parameters();
   virtual ~SDF_Parameters();
