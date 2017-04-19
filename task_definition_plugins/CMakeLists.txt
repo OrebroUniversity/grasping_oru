@@ -32,7 +32,7 @@ include_directories(
 
 add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp) #src/tdef_meta_task.cpp)
 add_dependencies(task_definition_plugins ${catkin_EXPORTED_TARGETS})
-target_link_libraries(task_definition_plugins ${catkin_LIBRARIES})
+target_link_libraries(task_definition_plugins ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 # Some helper programs to add the avoidance task. 
 

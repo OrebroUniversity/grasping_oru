@@ -89,7 +89,7 @@ int main(int argn, char** args) {
   }
 
   hiqp_client.setTask("avoid_collisions_sdf", 1, true, true, true, def,
-                      {"TDynLinear", "5.0"});
+                      {"TDynLinear", "2.0"});
 
   return 0;
 }

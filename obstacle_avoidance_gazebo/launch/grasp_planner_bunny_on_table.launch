@@ -18,7 +18,7 @@
 
     <!-- SDF related parameters -->
     <!--param name="LoadVolume" value= "$(find grasp_planner)/cfg/example.vti" /-->
-    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/bunny_003.vti" />
+    <param name="LoadVolume" value= "$(find grasp_planner)/cfg/bunny_on_table.vti" />
     <param name="runTrackerFromVolume" value= "true" />
     <param name="GridSizeX" value= "190"/>
     <param name="GridSizeY" value= "80"/>
@@ -31,15 +31,15 @@
     <param name="MaximumRaycastSteps" value= "360" /> 
     <param name="OutputTriangles" value= "false" />
 
-    <param name="tf_world2sdf_x" value="0.45"/>
+    <param name="tf_world2sdf_x" value="0.3975"/>
     <param name="tf_world2sdf_y" value="0.0"/>
-    <param name="tf_world2sdf_z" value="0.17"/>
-    <param name="tf_world2sdf_yaw" value="3.14"/>
+    <param name="tf_world2sdf_z" value="0.08"/>
+    <param name="tf_world2sdf_yaw" value="0.0"/>
     <param name="tf_world2sdf_pitch" value="0.0"/>
-    <param name="tf_world2sdf_roll" value="1.57"/>
+    <param name="tf_world2sdf_roll" value="3.141592"/>
     
   </node>
   <node pkg="tf" type="static_transform_publisher" name="roipub"
-         args="0.45 0.0 0.17 3.14 0.0 1.57 world sdf_map_frame 100" />
+         args="0.3475 0.0 0.15 0.0 0.0 3.141592 world sdf_map_frame 100" />
 
 </launch>
