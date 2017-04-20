@@ -20,6 +20,9 @@
 #include <boost/timer/timer.hpp>
 #include <iostream>
 
+// debug only
+#include <geometry_msgs/PoseArray.h>
+
 // distance added to the gradient norm to act as a safety margin
 #define SAFETY_DISTANCE 0.010
 
@@ -67,6 +70,11 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
 
   // Get the number of samples from parameters.
   sscanf(parameters[1].c_str(), "%lf", &resolution_);
+
+  if (resolution_ > 0.0999999) {
+    ROS_ERROR("Resolution for avoid_collisions_sdf task is too low.");
+    return -2;
+  }
 
   // loop through all the geometric primitives intended for the obstacle
   // avoidance and extract the pointers
@@ -337,6 +345,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
   publishGradientVisualization(gradientsViz, testPointsViz);
   return 0;
 }
+
 //==================================================================================
 void TDefAvoidCollisionsSDF::appendTaskJacobian(
     const std::vector<KinematicQuantities>& kin_q_list,
@@ -346,12 +355,13 @@ void TDefAvoidCollisionsSDF::appendTaskJacobian(
     Eigen::Vector3d gradient(gradients[i]);
     J_.conservativeResize(J_.rows() + 1, Eigen::NoChange);
     // to check if a gradient to an obstacle is valid
-    if (!collision_checker_->isValid(gradient)) {
+    if (!collision_checker_->isValid(gradient) || gradient.norm() == 0.0) {
       J_.row(J_.rows() - 1).setZero();  // insert a zero-row
       continue;
     }
 
     // project the Jacobian onto the normalized gradient
+    Eigen::Vector3d gradient_before = gradient;
     gradient.normalize();
     Eigen::MatrixXd ee_J_vel =
         kin_q_list[i].ee_J_.data.topRows<3>();  // velocity Jacobian
@@ -480,48 +490,27 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
   int no_of_samples = static_cast<int>(cylinder->getHeight() / resolution_);
 
   SamplesVector test_pts;
-  double step = cylinder->getHeight() / no_of_samples;
-  for (int i = 1; i <= no_of_samples; i++) {
+  for (int i = 0; i < no_of_samples; i++) {
     KDL::Vector thisPointKDL =
         (kin_q.ee_frame_.p) +
-        (kin_q.ee_frame_.M * (cylinder->getDirectionKDL() * i * step /
+        (kin_q.ee_frame_.M * (cylinder->getDirectionKDL() * i * resolution_ /
                               cylinder->getDirectionKDL().Norm()));
     Eigen::Vector3d thisPoint(thisPointKDL(0), thisPointKDL(1),
                               thisPointKDL(2));
     test_pts.push_back(thisPoint);
   }
 
-  // std::vector<double> sdf;
-  // double min_sdf = std::numeric_limits<double>::max();
-  // int i = 0;
-  // int index = i;
-  // for (auto test_pt : test_pts) {
-  //   double sdf_at_this_point = collision_checker_->obstacleDistance(test_pt);
-  //   if (sdf_at_this_point < min_sdf) {
-  //     index = i;
-  //     min_sdf = sdf_at_this_point;
-  //   }
-  //   i++;
-  // }
-
   // Constrain all points.
-  for (int i = 1; i <= no_of_samples; i++) {
+  for (int i = 0; i < no_of_samples; i++) {
     KinematicQuantities kin_q_ = kin_q;
     // shift the Jacobian reference point
     kin_q_.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-                                (cylinder->getDirectionKDL() * i * step /
+                                (cylinder->getDirectionKDL() * i * resolution_ /
                                  cylinder->getDirectionKDL().Norm()));
     kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
     kin_q_list.push_back(kin_q_);
   }
-
-  // shift the Jacobian reference point
-  // kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M *
-  //                           (cylinder->getDirectionKDL() * index * step /
-  //                           cylinder->getDirectionKDL().Norm()));
-  // kin_q.ee_p_ = KDL::Vector(test_pts[index](0), test_pts[index](1),
-  // test_pts[index](2));
-  // kin_q_list.push_back(kin_q);
+  
   return 0;
 }
 
@@ -566,8 +555,10 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
   assert(gradients.size() == test_pts.size());
 
   grad_markers_.markers.clear();
+
   for (unsigned int i = 0; i < gradients.size(); i++) {
-    if (!collision_checker_->isValid(gradients[i])) {
+    if (!collision_checker_->isValid(gradients[i]) ||
+        gradients[i].norm() == 0.0) {
       continue;
     }
 
@@ -602,9 +593,11 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     g_marker.color.a = 1.0;
     grad_markers_.markers.push_back(g_marker);
   }
+  
   // publish
   grad_vis_pub_.publish(grad_markers_);
 }
+
 //==================================================================================
 }  // namespace tasks
 

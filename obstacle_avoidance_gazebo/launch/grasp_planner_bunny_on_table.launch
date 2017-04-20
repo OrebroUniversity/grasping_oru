@@ -31,9 +31,9 @@
     <param name="MaximumRaycastSteps" value= "360" /> 
     <param name="OutputTriangles" value= "false" />
 
-    <param name="tf_world2sdf_x" value="0.3975"/>
+    <param name="tf_world2sdf_x" value="0.3475"/>
     <param name="tf_world2sdf_y" value="0.0"/>
-    <param name="tf_world2sdf_z" value="0.08"/>
+    <param name="tf_world2sdf_z" value="0.15"/>
     <param name="tf_world2sdf_yaw" value="0.0"/>
     <param name="tf_world2sdf_pitch" value="0.0"/>
     <param name="tf_world2sdf_roll" value="3.141592"/>

@@ -22,6 +22,7 @@ int main(int argn, char** args) {
                                           "yumi_link_6_r", "yumi_link_7_r", "yumi_link_tool_r"};
   std::array<std::string, 5> lh_frames = {"yumi_link_4_l", "yumi_link_5_l",
                                           "yumi_link_6_l", "yumi_link_7_l", "yumi_link_tool_l"};
+  std::array<double, 5> radius = {0.05, 0.07, 0.07, 0.045, 0.001};
 
   // std::array<std::string, 2> rh_frames = {"yumi_link_tool_r", "yumi_link_7_r"};
   // std::array<std::string, 2> lh_frames = {"yumi_link_tool_l", "yumi_link_7_l"};
@@ -63,16 +64,12 @@ int main(int argn, char** args) {
     tf::Vector3 axis_r = transform_r.getOrigin();
     tf::Vector3 axis_l = transform_l.getOrigin();
 
-    auto radius = 0.06;
-
-    if(i < 2) radius = 0.04;
-
     double length = axis_r.length();
     if(rh_frames[i+1].find("tool")!=std::string::npos) length = length + 0.05;
     hiqp_client.setPrimitive(rh_frames[i], "cylinder", rh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_r.getX(), axis_r.getY(), axis_r.getZ(), 0.00,
-                              0.00, 0.00, radius, length});
+                              0.00, 0.00, radius[i], length});
 
     length = axis_l.length();
     if(lh_frames[i+1].find("tool")!=std::string::npos) length = length + 0.05;
@@ -80,7 +77,7 @@ int main(int argn, char** args) {
     hiqp_client.setPrimitive(lh_frames[i], "cylinder", lh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_l.getX(), axis_l.getY(), axis_l.getZ(), 0.00,
-                              0.00, 0.00, radius, length});
+                              0.00, 0.00, radius[i], length});
 
     def.push_back("cylinder");
     def.push_back(rh_frames[i]);
