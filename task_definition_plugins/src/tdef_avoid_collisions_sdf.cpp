@@ -313,6 +313,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       testPointsViz.push_back(p);
     }
 
+    
     SamplesVector gradients;
     if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
                                                   root_frame_id_)) {
