@@ -179,6 +179,12 @@
             </contact>
           </surface>
         </collision>
+        <sensor name='obstacle_contact' type='contact'>
+          <plugin name="contact_plugin" filename="libcontact.so"/>
+          <contact>
+            <collision>collision</collision>
+          </contact>
+        </sensor>
       </link>
       <static>1</static>
       <allow_auto_disable>1</allow_auto_disable>

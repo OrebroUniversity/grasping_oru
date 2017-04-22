@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <launch>
 
+  <arg name="gradviz" default="false"/>
+  <param name="publish_gradient_visualization" value="$(arg gradviz)"/>
+
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen"> <!-- launch-prefix="xterm -e gdb -args" -->
     
     <param name="gripper_file" value="$(find grasp_planner)/cfg/yumi_cyl_03mm.cons"/>

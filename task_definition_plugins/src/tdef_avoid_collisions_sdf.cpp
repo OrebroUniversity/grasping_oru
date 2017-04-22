@@ -17,7 +17,7 @@
 #include <hiqp/tasks/tdef_avoid_collisions_sdf.h>
 #include <pluginlib/class_list_macros.h>
 #include <sdf_collision_check/sdf_collision_checker.h>
-#include <boost/timer/timer.hpp>
+#include <chrono>
 #include <iostream>
 
 // debug only
@@ -153,13 +153,12 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
       cylinder_primitives_.push_back(cylinder);
       // For cylinders we have many points being constrained on a single
       // cylinder.
-
       n_dimensions_ += static_cast<int>(cylinder->getHeight() / resolution_);
       // n_dimensions_++;
     }
   }
 
-  performance_measures_.resize(0);
+  performance_measures_.resize(1);
   task_types_.insert(task_types_.begin(), n_dimensions_, 1);
   // -1 leq, 0 eq, 1 geq
 
@@ -177,8 +176,17 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
 
   root_frame_id_ =
       robot_state->kdl_tree_.getRootSegment()->second.segment.getName();
-  grad_vis_pub_ =
-      nh_.advertise<visualization_msgs::MarkerArray>("gradient_marker", 1);
+
+  if (nh_.getParam("/publish_gradient_visualization",
+                   publish_gradient_visualization_))
+    if (publish_gradient_visualization_) {
+      grad_vis_pub_ =
+          nh_.advertise<visualization_msgs::MarkerArray>("gradient_marker", 1);
+      ROS_INFO("GRADIENTS WILL BE PUBLISHED");
+    }
+
+  gradients_pub_ =
+      nh_.advertise<sdf_collision_check::SDFGradients>("sdf_gradients", 1);
   return 0;
 }
 //==================================================================================
@@ -202,6 +210,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
   }
 
   SamplesVector gradientsViz, testPointsViz;
+  std::vector <geometry_msgs::Point> gradientsMsg, testPointsMsg;
 
   for (unsigned int i = 0; i < point_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented
@@ -233,6 +242,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
     assert(gradients.size() > 0);  // make sure a gradient was found
+
     gradientsViz = gradients;
 
     // compute the task jacobian for the current geometric primitive
@@ -303,7 +313,8 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
 
     // get the gradient vectors associated with the ee points of the current
     // primitive from the SDF map
-    boost::timer::cpu_timer opt_timer;
+
+    auto t_begin = std::chrono::high_resolution_clock::now();
 
     SamplesVector test_pts;
     for (unsigned int j = 0; j < kin_q_list.size(); j++) {
@@ -313,7 +324,6 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       testPointsViz.push_back(p);
     }
 
-    
     SamplesVector gradients;
     if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
                                                   root_frame_id_)) {
@@ -322,10 +332,15 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
 
+    auto t_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> grad_comp_time = t_end - t_begin;
+    this->performance_measures_(0) =
+        static_cast<double>(grad_comp_time.count());
+
     ROS_INFO_THROTTLE(1,
                       "*************************************************"
-                      "\nGradient computation time:%s",
-                      opt_timer.format().c_str());
+                      "\nGradient computation time:%lf",
+                      grad_comp_time.count());
 
     assert(gradients.size() > 0);  // make sure a gradient was found
     gradientsViz.insert(gradientsViz.end(), gradients.begin(), gradients.end());
@@ -343,7 +358,30 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
                        cylinder_primitives_[i]->getRadius());
   }
 
-  publishGradientVisualization(gradientsViz, testPointsViz);
+  for(auto gViz : gradientsViz) {
+    geometry_msgs::Point gMsg;
+    gMsg.x = gViz.x();
+    gMsg.y = gViz.y();
+    gMsg.z = gViz.z();
+    gradientsMsg.push_back(gMsg);
+  }
+
+  for(auto tViz : testPointsViz) {
+    geometry_msgs::Point tMsg;
+    tMsg.x = tViz.x();
+    tMsg.y = tViz.y();
+    tMsg.z = tViz.z();
+    testPointsMsg.push_back(tMsg);
+  }
+
+  sdf_collision_check::SDFGradients msg;
+  msg.start = testPointsMsg;
+  msg.end = gradientsMsg;
+  msg.stamp = ros::Time::now();
+  gradients_pub_.publish(msg);
+  
+  if (publish_gradient_visualization_)
+    publishGradientVisualization(gradientsViz, testPointsViz);
   return 0;
 }
 
@@ -511,7 +549,7 @@ int TDefAvoidCollisionsSDF::cylinderForwardKinematics(
     kin_q_.ee_p_ = KDL::Vector(test_pts[i](0), test_pts[i](1), test_pts[i](2));
     kin_q_list.push_back(kin_q_);
   }
-  
+
   return 0;
 }
 
@@ -594,7 +632,7 @@ void TDefAvoidCollisionsSDF::publishGradientVisualization(
     g_marker.color.a = 1.0;
     grad_markers_.markers.push_back(g_marker);
   }
-  
+
   // publish
   grad_vis_pub_.publish(grad_markers_);
 }

@@ -12,6 +12,11 @@
   <build_depend>gazebo_ros</build_depend>
   <build_depend>grasp_planner</build_depend>
   <build_depend>hiqp_demos</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>gazebo_msgs</build_depend>
+
+  <run_depend>gazebo_msgs</run_depend>
+  <run_depend>roscpp</run_depend>
   <run_depend>gazebo_ros</run_depend>
   <run_depend>grasp_planner</run_depend>
   <run_depend>hiqp_demos</run_depend>

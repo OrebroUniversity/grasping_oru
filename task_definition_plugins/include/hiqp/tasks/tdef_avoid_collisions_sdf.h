@@ -29,7 +29,7 @@
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <geometry_msgs/PoseArray.h>
+#include <sdf_collision_check/SDFGradients.h>
 
 namespace hiqp {
 namespace tasks {
@@ -118,11 +118,14 @@ class TDefAvoidCollisionsSDF : public TaskDefinition {
   /*! Interface to the SDF map*/
   std::shared_ptr<sdf_collision_check::CollisionCheckerBase> collision_checker_;
 
+  bool publish_gradient_visualization_;
   /// \todo should change it to a proper task visualizer
   void publishGradientVisualization(const SamplesVector& gradients,
                                     const SamplesVector& test_pts);
   ros::Publisher grad_vis_pub_;
   visualization_msgs::MarkerArray grad_markers_;
+
+  ros::Publisher gradients_pub_;
   ros::NodeHandle nh_;
 };
 
