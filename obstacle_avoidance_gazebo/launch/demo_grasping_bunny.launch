@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- launch the demo_grasping node -->
+  <node name="demo_grasping" pkg="demo_grasping" type="demo_grasping" respawn="false" output="screen"> <!-- launch-prefix="xterm -e gdb -args" -->
+     <param name="with_gazebo" type="bool" value="true"/>
+
+     <!--
+         /* rosservice call /gplanner/plan_grasp "header:
+         seq: 0
+         stamp: {secs: 0, nsecs: 0}
+         frame_id: 'world'
+         approach_frame: 'world'
+         approach_vector: [0.0, 0.0, 0.0]
+         approach_angle: -1.0
+         objectPose:
+         position: {x: 0.475, y: 0.15, z: 0.12}
+         orientation: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+         object_radius: 0.035
+         object_height: 0.06 */ -->
+     <!-- prototype grasp frame and pose -->
+     
+     <param name="grasp_req_frame" value="world"/>
+     <param name="grasp_req_radius" value="0.023"/>
+     <param name="grasp_req_height" value="0.07"/>
+     <param name="grasp_req_px" value="0.4"/>
+     <param name="grasp_req_py" value="-0.08"/>
+     <param name="grasp_req_pz" value="0.1"/>
+     <param name="grasp_req_ox" value="0"/>
+     <param name="grasp_req_oy" value="0"/>
+     <param name="grasp_req_oz" value="0"/>
+     <param name="grasp_req_ow" value="1"/>
+     
+     <remap from="/get_grasp_interval" to="/gplanner/plan_grasp"/>
+     <remap from="/set_physics_properties" to="/gazebo/set_physics_properties"/>
+     <remap from="/reset_map" to="/gplanner/clear_map"/>
+
+  </node>
+</launch>
