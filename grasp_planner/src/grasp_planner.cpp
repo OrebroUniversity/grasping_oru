@@ -300,6 +300,9 @@ void GraspPlanner::depthInfoCallback2(
 
 void GraspPlanner::depthCallback(const sensor_msgs::Image::ConstPtr &msg) {
   if (myTracker_ == NULL) return;
+
+  static Eigen::Affine3d cam2map, prev_cam2map;
+  
   camera_link_ = msg->header.frame_id;
   tf::StampedTransform camera_frame_to_map;
   try {
@@ -351,6 +354,7 @@ void GraspPlanner::depthCallback(const sensor_msgs::Image::ConstPtr &msg) {
 
 void GraspPlanner::depthCallback2(const sensor_msgs::Image::ConstPtr &msg) {
   if (myTracker_ == NULL) return;
+  static Eigen::Affine3d cam2map, prev_cam2map;
   camera_link_ = msg->header.frame_id;
   tf::StampedTransform camera_frame_to_map;
   try {

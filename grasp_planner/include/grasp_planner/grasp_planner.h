@@ -58,7 +58,6 @@ private:
 	SDF_Parameters myParameters_;
 	SDF_CamParameters cam1params_, cam2params_;
 	ConstraintMap *gripper_map;
-	Eigen::Affine3d cam2map, prev_cam2map;
 	
 	ros::Publisher sdf_map_publisher_;
 	ros::Publisher fused_pc_publisher_;
