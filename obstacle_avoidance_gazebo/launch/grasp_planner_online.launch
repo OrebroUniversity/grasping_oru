@@ -18,9 +18,9 @@
     <param name="depth_info_topic_name2" value="/camera_2/depth/camera_info"/>
 
     <!-- SDF related parameters -->
-    <param name="GridSizeX" value= "190"/>
-    <param name="GridSizeY" value= "80"/>
-    <param name="GridSizeZ" value= "270"/>
+    <param name="GridSizeX" value= "250"/>
+    <param name="GridSizeY" value= "170"/>
+    <param name="GridSizeZ" value= "170"/>
     <param name="PositiveTruncationDistance" value= "0.03" />
     <param name="NegativeTruncationDistance" value= "-0.003" />
     <param name="RobustStatisticCoefficient" value= "0.01" />
