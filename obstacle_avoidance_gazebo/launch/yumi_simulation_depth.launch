@@ -66,13 +66,13 @@
   <node name="yumi_rviz" pkg="rviz" type="rviz" args="-d $(find obstacle_avoidance_gazebo)/launch/gazebo.rviz" if="$(arg rviz)"/>
 
   <node pkg="tf" type="static_transform_publisher" name="camera1_pub"
-        args="-0.326 0.312 0.57 -0.3 0.5 0.0 world camera1_frame 50" />
+        args="-0.326 0.312 0.444 -0.3 0.5 0.0 world camera1_frame 50" />
 
   <node pkg="tf" type="static_transform_publisher" name="camera1pub"
         args="0.0 0.0 0.0 -1.570796 0.0 -1.570796 camera1_frame camera1_link 50" />
 
   <node pkg="tf" type="static_transform_publisher" name="camera2_pub"
-        args="0.782478 0.0 0.638016 3.14 0.70711 0.0 world camera2_frame 50" />
+        args="0.96752 0.0 0.638016 3.14 0.9 0.0 world camera2_frame 50" />
   
   <node pkg="tf" type="static_transform_publisher" name="camera2pub"
         args="0.0 0.0 0.0 -1.570645 0.0 -1.570645 camera2_frame camera2_link 50" />

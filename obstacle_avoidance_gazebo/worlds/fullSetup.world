@@ -185,10 +185,10 @@
       <pose frame=''>0.001389 0.03323 0 0 -0 0</pose>
     </model>
     <state world_name='default'>
-      <sim_time>37 351000000</sim_time>
-      <real_time>37 466273033</real_time>
-      <wall_time>1493045669 594047875</wall_time>
-      <iterations>37351</iterations>
+      <sim_time>282 526000000</sim_time>
+      <real_time>41 487514517</real_time>
+      <wall_time>1493123739 827788185</wall_time>
+      <iterations>41430</iterations>
       <model name='bunny_cylinder_and_table'>
         <pose frame=''>0.1 0 0.08 0 -0 0</pose>
         <scale>1 1 1</scale>
@@ -200,20 +200,20 @@
         </link>
       </model>
       <model name='depth_camera_1'>
-        <pose frame=''>-0.349 0.319 0.526 0 0.5 -0.3</pose>
+        <pose frame=''>-0.349 0.319 0.4 1e-06 0.5 -0.299999</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose frame=''>-0.326099 0.311916 0.569879 0 0.5 -0.3</pose>
+          <pose frame=''>-0.326099 0.311916 0.443879 1e-06 0.5 -0.299999</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='depth_camera_2'>
-        <pose frame=''>0.75 0 0.6 0 0.707001 3.14</pose>
+        <pose frame=''>1 -5.2e-05 0.6 1e-06 0.9 3.14</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose frame=''>0.782478 0 0.638016 0 0.707001 3.14</pose>
+          <pose frame=''>0.960834 1e-05 0.63108 1e-06 0.9 3.14</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -252,7 +252,7 @@
         <kinematic>0</kinematic>
         <sensor name='camera' type='depth'>
           <camera name='camera_1'>
-            <horizontal_fov>1.04719755</horizontal_fov>
+            <horizontal_fov>1.0472</horizontal_fov>
             <image>
               <width>640</width>
               <height>480</height>
@@ -263,13 +263,13 @@
             </clip>
             <noise>
               <type>gaussian</type>
-              <mean>0.0</mean>
+              <mean>0</mean>
               <stddev>0.007</stddev>
             </noise>
           </camera>
           <always_on>1</always_on>
           <update_rate>2</update_rate>
-          <plugin name="camera_controller" filename="libgazebo_ros_depth_camera_chitt.so">
+          <plugin name='camera_controller' filename='libgazebo_ros_depth_camera_chitt.so'>
             <alwaysOn>true</alwaysOn>
             <updateRate>0.0</updateRate>
             <cameraName>camera_1</cameraName>
@@ -380,7 +380,7 @@
         <kinematic>0</kinematic>
         <sensor name='camera' type='depth'>
           <camera name='camera_2'>
-            <horizontal_fov>1.04719755</horizontal_fov>
+            <horizontal_fov>1.0472</horizontal_fov>
             <image>
               <width>640</width>
               <height>480</height>
@@ -392,7 +392,7 @@
           </camera>
           <always_on>1</always_on>
           <update_rate>2</update_rate>
-          <plugin name="camera_controller" filename="libgazebo_ros_depth_camera_chitt.so">
+          <plugin name='camera_controller' filename='libgazebo_ros_depth_camera_chitt.so'>
             <alwaysOn>true</alwaysOn>
             <updateRate>0.0</updateRate>
             <cameraName>camera_2</cameraName>
@@ -486,7 +486,7 @@
     </model>
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose frame=''>1.85066 -1.01834 0.886917 0 0.307641 2.5562</pose>
+        <pose frame=''>0.832171 -2.89904 0.609807 -0 0.183641 1.6042</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
       </camera>
