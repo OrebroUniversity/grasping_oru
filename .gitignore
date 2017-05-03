@@ -3,3 +3,4 @@ CATKIN_IGNORE
 grasp_learning/stored_data/tested_data/*
 grasp_learning/tested_data/
 obstacle_avoidance_gazebo/bags
+obstacle_avoidance_gazebo/csvs
