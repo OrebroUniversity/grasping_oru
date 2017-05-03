@@ -10,6 +10,7 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include <mutex>
+#include <thread>
 
 namespace sdf_collision_check {
 
@@ -45,8 +46,10 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   int XSize, YSize, ZSize;
   int raycast_steps;
 
+  std::thread get_map_thread_;
   /// methods
  private:
+  void getMapThread();
   void mapCallback(const sdf_tracker_msgs::SDFMap &msg);
   /// returns the trilinear interpolated SDF value at location
   double SDF(const Eigen::Vector3d &location);

@@ -33,25 +33,50 @@ SDFCollisionChecker::~SDFCollisionChecker() {
   }
 }
 
-void SDFCollisionChecker::init() {
-  // subscribe to topic
-  // sdf_map_sub_ = n_.subscribe(sdf_map_topic, 1,
-  // &SDFCollisionChecker::mapCallback, this);
-  map_available_ = false;
-  // ROS_INFO("subscribed to topics");
+void SDFCollisionChecker::getMapThread() {
+  ros::ServiceClient startClient =
+      n_.serviceClient<std_srvs::Empty>("/gplanner/start_tracker");
+  ros::ServiceClient stopClient =
+      n_.serviceClient<std_srvs::Empty>("/gplanner/stop_tracker");
   ros::ServiceClient client =
       n_.serviceClient<sdf_tracker_msgs::GetSDFMap>("/gplanner/map_to_edt");
+  startClient.waitForExistence();
+  stopClient.waitForExistence();
   client.waitForExistence();
+
+  std_srvs::Empty empty_msg1, empty_msg2;
+  
+  if (startClient.call(empty_msg1)) {
+    ROS_INFO("Started tracker.");
+  } else {
+    ROS_ERROR("Couldn't call service start_tracker.");
+    return;
+  }
+
+  sleep(5);
+
+  if (stopClient.call(empty_msg2)) {
+    ROS_INFO("Stopped tracker.");
+  } else {
+    ROS_ERROR("Couldn't call service stop_tracker.");
+    return;
+  }
+
   sdf_tracker_msgs::GetSDFMap msg;
+  ROS_INFO("Asking GraspPlanner for map.");
   if (client.call(msg)) {
-    ROS_INFO("Asked GraspPlanner for map.");
     mapCallback(msg.response.map);
-    map_available_ = true;
   } else {
     ROS_ERROR(
         "There was a problem calling the grasp planner for map. Collision "
         "avoidance may not work.");
   }
+}
+
+void SDFCollisionChecker::init() {
+  map_available_ = false;
+  get_map_thread_ =
+      std::thread(boost::bind(&SDFCollisionChecker::getMapThread, this));
 }
 
 void SDFCollisionChecker::mapCallback(const sdf_tracker_msgs::SDFMap& msg) {
@@ -66,7 +91,7 @@ void SDFCollisionChecker::mapCallback(const sdf_tracker_msgs::SDFMap& msg) {
 
   tf::transformMsgToEigen(msg.tf_world2sdf, request2map);
 
-  //std::cout << request2map.matrix();
+  // std::cout << request2map.matrix();
   // old sizes, needed for dealloc
   double xs, ys, zs;
   xs = XSize;

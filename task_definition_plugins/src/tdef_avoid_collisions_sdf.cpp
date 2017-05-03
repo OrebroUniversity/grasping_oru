@@ -197,20 +197,13 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
 
   if (!collision_checker_->map_available_) {
     //  ROS_INFO_THROTTLE(1,"Map not available yet.");
-    for (size_t i = 0;
-         i < point_primitives_.size() + sphere_primitives_.size() +
-                 cylinder_primitives_.size();
-         i++) {
-      e_.conservativeResize(e_.size() + 1);
-      J_.conservativeResize(J_.rows() + 1, Eigen::NoChange);
-      e_(e_.size() - 1) = 0;
-      J_.row(J_.rows() - 1).setZero();
-    }
+    e_ = Eigen::VectorXd::Zero(n_dimensions_);
+    J_ = Eigen::MatrixXd::Zero(n_dimensions_, robot_state->getNumJoints());
     return 0;
   }
 
   SamplesVector gradientsViz, testPointsViz;
-  std::vector <geometry_msgs::Point> gradientsMsg, testPointsMsg;
+  std::vector<geometry_msgs::Point> gradientsMsg, testPointsMsg;
 
   for (unsigned int i = 0; i < point_primitives_.size(); i++) {
     // compute forward kinematics for each primitive (yet unimplemented
@@ -234,6 +227,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       test_pts.push_back(p);
       testPointsViz.push_back(p);
     }
+
     SamplesVector gradients;
     if (!collision_checker_->obstacleGradientBulk(test_pts, gradients,
                                                   root_frame_id_)) {
@@ -358,7 +352,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
                        cylinder_primitives_[i]->getRadius());
   }
 
-  for(auto gViz : gradientsViz) {
+  for (auto gViz : gradientsViz) {
     geometry_msgs::Point gMsg;
     gMsg.x = gViz.x();
     gMsg.y = gViz.y();
@@ -366,7 +360,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
     gradientsMsg.push_back(gMsg);
   }
 
-  for(auto tViz : testPointsViz) {
+  for (auto tViz : testPointsViz) {
     geometry_msgs::Point tMsg;
     tMsg.x = tViz.x();
     tMsg.y = tViz.y();
@@ -379,7 +373,7 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
   msg.end = gradientsMsg;
   msg.stamp = ros::Time::now();
   gradients_pub_.publish(msg);
-  
+
   if (publish_gradient_visualization_)
     publishGradientVisualization(gradientsViz, testPointsViz);
   return 0;

@@ -26,7 +26,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <visualization_msgs/Marker.h>
 
 #include <sdf_tracker_msgs/SDFMap.h>
 #include <sdf_tracker_msgs/GetSDFMap.h>
@@ -70,13 +69,15 @@ private:
 	ros::Timer heartbeat_tf_;
 	ros::Timer heartbeat_map_;
 
-	ros::ServiceServer plan_grasp_serrver_;
+	ros::ServiceServer plan_grasp_server_;
 	ros::ServiceServer publish_map_server_;
 	ros::ServiceServer save_map_server_;
 	ros::ServiceServer clear_map_server_;
 	ros::ServiceServer load_volume_server_;
 	ros::ServiceServer load_constraints_server_;
 	ros::ServiceServer map_to_edt_;
+  ros::ServiceServer start_tracker_server_;
+  ros::ServiceServer stop_tracker_server_;
 
 	tf::TransformBroadcaster br;
 	tf::TransformListener tl;
@@ -122,7 +123,7 @@ public:
   void depthCallback2(const sensor_msgs::Image::ConstPtr& msg);
 	
 	bool loadConstraintsCallback(grasp_planner::LoadResource::Request  &req,
-                                 grasp_planner::LoadResource::Response &res ); 
+                               grasp_planner::LoadResource::Response &res ); 
 
 	bool loadVolumeCallback(grasp_planner::LoadResource::Request  &req,
                           grasp_planner::LoadResource::Response &res );
@@ -138,6 +139,12 @@ public:
 	
 	bool publishMapCallback(std_srvs::Empty::Request  &req,
                           std_srvs::Empty::Response &res );
+
+  bool stopTrackerCallback(std_srvs::Empty::Request  &req,
+                           std_srvs::Empty::Response &res );
+
+  bool startTrackerCallback(std_srvs::Empty::Request  &req,
+                            std_srvs::Empty::Response &res );
 
 	bool planGraspCallback(grasp_planner::PlanGrasp::Request  &req,
                          grasp_planner::PlanGrasp::Response &res );

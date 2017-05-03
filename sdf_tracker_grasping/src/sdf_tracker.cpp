@@ -69,14 +69,11 @@ SDFTracker::SDFTracker(SDF_Parameters &parameters) { this->Init(parameters); }
 
 SDFTracker::~SDFTracker() {
   this->DeleteGrids();
-
   for (int i = 0; i < parameters_.image_height; ++i) {
     if (validityMask_[i] != NULL) delete[] validityMask_[i];
   }
   delete[] validityMask_;
-
   if (depthImage_ != NULL) delete depthImage_;
-
   if (depthImage_denoised_ != NULL) delete depthImage_denoised_;
 };
 
@@ -102,7 +99,6 @@ void SDFTracker::ResetSDF() {
 
 void SDFTracker::Init(SDF_Parameters &parameters) {
   parameters_ = parameters;
-
   int downsample = 1;
   switch (parameters_.image_height) {
     case 480:
@@ -1410,7 +1406,8 @@ Vector6d SDFTracker::EstimatePoseFromPoints(void) {
             0,
             0);  // A01+=T1(0,1);A02+=T1(0,2);A03+=T1(0,3);A04+=T1(0,4);A05+=T1(0,5);
         A10 += T1(1, 0);
-        A11 += T1(1, 1);  // A12+=T1(1,2);A13+=T1(1,3);A14+=T1(1,4);A15+=T1(1,5);
+        A11 +=
+            T1(1, 1);  // A12+=T1(1,2);A13+=T1(1,3);A14+=T1(1,4);A15+=T1(1,5);
         A20 += T1(2, 0);
         A21 += T1(2, 1);
         A22 += T1(2, 2);  // A23+=T1(2,3);A24+=T1(2,4);A25+=T1(2,5);
@@ -1662,10 +1659,9 @@ void SDFTracker::LoadSDF(const std::string &filename) {
   weight = (vtkFloatArray *)reader->GetOutput()->GetPointData()->GetScalars(
       "Weight");
 
-  if(weight) {
+  if (weight) {
     std::cout << "SDF file contains weights.";
-  }
-  else {
+  } else {
     std::cout << "SDF file doesn't contain weights.";
   }
 
@@ -1677,7 +1673,7 @@ void SDFTracker::LoadSDF(const std::string &filename) {
       for (i = 0; i < parameters_.XSize; ++i) {
         int offset = i + offset_j + offset_k;
         myGrid_[i][j][k * 2] = distance->GetValue(offset);
-        if(weight)
+        if (weight)
           myGrid_[i][j][k * 2 + 1] = weight->GetValue(offset);
         else
           myGrid_[i][j][k * 2 + 1] = 50;
@@ -1816,7 +1812,6 @@ Eigen::Vector3d SDFTracker::ShootSingleRay(Eigen::Vector3d &start,
 }
 
 void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
-   
   msg.header.frame_id = "my_frame";
   msg.cell_size = parameters_.resolution;
   msg.x_cen = 0;  // parameters_.XSize*parameters_.resolution/2;
@@ -1851,9 +1846,11 @@ void SDFTracker::toMessage(constraint_map::SimpleOccMapMsg &msg) {
 
 /// method to dump into an hiqp message
 void SDFTracker::toMessage(sdf_tracker_msgs::SDFMap &msg) {
-  
-  if(!parameters_.map_is_euclidean) this->convertToEuclidean();
-  else ROS_INFO("Map is Euclidean!");
+  float ***map;
+  if (!parameters_.map_is_euclidean)
+    this->convertToEuclidean();
+  else
+    ROS_INFO("Map is Euclidean!");
 
   tf::transformEigenToMsg(parameters_.tf_world2sdf, msg.tf_world2sdf);
 

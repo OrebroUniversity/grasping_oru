@@ -63,7 +63,15 @@
     <remap from="/joint_states" to="/yumi/joint_states" />
   </node>
 
-  <node name="yumi_rviz" pkg="rviz" type="rviz" args="-d $(find obstacle_avoidance_gazebo)/launch/gazebo.rviz" if="$(arg rviz)" output="screen"/>
+  <node name="yumi_rviz" pkg="rviz" type="rviz" args="-d $(find obstacle_avoidance_gazebo)/launch/gazebo.rviz" if="$(arg rviz)"/>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="/use_gui" value="false"/> 
+    <rosparam param="/source_list">[yumi/joint_states]</rosparam>
+  </node>
+
+
+  <node name="hiqp_joint_trajectory_controller_node" type="hiqp_joint_trajectory_controller_node" pkg="hiqp_ros"/>
 
   <node pkg="tf" type="static_transform_publisher" name="camera1_pub"
         args="-0.326 0.312 0.444 -0.3 0.5 0.0 world camera1_frame 50" />
