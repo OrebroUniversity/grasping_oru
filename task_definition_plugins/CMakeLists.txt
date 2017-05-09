@@ -3,6 +3,11 @@ project(task_definition_plugins)
 
 set(CMAKE_BUILD_TYPE RelWithDebinfo)
 set(CMAKE_CXX_STANDARD 11)
+    
+set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+set(GUROBI_LIB_DIR "$ENV{GUROBI_HOME}/lib")
+include_directories(${GUROBI_INCLUDE_DIR})
+link_directories(${GUROBI_LIB_DIR})
 
 find_package(catkin REQUIRED COMPONENTS
   hiqp_core
