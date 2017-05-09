@@ -16,7 +16,7 @@ namespace hiqp{
 		{
 		public:
 			runDemoNode(){
-				max_num_exec_ = 100;
+				max_num_exec_ = 1000;
 				start_demo_client_ = nh.serviceClient<std_srvs::Empty>("demo_learning/start_demo");
 				current_exec_ = 0;
 			};

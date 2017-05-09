@@ -82,18 +82,22 @@ class ValueNet(object):
     def get_vars(self):
         return [self.w1, self.b1, self.w2, self.b2, self.w3, self.b3]
 
-    def train(self, input_data, output_data, batch_size = 1.0, n_iter=500):
+    def train(self, input, output, n_iter=500):
 
         with self.vg.as_default():
-            temp = set(tf.global_variables())
 
-
-            error_function = tf.reduce_mean(tf.square(tf.subtract(self.logits, self.output_data_placeholder)))
+            error_function = tf.reduce_mean(tf.square(tf.subtract(logits, self.output_data_placeholder)))
             train_step = tf.train.AdamOptimizer(0.001).minimize(error_function)
-            self.sess.run(tf.variables_initializer(set(tf.global_variables()) - temp))
-
             for i in xrange(n_iter):
-                self.sess.run(train_step, feed_dict={self.input_data_placeholder: input_data, self.output_data_placeholder: output_data})
+                # fetches = [self.opt]
+                # if i % 10 == 0:
+                #     fetches.append(self.summary_op)
+
+                self.sess.run(train_step, feed_dict={self.input_data_placeholder: input_data, self.output_data_placeholder: output_data.T})
+                # if i % 10 == 0:
+                #     summary_str = res[1]
+                #     summary_writer.add_summary(summary_str, global_step=self.global_step)
+
 
 
 
@@ -116,8 +120,8 @@ class Policy(object):
         self.sigma = 2
         self.num_train_episode = 0
         self.num_eval_episode = 0
-        self.gamma = 0.999
-        self.batch_size = 5
+        self.gamma = 0.995
+        self.batch_size = 2
         self.g = tf.Graph()
         self.train = True
         self.learning_rate = 0.5
@@ -126,7 +130,6 @@ class Policy(object):
 
         self.prev_action = np.zeros(num_outputs)
         self.all_returns = []
-        self.all_unnormalized_returns = []
         self.all_disc_returns = []
         self.all_disc_returns1 = []
         self.all_disc_returns2 = []
@@ -142,7 +145,7 @@ class Policy(object):
 
         self.NN_output = []
 
-        self.prev_batch_mean_return = 0
+        self.prev_batch_mean_return = 2800
 
         self.VN = ValueNet(num_inputs, num_outputs)
 
@@ -150,6 +153,8 @@ class Policy(object):
 
         self.task_error_placeholder = tf.placeholder(tf.float32, [None, num_inputs])
         self.task_dyn_placeholder = tf.placeholder(tf.float32, [None, num_outputs])
+
+        # self.advant = tf.placeholder(tf.float32,[None,1])
         self.advant = tf.placeholder(tf.float32,[None,num_rewards])
 
         self.train_weights = [ ]
@@ -158,41 +163,21 @@ class Policy(object):
         input_data, output_data = self.parse_input_output_data(input_output_data_file)
 
         self.reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/rewards.txt'
+        self.disc_reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/discounted_rewards.txt'
+        self.weights_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights/weights.txt'
         self.actions_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions/actions.txt'
         self.task_errors_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_errors/task_errors.txt'
+        self.baseline_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/baseline.txt'
+        self.advantages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/advantages.txt'
         self.loss_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/losses.txt'
         self.log_likelihood_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/log_likelihood.txt'
         self.NN_output_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions/action_dist_mean.txt'
         self.task_measure_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/task_measure.txt'
         self.fisher_matrix_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/gradients/fisher_matrix.txt'
-        self.weights_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights/weights.txt'
 
-        if num_rewards>1:
-            self.reward_file_name1 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/rewards1.txt'
-            self.disc_reward_file_name1 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/discounted_rewards1.txt'
-            self.baseline_file_name1 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/baseline1.txt'
-            self.advantages_file_name1 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/advantages1.txt'
-
-            self.reward_file_name2 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/rewards2.txt'
-            self.disc_reward_file_name2 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/discounted_rewards2.txt'
-            self.baseline_file_name2 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/baseline2.txt'
-            self.advantages_file_name2 = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/advantages2.txt'
-
-            self.reset_files([self.weights_file_name, self.log_likelihood_file_name, self.advantages_file_name1, self.loss_file_name, self.baseline_file_name1,
-                             self.reward_file_name1, self.actions_file_name, self.task_errors_file_name, self.disc_reward_file_name1, self.NN_output_file_name,
-                             self.task_measure_file_name, self.fisher_matrix_file_name, self.advantages_file_name2, self.baseline_file_name2, self.reward_file_name2,
-                             self.disc_reward_file_name2])
-
-        else:  
-            self.disc_reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/discounted_rewards.txt'
-
-            self.baseline_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/baseline.txt'
-            self.advantages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/advantages.txt'
-            self.reset_files([self.weights_file_name, self.log_likelihood_file_name, self.advantages_file_name, self.loss_file_name, self.baseline_file_name,
+        self.reset_files([self.weights_file_name, self.log_likelihood_file_name, self.advantages_file_name, self.loss_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.task_errors_file_name, self.disc_reward_file_name, self.NN_output_file_name,
                              self.task_measure_file_name, self.fisher_matrix_file_name])
-
-
 
 
         # self.ff_NN_train, w1_train, w2_train, w3_train = self.construct_ff_NN(self.task_error_placeholder, self.task_dyn_placeholder , input_data, output_data, num_inputs, num_outputs)
@@ -223,12 +208,12 @@ class Policy(object):
                 for string in xrange(len(line)):
                     if string%2==0:
                         # input_data.append(float(line[string]))
-                        input_data.append(float(line[string])+np.random.normal(0, 0.15))
+                        input_data.append(float(line[string])+np.random.normal(0, 0.5))
 
                     else:
                         # if string == 1:
-                        # output_data.append(line[string])
-                        output_data.append(float(line[string])+np.random.normal(0, 0.28))
+                        #     output_data.append(line[string])
+                        output_data.append(float(line[string])+np.random.normal(0, 0.5))
                         # output_data.append(float(line[string]))
 
                 input_.append(input_data)
@@ -239,7 +224,7 @@ class Policy(object):
         return np.asarray(input_), np.asarray(output_)
 
 
-    def construct_ff_NN(self, task_error_placeholder, task_dyn_placeholder, task_errors, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 1):
+    def construct_ff_NN(self, task_error_placeholder, task_dyn_placeholder, task_errors, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 3):
         with self.g.as_default():
 
             weights_1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]), name="input_layer")
@@ -302,37 +287,16 @@ class Policy(object):
         self.all_actions.append(np.asarray(self.actions))
         self.save_data_to_file(self.actions_file_name, self.actions)
 
-    def store_advantages(self, advantages):
-        print "Storing advantages"
+    def store_baseline_and_advantages(self, baseline, advantages):
+        print "Storing baseline and advantages"
 
-        # f_handle = file(self.advantages_file_name,'a')
-        # np.savetxt(f_handle, [advantages], delimiter='\t')
-        # f_handle.close()
-
-        f_handle = file(self.advantages_file_name1,'a')
-        np.savetxt(f_handle, [advantages[:,0]], delimiter='\t')
+        f_handle = file(self.baseline_file_name,'a')
+        np.savetxt(f_handle, [baseline], delimiter='\t')
         f_handle.close()
 
-        f_handle = file(self.advantages_file_name2,'a')
-        np.savetxt(f_handle, [advantages[:,1]], delimiter='\t')
+        f_handle = file(self.advantages_file_name,'a')
+        np.savetxt(f_handle, [advantages], delimiter='\t')
         f_handle.close()
-
-
-    def store_baseline(self, baseline):
-        print "Storing baseline"
-
-        # f_handle = file(self.baseline_file_name,'a')
-        # np.savetxt(f_handle, [baseline], delimiter='\t')
-        # f_handle.close()
-
-        f_handle = file(self.baseline_file_name1,'a')
-        np.savetxt(f_handle, [baseline[:,0]], delimiter='\t')
-        f_handle.close()
-
-        f_handle = file(self.baseline_file_name2,'a')
-        np.savetxt(f_handle, [baseline[:,1]], delimiter='\t')
-        f_handle.close()
-
 
     def store_loss_function(self, losses):
         print "Storing losses"
@@ -368,34 +332,22 @@ class Policy(object):
         self.all_disc_returns.append(curr_rollout_disc_return)
         # self.all_disc_returns1.append(curr_rollout_disc_return[:,0])
         # self.all_disc_returns2.append(curr_rollout_disc_return[:,1])
-
         # f_handle = file(self.reward_file_name,'a')
         # np.savetxt(f_handle, [curr_rollout_return], delimiter='\t')
         # f_handle.close()
-
-        f_handle = file(self.reward_file_name1,'a')
-        np.savetxt(f_handle, [curr_rollout_return[:,0]], delimiter='\t')
-        f_handle.close()
-
-        f_handle = file(self.reward_file_name2,'a')
-        np.savetxt(f_handle, [curr_rollout_return[:,1]], delimiter='\t')
-        f_handle.close()
-
 
         # f_handle = file(self.disc_reward_file_name,'a')
         # np.savetxt(f_handle, [curr_rollout_disc_return], delimiter='\t')
         # f_handle.close()
 
-        f_handle = file(self.disc_reward_file_name1,'a')
-        np.savetxt(f_handle, [curr_rollout_disc_return[:,0]], delimiter='\t')
-        f_handle.close()
-
-        f_handle = file(self.disc_reward_file_name2,'a')
-        np.savetxt(f_handle, [curr_rollout_disc_return[:,1]], delimiter='\t')
-        f_handle.close()
-
 
     def discount_rewards(self, reward):
+        # discounted_r = np.zeros_like(reward)
+        # running_add = 0
+        # for t in reversed(xrange(0, len(reward))):
+        #     running_add = running_add * self.gamma + reward[t]
+        #     discounted_r[t] = running_add
+
 
         discounted_r = np.zeros_like(reward)
         running_add = np.zeros(reward.shape[1])
@@ -403,7 +355,18 @@ class Policy(object):
             running_add = running_add * self.gamma + reward[t]
             discounted_r[t] = running_add
 
-        discounted_r = self.normalize_data(discounted_r)
+        # discounted_r -= np.mean(discounted_r)
+
+        # print discounted_r
+
+        discounted_r = (discounted_r-np.mean(discounted_r,axis=0))/(np.std(discounted_r,axis=0)+1e-8)
+        # discounted_r -= np.mean(discounted_r,axis=0)
+
+        # print discounted_r
+
+        # discounted_r /= (np.std(discounted_r,axis=0)+1e-8)
+
+
         return discounted_r
 
 
@@ -412,6 +375,12 @@ class Policy(object):
 
         dist_square = np.square(np.asarray(curr_reward))
         alpha = 1e-15
+        # rollout_return = 0
+        # for e in xrange(dist_square.shape[1]):
+        #     if e==0:
+        #         rollout_return += -15*dist_square[:,e]-0.4*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
+        #     else:
+        #         rollout_return += -15*dist_square[:,e]-0.4*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
 
         rollout_return = np.zeros_like(dist_square)
 
@@ -420,14 +389,10 @@ class Policy(object):
                 rollout_return[:,e] = -15*dist_square[:,e]-0.4*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
             else:
                 rollout_return[:,e] = -15*dist_square[:,e]-0.4*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
-
-
-        self.all_unnormalized_returns.append(rollout_return) 
+        # alpha = 1e-15
+        # rollout_return = -15*dist_square - 0.4*np.log(dist_square+alpha)
 
         return rollout_return
-
-    def normalize_data(self, data):
-        return (data-np.mean(data,axis=0))/(np.std(data,axis=0)+1e-8)
 
     def calculate_reward_baseline(self, rewards):
 
@@ -469,21 +434,23 @@ class Policy(object):
 
     def calculate_advantages_with_VN(self, rewards, states):
         advantages = np.zeros_like(rewards)
-        baseline = np.zeros_like(rewards)
         for i in xrange(len(states)):
-            baseline[i,:] = self.VN.get_value(states[i,:])
-            advantages[i,:] = rewards[i,:]-baseline[i,:]
+            advantages[i] = rewards[i]-self.VN.get_value(states[i])
 
-        advantages = self.normalize_data(advantages)
-        return advantages, baseline
+        # advantages = (advantages-np.mean(advantages))/(np.std(advantages)+1e-8)
+        return advantages
 
     def get_rewards(self):
         self.task_measure.pop(0)
         curr_rollout_return = self.calculate_return(self.task_measure)
-        curr_rollout_disc_return = self.discount_rewards(curr_rollout_return)
+        curr_rollout_disc_return = self.discount_rewards(curr_rollout_return) 
+        # self.all_disc_returns.append(curr_rollout_disc_return)
+        # self.all_disc_returns1.append(curr_rollout_disc_return[:,0])
+        # self.all_disc_returns2.append(curr_rollout_disc_return[:,1])
+        # reward = np.asarray([curr_rollout_disc_return[:,0],curr_rollout_disc_return[:,1]])
 
-        return np.asarray([curr_rollout_disc_return[:,0],curr_rollout_disc_return[:,1]]).T
-        # return curr_rollout_disc_return
+        # return reward
+        return curr_rollout_disc_return
 
     def get_actions(self):
         self.actions.pop()
@@ -499,16 +466,7 @@ class Policy(object):
         self.actions[:]      = []
         self.NN_output[:]    = []
 
-    def reset_batch(self,fisher,advant,baseline):
-
-        self.store_fisher_matrix(fisher)
-        self.store_advantages(advant)
-        self.store_baseline(baseline)
-        self.store_weights()
-
-        self.eval_episode = True
-
-        self.all_unnormalized_returns[:] = []
+    def reset_batch(self):
         self.all_returns[:]      = []
         self.all_disc_returns[:] = []
         self.all_disc_returns1[:] = []
@@ -526,7 +484,7 @@ class Policy(object):
     def calculate_Fisher_Matrix(self, input_data, output, loglik):
         with self.g.as_default():
             var_list = tf.trainable_variables()
-            pg = tf.gradients(tf.log(self.ff_NN_train),var_list)
+            pg = tf.gradients(self.ff_NN_train,var_list)
             pg = np.asarray(self.sess.run(pg, feed_dict={self.task_error_placeholder:input_data, self.task_dyn_placeholder : output}))
             fisher = []
             eps = 1e-8
@@ -545,21 +503,16 @@ class Policy(object):
     def calculate_learning_rate(self, fisher, pg):
         flatten_fisher = self.flattenVectors(fisher)
         flatten_pg = self.flattenVectors(pg)
-        flatten_pg = flatten_pg.reshape(flatten_pg.shape[0],1)
+        flatten_pg = np.square(flatten_pg).reshape(flatten_pg.shape[0],1)
         flatten_fisher = flatten_fisher.reshape(flatten_fisher.shape[0],1)
         eps = 1e-8
-        kl = 0.01
+        kl = 1000.0
         numerator = eps+np.square(flatten_pg).T.dot(flatten_fisher)
-
+        # print "Numerator "
+        # print numerator
         step_size = np.sqrt(kl/numerator)
-
-        temp = flatten_fisher*flatten_pg
-        numerator2 = eps+temp.T.dot(flatten_fisher).dot(temp)
-        temp_step_size = np.sqrt(2*kl/numerator2)
         print "STEPSIZE"
         print step_size.flatten()[0]
-        print "STEPSIZE2"
-        print temp_step_size.flatten()[0]
         return step_size.flatten()[0]
 
     def policy_search(self, req):
@@ -569,16 +522,14 @@ class Policy(object):
             #Do an evaluation episode (episode with no noise) every self.eval_episode
             if self.eval_episode:
                 self.num_eval_episode += 1
-                print "Evaluation episode number "+str(self.num_eval_episode)+" finished!"
+                print "Evaluation episode number "+str(self.num_eval_episode)+" finished!" 
                 self.sigma = self.get_NN_output_mean()
-                # self.sigma[self.sigma>5] = 5
-                self.sigma[self.sigma<0.3] = 0.3
+                self.sigma[self.sigma>5] = 5
+                self.sigma[self.sigma<0.2] = 0.2
 
-                # Bootstrap the variance to avoid too large expolration
                 # if self.sigma>3:
                 #     self.sigma = 3
-
-                if self.num_eval_episode == 1:
+                if self.eval_episode == 1:
                     self.VN.construct_ValueNet(self.get_task_errors(), self.get_rewards())
                 else:
                     self.VN.train(self.get_task_errors(), self.get_rewards())
@@ -619,20 +570,20 @@ class Policy(object):
                 # advantage = np.transpose(advantage)
                 # rewards = np.asarray([np.concatenate(self.all_disc_returns1), np.concatenate(self.all_disc_returns2)]).T
 
-                advantage, baseline = self.calculate_advantages_with_VN(rewards, task_errors)
+                advantage = self.calculate_advantages_with_VN(rewards, task_errors)
 
-                curr_batch_mean_return = np.mean([self.all_unnormalized_returns[i].sum() for i in xrange(len(self.all_unnormalized_returns))])
-                print "Averaged return of the batch is "+ str(curr_batch_mean_return)
+                curr_batch_mean_return = np.mean([self.all_returns[i].sum() for i in xrange(len(self.all_returns))])
+                print "mean of batch rewards is "+ str(curr_batch_mean_return)
 
-                if curr_batch_mean_return<=6500:
+                if curr_batch_mean_return<=5000:
                     if curr_batch_mean_return>=self.prev_batch_mean_return:
                         print "Policy improving"
                         print "Reducing learning rate"
-                        # self.learning_rate /= 2.0#1.0/abs(curr_batch_mean_return)
+                        self.learning_rate /= 2.0#1.0/abs(curr_batch_mean_return)
                     else:
                         print "Policy not improving"
                         print "Increasing learning rate"
-                        # self.learning_rate = 1 # 0.1
+                        self.learning_rate = 1 # 0.1
                 else:
                     print "Policy converged in " +str(self.num_train_episode+self.num_eval_episode)+" episodes!"
                     self.train = False
@@ -646,35 +597,40 @@ class Policy(object):
                     # loglik = (tf.constant(1.0/pow(self.sigma,2))*(self.task_dyn_placeholder - self.ff_NN_train))
 
                     # loss = -tf.reduce_mean(loglik) 
-                    loss = -tf.reduce_mean(loglik*self.advant) 
+                    loss = -tf.reduce_mean(tf.constant(1.0/self.batch_size)*loglik*self.advant) 
 
                     fisher, pg = self.calculate_Fisher_Matrix(task_errors, actions, loglik)
-                    learning_rate = float(self.calculate_learning_rate(fisher, pg))
+                    aaa = float(self.calculate_learning_rate(fisher, pg))
 
                     temp = set(tf.global_variables())
                     
-                    optimizer = tf.train.AdamOptimizer(learning_rate)#/self.batch_size
+                    optimizer = tf.train.AdamOptimizer(aaa)
 
                     loss_grads = optimizer.compute_gradients(loss, var_list)
-
                     masked_grad_and_vars = []
                     i = 0
                     for g,v in loss_grads:
                         masked_grad_and_vars.append((tf.multiply(tf.constant(fisher[i]), g), v))
                         i+=1
 
-                    train_op = optimizer.apply_gradients(masked_grad_and_vars)
+                    train_op = optimizer.apply_gradients(loss_grads)
 
                     self.sess.run(tf.variables_initializer(set(tf.global_variables()) - temp))
 
-                    for i in range(2000):
+                    for i in range(1):
 
-                        _, advant, ll, loss_ = self.sess.run([train_op, self.advant, loglik, loss],
+                        _, advant = self.sess.run([train_op, self.advant],
                                     feed_dict={self.task_error_placeholder : task_errors,
                                                self.task_dyn_placeholder   : actions,
                                                self.advant                 : advantage})
-                    self.VN.train(task_errors, rewards, self.batch_size)
-                    self.reset_batch(fisher,advant,baseline)
+
+                    self.store_fisher_matrix(fisher)
+                    # self.store_log_likelihood(ll)
+                    # self.store_loss_function(error)
+                    # self.store_baseline_and_advantages(baseline, advant)
+                    self.store_weights()
+                    self.reset_batch()
+                    self.eval_episode = True
                     self.prev_batch_mean_return = curr_batch_mean_return
 
             self.reset_episode()
@@ -691,9 +647,7 @@ class Policy(object):
             # print("--- %s seconds ---" % (time.time() - start_time))
             if self.train and not self.eval_episode:
                 task_dynamics = np.random.normal(mean_values, self.sigma).tolist()
-                # Low-pass filter the task dynamics to also depend on the previous action such that realizable expolration on
-                # the physical system is achieved.  
-                task_dynamics = np.multiply(0.4,self.prev_action)+np.multiply(0.6,task_dynamics[0])
+                task_dynamics = np.multiply(0.5,self.prev_action)+np.multiply(0.5,task_dynamics[0])
                 self.prev_action = task_dynamics
             else:
                 task_dynamics = mean_values.tolist()

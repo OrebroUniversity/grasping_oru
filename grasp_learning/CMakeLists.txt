@@ -74,6 +74,9 @@ add_executable(run_demo_node
   src/run_demo_node.cpp
 )
 
+add_executable(teleop_remapper_node
+ src/teleop_remapper.cpp
+)
 
 
 ## Specify libraries to link a library or executable target against
@@ -84,3 +87,5 @@ target_link_libraries(grasp_recorder_node ${catkin_LIBRARIES})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(run_demo_node ${catkin_LIBRARIES})
+
+target_link_libraries(teleop_remapper_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})

@@ -1,8 +1,11 @@
 <launch>
 
 	<node name="policy_search" pkg="grasp_learning" type="policy_search.py" output="screen">
- 		<param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_random_episode_1.txt" />
+ 		<param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode_1.txt	" />
+ 		<!-- <param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/task_dynamics_random_episode_1.txt"/> -->
   		<param name="num_inputs" value="2" />
 		<param name="num_outputs" value="2" />
+		<param name="num_rewards" value="2" />
+
  	</node>
 </launch>

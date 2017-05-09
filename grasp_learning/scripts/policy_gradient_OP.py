@@ -36,7 +36,7 @@ class Policy(object):
         self.num_train_episode = 0
         self.num_eval_episode = 0
         self.num_outputs = 1
-        self.gamma = 0.95
+        self.gamma = 0.99
         self.batch_size = 6
         self.g = tf.Graph()
         self.train = True
@@ -45,6 +45,8 @@ class Policy(object):
         self.all_returns = []
         self.all_disc_returns = []
 
+
+        self.prev_action = 0
         self.all_actions = []
         self.actions = []
         
@@ -70,17 +72,17 @@ class Policy(object):
 
         input_data, output_data = self.parse_input_output_data(input_output_data_file)
 
-        self.reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/rewards.txt'
-        self.disc_reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/discounted_rewards.txt'
-        self.weights_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights/weights.txt'
-        self.actions_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions/actions.txt'
-        self.task_errors_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_errors/task_errors.txt'
-        self.baseline_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/baseline.txt'
-        self.advantages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/advantages.txt'
-        self.loss_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/losses.txt'
-        self.log_likelihood_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/log_likelihood.txt'
-        self.NN_output_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions/action_dist_mean.txt'
-        self.task_measure_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/reward/task_measure.txt'
+        self.reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/rewards.txt'
+        self.disc_reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/discounted_rewards.txt'
+        self.weights_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights.txt'
+        self.actions_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions.txt'
+        self.task_errors_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_errors.txt'
+        self.baseline_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/baseline.txt'
+        self.advantages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/advantages.txt'
+        self.loss_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/losses.txt'
+        self.log_likelihood_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/log_likelihood.txt'
+        self.NN_output_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/action_dist_mean.txt'
+        self.task_measure_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_measure.txt'
 
         self.reset_files([self.weights_file_name, self.log_likelihood_file_name, self.advantages_file_name, self.loss_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.task_errors_file_name, self.disc_reward_file_name, self.NN_output_file_name,
@@ -115,7 +117,7 @@ class Policy(object):
         return np.asarray(input_data), np.asarray(output_data)
 
 
-    def construct_ff_NN(self, task_error_placeholder, task_dyn_placeholder, task_errors, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 20, HIDDEN_UNITS_L2 = 1):
+    def construct_ff_NN(self, task_error_placeholder, task_dyn_placeholder, task_errors, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 1):
         with self.g.as_default():
 
             weights_1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]))
@@ -138,7 +140,7 @@ class Policy(object):
 
             task_dyn= task_dyn.reshape(task_dyn.shape[0],1)
             task_errors= task_errors.reshape(task_errors.shape[0],1)
-            for i in range(1500):
+            for i in range(2500):
                 _, loss = self.sess.run([train_step, error_function],
                            feed_dict={task_error_placeholder: task_errors,
                                       task_dyn_placeholder: task_dyn})
@@ -310,12 +312,13 @@ class Policy(object):
         with self.g.as_default():
             var_list = tf.trainable_variables()
             pg = tf.gradients(loglik,var_list)
+            # pg = tf.gradients(tf.log(self.ff_NN_train),var_list)
 
             pg = np.asarray(self.sess.run(pg, feed_dict={self.task_error_placeholder:input_data, self.task_dyn_placeholder : output}))
             fisher = []
             eps = 1e-8
             for g in pg:
-                fisher.append(np.asarray(1/np.square(g.flatten())+eps).reshape(g.shape))
+                fisher.append((np.asarray(1/np.square(g.flatten())+eps).reshape(g.shape))/self.batch_size)
 
             return fisher, pg
 
@@ -347,8 +350,8 @@ class Policy(object):
                 self.num_eval_episode += 1
                 print "Evaluation episode number "+str(self.num_eval_episode)+" finished!" 
                 self.sigma = self.get_NN_output_mean()
-                if self.sigma>10:
-                    self.sigma=10
+                if self.sigma>3:
+                    self.sigma=3
                 self.eval_episode = False
                 self.store_NN_output()
                 self.reset_episode()
@@ -387,7 +390,7 @@ class Policy(object):
 
                 print "mean of batch rewards is "+ str(curr_batch_mean_return)
 
-                if curr_batch_mean_return<=2700:
+                if curr_batch_mean_return<=2900:
                     if curr_batch_mean_return>=self.prev_batch_mean_return:
                         print "Policy improving"
                         print "Reducing learning rate"
@@ -427,7 +430,6 @@ class Policy(object):
 
                     self.sess.run(tf.variables_initializer(set(tf.global_variables()) - temp))
 
-                    # train_step = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
 
 
                     for i in range(30):#30
@@ -454,7 +456,10 @@ class Policy(object):
             self.task_errors.append(req.task_measures[0])
             mean = self.sess.run(self.ff_NN_train, feed_dict={self.task_error_placeholder: np.array([req.task_measures[0]]).reshape((1,1))})
             if self.train and not self.eval_episode:
-                task_dynamics = [[np.random.normal(mean, self.sigma)]]
+                task_dynamics = np.random.normal(mean, self.sigma)
+                task_dynamics = [[0.7*self.prev_action+0.3*task_dynamics]]
+                self.prev_action = task_dynamics[0][0]
+
             else:
                 task_dynamics = mean
             self.NN_output.append(mean)

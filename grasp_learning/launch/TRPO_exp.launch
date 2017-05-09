@@ -1,0 +1,11 @@
+<launch>
+
+	<node name="TRPO_exp" pkg="grasp_learning" type="TRPO_exp.py" output="screen">
+ 		<!-- <param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode_1.txt	" /> -->
+ 		<param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/single_task_dynamics_linear_episode_1.txt"/>
+  		<param name="num_inputs" value="1" />
+		<param name="num_outputs" value="1" />
+		<param name="num_rewards" value="1" />
+
+ 	</node>
+</launch>

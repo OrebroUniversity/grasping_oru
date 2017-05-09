@@ -92,6 +92,8 @@ private:
   std::string input_data_file_;
   std::string output_data_file_;
 
+  std::string task_name_;
+
   double reward_treshold_ = 8;
   std::vector<double> reward_vec_;
   unsigned int num_record_=0;
