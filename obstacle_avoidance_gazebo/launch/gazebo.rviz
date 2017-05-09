@@ -11,6 +11,7 @@ Panels:
         - /MarkerArray1
         - /MarkerArray2/Namespaces1
         - /MarkerArray3
+        - /PointCloud24
       Splitter Ratio: 0.664206982
     Tree Height: 686
   - Class: rviz/Selection
@@ -219,6 +220,8 @@ Visualization Manager:
           Value: false
         gripper_r_finger_r:
           Value: false
+        planned_grasp:
+          Value: true
         sdf_map_frame:
           Value: true
         world:
@@ -271,7 +274,8 @@ Visualization Manager:
             camera2_link:
               {}
           sdf_map_frame:
-            {}
+            planned_grasp:
+              {}
           yumi_body:
             yumi_link_1_l:
               yumi_link_2_l:
@@ -414,8 +418,38 @@ Visualization Manager:
       Marker Topic: /gradient_marker
       Name: MarkerArray
       Namespaces:
-        {}
+        gradients: true
       Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00249999994
+      Style: Flat Squares
+      Topic: /gplanner/fused_pc
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
@@ -441,7 +475,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.14075089
+      Distance: 0.874872684
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -455,10 +489,10 @@ Visualization Manager:
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.274799079
+      Pitch: 0.724798858
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.422171712
+      Yaw: 6.23535347
     Saved: ~
 Window Geometry:
   Displays:

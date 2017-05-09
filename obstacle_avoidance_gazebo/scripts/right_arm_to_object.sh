@@ -13,7 +13,7 @@ rosservice call /yumi/hiqp_joint_velocity_controller/set_primitives "primitives:
     frame_id: 'world'
     visible: true
     color: [0.0, 0.0, 1.0, 1.0]   
-    parameters: [0.47, 0.0, 0.180, 0.0, 0.0, 0.0]" 
+    parameters: [0.47, -0.15, 0.20, 0.0, 0.0, 0.0]" 
 
 #The alignment task will orient the frames in the same way
 #The projection task will co-locate the frame origins
@@ -26,7 +26,7 @@ rosservice call /yumi/hiqp_joint_velocity_controller/set_tasks "tasks:
     active: 1
     monitored: 1
     def_params: ['TDefGeomAlign', 'frame', 'frame', 'gripper_r_frame = target_frame', '0']
-    dyn_params: ['TDynLinear', '0.7']
+    dyn_params: ['TDynLinear', '0.1']
   -    
     name: 'frame_frame_projection'
     priority: 2
@@ -34,5 +34,5 @@ rosservice call /yumi/hiqp_joint_velocity_controller/set_tasks "tasks:
     active: 1
     monitored: 1
     def_params: ['TDefGeomProj', 'frame', 'frame', 'gripper_r_frame = target_frame']
-    dyn_params: ['TDynLinear', '0.7']"
+    dyn_params: ['TDynLinear', '0.1']"
 
