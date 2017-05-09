@@ -48,7 +48,7 @@ namespace tasks
       return -1;
     }
 
-      client_NN_ = nh_.serviceClient<grasp_learning::QueryNN>("query_NN");
+      client_NN_ = nh_.serviceClient<grasp_learning::QueryNN>("query_NN",true);
       joint_effort_pub_ = nh_.advertise<std_msgs::Float64MultiArray>("joint_effort", 1000);
 
 
@@ -67,41 +67,34 @@ namespace tasks
                                  const Eigen::MatrixXd& J) {
     e_dot_star_.resize(e.size());
 
-    const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
+    // const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
 
 
     grasp_learning::QueryNN srv_;
 
-    std::vector<double> vec(e.data(), e.data() + e.rows() * e.cols());
-    srv_.request.task_measures.push_back(*vec.data());
+    std::vector<double> vec(e.data(), e.data() + e.size());
+    srv_.request.task_measures = vec;
 
-    srv_.request.joint_angles.push_back(jointpositions(9));  //yumi_joint_1_r
-    srv_.request.joint_angles.push_back(jointpositions(10)); //yumi_joint_2_r
-    srv_.request.joint_angles.push_back(jointpositions(12)); //yumi_joint_3_r
-    srv_.request.joint_angles.push_back(jointpositions(13)); //yumi_joint_4_r
-    srv_.request.joint_angles.push_back(jointpositions(14)); //yumi_joint_5_r
-    srv_.request.joint_angles.push_back(jointpositions(15)); //yumi_joint_6_r
-    srv_.request.joint_angles.push_back(jointpositions(11)); //yumi_joint_7_r
+    srv_.request.joint_angles.push_back(0);  //yumi_joint_1_r
+
+    // srv_.request.joint_angles.push_back(jointpositions(9));  //yumi_joint_1_r
+    // srv_.request.joint_angles.push_back(jointpositions(10)); //yumi_joint_2_r
+    // srv_.request.joint_angles.push_back(jointpositions(12)); //yumi_joint_3_r
+    // srv_.request.joint_angles.push_back(jointpositions(13)); //yumi_joint_4_r
+    // srv_.request.joint_angles.push_back(jointpositions(14)); //yumi_joint_5_r
+    // srv_.request.joint_angles.push_back(jointpositions(15)); //yumi_joint_6_r
+    // srv_.request.joint_angles.push_back(jointpositions(11)); //yumi_joint_7_r
 
     std::vector<double> sample;
     if (client_NN_.call(srv_)){
-      // std::cout<<"Response from neural network: "<<srv_.response.task_dynamics<<std::endl;
-      // double t = ros::time::now();
       sample = srv_.response.task_dynamics;
-      // std::cout<<"Duration of service call: "<<t-ros::time::now()<<std::endl;
     }
     else{
       std::cout<<"Calling NN server failed"<<std::endl;
       sample.push_back(this->dist(this->generator));
     }
-    Eigen::VectorXd random_e_;
-    random_e_.resize(e.size());
-      // starting_pub_.publish(msg_);
-
-    for(unsigned int i=0;i<random_e_.size();i++){
-      random_e_[i] = sample[i];
-    }
-    e_dot_star_ = random_e_;
+    e_dot_star_ = Eigen::VectorXd::Map(sample.data(), sample.size());
+    // e_dot_star_ << sample[0], sample[0];
 
     return 0;
   }
