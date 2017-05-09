@@ -1,3 +1,4 @@
 grasp_planner/cfg/*
-grasp_learning/stored_data/tested_data/*
-grasp_learning/tested_data/
+*.pyc
+grasp_learning/stored_data/tested_data/*.txt
+grasp_learning/stored_data/tested_data/model*
