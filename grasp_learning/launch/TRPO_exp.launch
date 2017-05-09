@@ -1,11 +1,15 @@
+<?xml version="1.0"?>
 <launch>
 
 	<node name="TRPO_exp" pkg="grasp_learning" type="TRPO_exp.py" output="screen">
  		<!-- <param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode_1.txt	" /> -->
- 		<param name="input_output_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/single_task_dynamics_linear_episode_1.txt"/>
-  		<param name="num_inputs" value="1" />
-		<param name="num_outputs" value="1" />
+ 		<param name="num_inputs" value="2" />
+		<param name="num_outputs" value="2" />
 		<param name="num_rewards" value="1" />
+		<param name="hidden_layer_size" value="10" />
+		<param name="relative_path" value="$(find grasp_learning)/stored_data/tested_data/" />
+		<param name="load_model" value="0" />
+		<param name="model_name" value="$model.ckpt" />
 
  	</node>
 </launch>

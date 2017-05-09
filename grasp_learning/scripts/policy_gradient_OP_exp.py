@@ -14,7 +14,7 @@ from math import sqrt
 from math import pow
 import tensorflow as tf
 import numpy as np
-
+import os
 
 
 class ValueNet(object):
@@ -80,8 +80,9 @@ class Policy(object):
         num_outputs = rospy.get_param('~num_outputs', ' ')
         num_rewards = rospy.get_param('~num_rewards', ' ')
         load_example_model = rospy.get_param('~load_model', ' ')
-        example_model_name = rospy.get_param('~model_name', ' ')
-        hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ')         
+        model_name = rospy.get_param('~model_name', ' ')
+        hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ') 
+        relative_path =        rospy.get_param('~relative_path', ' ') 
         self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
         
         self.policy_search_ = rospy.Service('policy_Search', PolicySearch, self.policy_search)
@@ -131,7 +132,7 @@ class Policy(object):
 
         input_data, output_data = self.parse_input_output_data(input_output_data_file)
 
-        self.set_bookkeeping_files()
+        self.set_bookkeeping_files(relative_path)
 
         self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
                     
@@ -145,7 +146,7 @@ class Policy(object):
         if load_example_model:
            saver.restore(self.sess, example_model_name)
         else:
-             save_path = saver.save(self.sess, "/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt")
+             save_path = saver.save(self.sess, relative_path+model_name)
 
         self.store_weights()
 
@@ -217,28 +218,28 @@ class Policy(object):
 
             print "Network trained"
 
-    def set_bookkeeping_files(self):
+    def set_bookkeeping_files(self, relative_path):
 
-        self.reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/rewards.txt'
-        self.disc_reward_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/discounted_rewards.txt'
+        self.reward_file_name = relative_path+'rewards.txt'
+        self.disc_reward_file_name = relative_path+'discounted_rewards.txt'
 
-        self.actions_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions.txt'
-        self.action_dist_mean_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/action_dist_mean.txt'
-        self.exploration_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/exploration.txt'
+        self.actions_file_name = relative_path+'actions.txt'
+        self.action_dist_mean_file_name = relative_path+'action_dist_mean.txt'
+        self.exploration_file_name = relative_path+'exploration.txt'
 
-        self.states_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_errors.txt'
-        self.task_measure_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_measure.txt'
+        self.states_file_name = relative_path+'task_errors.txt'
+        self.task_measure_file_name = relative_path+'task_measure.txt'
 
-        self.neural_network_param_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights.txt'
+        self.neural_network_param_file_name = relative_path+'weights.txt'
 
-        self.baseline_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/baseline.txt'
-        self.advantageageages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/advantages.txt'
-        self.unnorm_advantageages_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/unnorm_advantages.txt'
+        self.baseline_file_name = relative_path+'baseline.txt'
+        self.advantageageages_file_name = relative_path+'advantages.txt'
+        self.unnorm_advantageages_file_name = relative_path+'unnorm_advantages.txt'
 
-        self.loss_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/losses.txt'
-        self.log_likelihood_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/log_likelihood.txt'
+        self.loss_file_name = relative_path+'losses.txt'
+        self.log_likelihood_file_name = relative_path+'log_likelihood.txt'
 
-        self.gradients_file_name = '/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/gradients.txt'
+        self.gradients_file_name = relative_path+'gradients.txt'
 
         self.reset_files([self.neural_network_param_file_name, self.advantageageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
