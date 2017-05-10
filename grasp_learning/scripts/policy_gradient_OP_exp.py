@@ -91,7 +91,7 @@ class Policy(object):
         self.num_train_episode = 0
         self.num_eval_episode = 0
         self.gamma = 0.99
-        self.batch_size = 10
+        self.batch_size = 5
         self.kl = 0.01
 
         self.g = tf.Graph()

@@ -75,7 +75,7 @@ namespace tasks
     std::vector<double> vec(e.data(), e.data() + e.size());
     srv_.request.task_measures = vec;
 
-    srv_.request.joint_angles.push_back(0);  //yumi_joint_1_r
+//    srv_.request.joint_angles.push_back(0);  //yumi_joint_1_r
 
     // srv_.request.joint_angles.push_back(jointpositions(9));  //yumi_joint_1_r
     // srv_.request.joint_angles.push_back(jointpositions(10)); //yumi_joint_2_r
