@@ -97,7 +97,7 @@ class Policy(object):
         self.g = tf.Graph()
         self.train = True
         self.eval_episode = True
-        self.max_rew_before_convergence = 1500
+        self.max_rew_before_convergence = 15000
         self.mean = np.zeros(num_outputs)
         self.prev_action = np.zeros(num_outputs)
         self.all_returns = []
@@ -515,6 +515,7 @@ class Policy(object):
                 print "mean of batch rewards is "+ str(curr_batch_mean_return)
 
                 if self.train:
+
                     var_list = tf.trainable_variables()
 
                     fisher, pg = self.calculate_Fisher_Matrix(task_errors, actions)
@@ -545,6 +546,7 @@ class Policy(object):
                                self.advantage          : advantage,
                                self.var                : np.power(self.sigma,2)}
 
+		    writer = tf.summary.FileWriter(relative_path+'/train', self.sess.graph)
 		    print "Running session"
 		    gradients = self.flattenVectors(self.sess.run(grad_temp,feed_dict))
 

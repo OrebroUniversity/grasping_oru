@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
+	<param name="use_sim_time" value="false"/>
 	<node name="policy_gradient_OP_exp" pkg="grasp_learning" type="policy_gradient_OP_exp.py" output="screen">
 	 	<param name="input_output_data" value="$(find grasp_learning)/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode__1.txt	" />
 
