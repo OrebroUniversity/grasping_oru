@@ -1,2 +1,2 @@
-model_checkpoint_path: "/home/tsv/code/workspace-jens/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt"
-all_model_checkpoint_paths: "/home/tsv/code/workspace-jens/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt"
+model_checkpoint_path: "/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt"
+all_model_checkpoint_paths: "/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt"
