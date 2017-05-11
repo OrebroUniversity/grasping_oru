@@ -83,8 +83,6 @@ class Policy(object):
         model_name = rospy.get_param('~model_name', ' ')
         hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ') 
         relative_path =        rospy.get_param('~relative_path', ' ')
-
-#with tf.device('/cpu:0'):	
 	self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
         
         self.policy_search_ = rospy.Service('policy_Search', PolicySearch, self.policy_search)
@@ -548,7 +546,6 @@ class Policy(object):
                                self.var                : np.power(self.sigma,2)}
 
 		    print "Running session"
-		    #with tf.device('/cpu:0'):
 		    gradients = self.flattenVectors(self.sess.run(grad_temp,feed_dict))
 
 		    print "Something else happening"
