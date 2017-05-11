@@ -560,7 +560,7 @@ class Policy(object):
 
                     train_op = optimizer.apply_gradients(masked_grad_and_vars)
                     self.sess.run(tf.variables_initializer(set(tf.global_variables()) - temp))
-                    # Load all data batch data into a directory
+                    # Load all batch data into a dictionary
                     feed_dict={self.state_placeholder  : task_errors,
                                self.action_placeholder : actions,
                                self.advantage          : advantage,
