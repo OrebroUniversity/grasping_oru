@@ -31,7 +31,7 @@ namespace demo_learning {
     nh_.advertiseService("start_demo", &DemoLearning::startDemo, this);
 
     set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
-      "set_physics_properties");
+      "/gazebo/set_physics_properties");
 
     client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
 
@@ -43,13 +43,6 @@ namespace demo_learning {
 
     sample_And_Reweight_ = n_.advertise<std_msgs::Empty>("/sample_and_rewight",1);
 
-    if (!with_gazebo_) {
-    // close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
-    // open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
-
-    // close_gripper_clt_.waitForExistence();
-    // open_gripper_clt_.waitForExistence();
-    } else {
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
       set_gazebo_physics_clt_.waitForExistence();
@@ -77,8 +70,7 @@ namespace demo_learning {
         ros::shutdown();
       } else
       ROS_INFO("Disabled gravity in Gazebo.");
-    }
-
+  
   // PRE-DEFINED JOINT CONFIGURATIONS
   // configs have to be within the safety margins of the joint limits
 
@@ -101,6 +93,7 @@ namespace demo_learning {
   std::normal_distribution<double> d2(0,0.1);
   dist.param(d2.param());
 
+      ROS_INFO("DEMO LEARNING READY.");
 
 }
 
@@ -154,14 +147,6 @@ std::vector<double> DemoLearning::generateStartPosition(std::vector<double> curr
 
 
 bool DemoLearning::doGraspAndLift() {
-  if (!with_gazebo_) {
-    // if (grasp_.isDefaultGrasp) {
-    //   ROS_WARN("Grasp is default grasp!");
-    //   return false;
-    // }
-  }
-
-
 
   hiqp_msgs::Task gripperToHorizontalPlane;
   hiqp_msgs::Task gripperToPlane;
@@ -207,12 +192,13 @@ bool DemoLearning::doGraspAndLift() {
   // Define tasks
 
  gripperToHorizontalAndVerticalPlane = hiqp_ros::createTaskMsg(
-  "point_to_horizontal_plane", 1, true, true, true,
+  "point_to_2_planes", 1, true, true, true,
   {"TDefMetaTask", "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_horizontal_.plane.name,
   "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_vertical_.plane.name},
   {"TDynPolicy", std::to_string(1.0),std::to_string(0.2 * DYNAMICS_GAIN)});
+  //{"TDynLinear", std::to_string(0.2 * DYNAMICS_GAIN)});
 
  // gripperToVerticalPlane = hiqp_ros::createTaskMsg(
  //  "point_to_horizontal_plane", 1, true, true, true,
@@ -299,6 +285,7 @@ bool DemoLearning::doGraspAndLift() {
     {gripperToHorizontalPlane.name},
     {TaskDoneReaction::REMOVE},
     {1e-10}, 1.2);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name});
  }
  else if(task_name_.compare("gripperToVerticalPlane")==0){
    hiqp_client_.setPrimitives({eef_point, grasp_vertical_.plane});
@@ -307,6 +294,7 @@ bool DemoLearning::doGraspAndLift() {
     {gripperToVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
     {1e-10}, 1.2);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_vertical_.plane.name});
  }
  else if(task_name_.compare("gripperToHorizontalAndVerticalPlane")==0){
    hiqp_client_.setPrimitives({eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
@@ -314,7 +302,8 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalAndVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-10}, 1.2);
+    {1e-6}, 10);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name, grasp_vertical_.plane.name});
  }
 
  finish_recording_.publish(finish_msg_);
@@ -334,23 +323,15 @@ bool DemoLearning::startDemo(std_srvs::Empty::Request& req,
   ROS_INFO("Starting demo");
   hiqp_client_.resetHiQPController();
 
-  if (!with_gazebo_) {
-    std_srvs::Empty empty;
-
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = 1;
-
-  }
   // MANIPULATOR SENSING CONFIGURATION
-
   hiqp_client_.setJointAngles(sensing_config_);
 
   // TODO: Detect Stagnation.
-    // double accumulated_recent_rewards = prevRewards(reward_vec_,10);
+  // double accumulated_recent_rewards = prevRewards(reward_vec_,10);
 
-    // if (accumulated_recent_rewards < reward_treshold_){
+  // if (accumulated_recent_rewards < reward_treshold_){
   sample_And_Reweight_.publish(empty_msg_);
-    // }
+  // }
 
 
   // GRASP APPROACH
@@ -362,32 +343,15 @@ bool DemoLearning::startDemo(std_srvs::Empty::Request& req,
     return false;
   }
 
-  ROS_INFO("Grasp approach tasks executed successfully.");
-
-  if (!with_gazebo_) {
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = (grasp_horizontal_.e_frame_ == "gripper_l_base") ? 1 : 2;
-
-  }
-
-  if (!with_gazebo_) {
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = 1;
-
-  }
 
   ROS_INFO("Updating policy");
   updatePolicy();
 
 
   ROS_INFO("Trying to put the manipulator in transfer configuration.");
-
-
   hiqp_client_.setJointAngles(sensing_config_);
 
   ROS_INFO("DEMO FINISHED.");
-
-
 
   run_new_episode_.publish(empty_msg_);
 
