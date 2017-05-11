@@ -82,17 +82,19 @@ class Policy(object):
         load_example_model = rospy.get_param('~load_model', ' ')
         model_name = rospy.get_param('~model_name', ' ')
         hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ') 
-        relative_path =        rospy.get_param('~relative_path', ' ') 
-        self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
+        relative_path =        rospy.get_param('~relative_path', ' ')
+
+#with tf.device('/cpu:0'):	
+	self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
         
         self.policy_search_ = rospy.Service('policy_Search', PolicySearch, self.policy_search)
 
         self.sigma = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
-        self.gamma = 0.99
-        self.batch_size = 5
-        self.kl = 0.01
+	self.gamma = 0.99
+	self.batch_size = 5
+	self.kl = 0.01
 
         self.g = tf.Graph()
         self.train = True
@@ -121,7 +123,7 @@ class Policy(object):
 
         self.VN = ValueNet(num_inputs, num_outputs)
 
-        self.sess = tf.InteractiveSession(graph=self.g)
+        self.sess = tf.InteractiveSession(graph=self.g) #,config=tf.ConfigProto(log_device_placement=True))
 
         self.state_placeholder = tf.placeholder(tf.float32, [None, num_inputs])
         self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs])
@@ -135,7 +137,7 @@ class Policy(object):
         self.set_bookkeeping_files(relative_path)
 
         self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
-                    
+                
         # self.loglik = (1.0/self.var)*(self.action_placeholder - self.ff_NN_train)
         self.loglik = gauss_log_prob(self.ff_NN_train, self.var, self.state_placeholder)
 
@@ -520,9 +522,11 @@ class Policy(object):
                     fisher, pg = self.calculate_Fisher_Matrix(task_errors, actions)
                     learning_rate = float(self.calculate_learning_rate(fisher, pg))
                     temp = set(tf.global_variables())
-                    
+                   
+		    print "Training optimizer" 
                     optimizer = tf.train.AdamOptimizer(learning_rate)#.minimize(self.loss)
 
+		    print "Computing loss gradients" 
                     loss_grads = optimizer.compute_gradients(self.loss, var_list)
                     masked_grad_and_vars = []
                     grad_temp = []
@@ -533,19 +537,26 @@ class Policy(object):
                         grad_temp.append(grad)
                         i+=1
                     # print tf.concat([tf.reshape(grad, [numel(v)]) for (v, grad) in zip(var_list, masked_grad_and_vars)],0)
+		    print "Applying gradients"
                     train_op = optimizer.apply_gradients(masked_grad_and_vars)
+		    
+		    print "Initializing session variables" 
                     self.sess.run(tf.variables_initializer(set(tf.global_variables()) - temp))
                     feed_dict={self.state_placeholder  : task_errors,
                                self.action_placeholder : actions,
                                self.advantage          : advantage,
                                self.var                : np.power(self.sigma,2)}
 
-                    gradients = self.flattenVectors(self.sess.run(grad_temp,feed_dict))
+		    print "Running session"
+		    #with tf.device('/cpu:0'):
+		    gradients = self.flattenVectors(self.sess.run(grad_temp,feed_dict))
 
+		    print "Something else happening"
                     for i in range(1):
 
                         _, error, ll= self.sess.run([train_op, self.loss, self.loglik], feed_dict)
 
+		    print "Data copying"
                     batch_dic = {}
 
                     batch_dic[self.baseline_file_name] = baseline
@@ -556,6 +567,7 @@ class Policy(object):
                     batch_dic[self.gradients_file_name] = gradients
 
                     self.store_batch_data_to_file(batch_dic)
+		    print "Training Value Network"
                     self.VN.train(task_errors, rewards, self.batch_size)
                     self.reset_batch() 
 
