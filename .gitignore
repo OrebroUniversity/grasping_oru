@@ -2,3 +2,4 @@ grasp_planner/cfg/*
 *.pyc
 grasp_learning/stored_data/tested_data/*.txt
 grasp_learning/stored_data/tested_data/model*
+grasp_learning/stored_data/tested_data/events*
