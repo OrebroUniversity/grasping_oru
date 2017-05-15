@@ -13,7 +13,7 @@ def gauss_selfKL_firstfixed(mu, logstd):
 def gauss_log_prob(mu, logstd, x):
     var = tf.exp(2*logstd)
     gp = -tf.square(x - mu)/(2*var) - .5*tf.log(tf.constant(2*np.pi)) - .5*logstd
-    return  tf.reduce_sum(gp, [1])
+    return gp# tf.reduce_sum(gp, [1])
 
 # KL divergence between two paramaterized guassian distributions
 def gauss_KL(mu1, logstd1, mu2, logstd2):

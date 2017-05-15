@@ -19,7 +19,7 @@ import os
 
 class ValueNet(object):
 
-    def __init__(self, num_inputs , num_outputs):
+    def __init__(self, num_inputs , num_outputs, path):
 
         self.vg = tf.Graph()
         self.session = tf.InteractiveSession(graph=self.vg)
@@ -31,6 +31,7 @@ class ValueNet(object):
         self.y = tf.placeholder(tf.float32, shape=[None], name="y")
         self.batch_size = tf.placeholder(tf.float32, name="batch_size")
         self.construct_ValueNet()
+	self.vg_writer = tf.summary.FileWriter(path+'vgraphs',self.vg)
         self.initialize = True
 
     def construct_ValueNet(self):
@@ -47,7 +48,9 @@ class ValueNet(object):
             self.net = tf.reshape(h3, (-1,))
             self.l2 = tf.nn.l2_loss(self.net - self.y)/self.batch_size
             self.optimizer = tf.train.AdamOptimizer().minimize(self.l2)
+	    #freezing the value graph
             self.session.run(tf.global_variables_initializer())
+	    self.vg.finalize()
 
     def reshape_input(self, input_):
         return input_.reshape(1,self.num_inputs)
@@ -122,7 +125,7 @@ class Policy(object):
 
         self.prev_eval_mean_return = 0
 
-        self.VN = ValueNet(num_inputs, num_outputs)
+        self.VN = ValueNet(num_inputs, num_outputs, self.relative_path)
 
         self.sess = tf.InteractiveSession(graph=self.g) #,config=tf.ConfigProto(log_device_placement=True))
 
@@ -151,23 +154,34 @@ class Policy(object):
 
         self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
                 
-        # self.loglik = (1.0/self.var)*(self.action_placeholder - self.ff_NN_train)
-
+        # print self.ff_NN_train
         # The output from the neural network is the mean of a Gaussian distribution. This variable is simply the
         # log likelihood of that Gaussian distribution 
         self.loglik = gauss_log_prob(self.ff_NN_train, self.var, self.state_placeholder)
-        print self.loglik.shape
         # This is the most important function of them all. It is the loss function and by taking the gradient of it we obtain the
         # policy gradient telling us in what direction we should change our parameters, in this case the weights of the neural network, as to
         # increase future rewards.
-        self.loss = -tf.reduce_mean(self.loglik * self.advantage) 
-        print self.advantage
+        self.loss = -tf.reduce_mean(self.loglik * self.advantage)
         # Get the list of all trainable variables in our tensorflow graph
         self.var_list = tf.trainable_variables()
         # Compute the analytic gradients of the loss function given the trainable variables in our graph
         self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
 
-        print self.loss_grads
+    	tf.summary.histogram('loglik', self.loglik)
+    	tf.summary.histogram('adv', self.advantage)
+
+    	with tf.device('/cpu:0'):
+    	    loss_prod = tf.multiply(self.loglik,self.advantage,'mrNasty')
+            self.loss = -tf.reduce_mean(loss_prod) 
+            
+            tf.summary.histogram('loss', self.loss)
+    	self.merged_summary = tf.summary.merge_all()
+
+        # Get the list of all trainable variables in our tensorflow graph
+        self.var_list = tf.trainable_variables()
+        # Compute the analytic gradients of the loss function given the trainable variables in our graph
+    	#with tf.device('/cpu:0'):
+    	self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
         # Calculate the gradients of the policy
         self.pg = tf.gradients(self.loglik, self.var_list)
 
@@ -183,6 +197,13 @@ class Policy(object):
              save_path = saver.save(self.sess, self.relative_path+model_name)
 
         self.store_weights()
+                    
+	#setup tensor board writers
+	self.train_writer = tf.summary.FileWriter(self.relative_path+'graphs',self.g)
+	self.sess.run(tf.global_variables_initializer())
+	#freezing the main graph
+	self.g.finalize()
+
 
     # The natural policy gradient (NPG) is the inverse of the fisher matrix times the gradient.
     # In this function the NPG is set by muliplying a placeholder storing the inverse of the fisher
@@ -590,15 +611,27 @@ class Policy(object):
                         feed_dict[self.fisher_matrix[i]] = f
                         i+=1
 
-                    # tf.summary.FileWriter(self.relative_path, self.sess.graph)
 
                     # Here the gradients are calculated. This is only done for the sole purpose of storing the gradients such that
                     # they can be plotted and analyzed in afterhand
                     gradients = self.flattenVectors(self.sess.run([grad[0] for grad in self.NPG],feed_dict))
 
-                    # run i numbers of gradient descent updates
+                    unum = int (self.num_train_episode / self.batch_size)
+
+                            # run i numbers of gradient descent updates
+        		    # setup run options for profiling
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
                     for i in range(1):
-                        _, error, ll= self.sess.run([self.train_op, self.loss, self.loglik], feed_dict)
+                        _, error, ll, summary = self.sess.run([self.train_op, self.loss, self.loglik, self.merged_summary], feed_dict,
+        				run_options,
+        				run_metadata)
+        		    
+        		    #add summaries for this training run
+                    self.train_writer.add_summary(summary,unum)
+                    self.train_writer.add_run_metadata(run_metadata, 'step%03d' % unum)
+                    print('Adding run metadata for', unum)
+
 
                     # This dictionary holds all the batch data recently used. In this way the dictionary can be passed
                     # to a function which in turn saves all the data to files.
@@ -616,6 +649,7 @@ class Policy(object):
                     print "Training Value Network"
                     self.VN.train(states, rewards, self.batch_size)
                     self.reset_batch() 
+		    
 
             self.reset_episode()
 

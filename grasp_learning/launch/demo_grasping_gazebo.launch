@@ -10,8 +10,13 @@
      <param name="generalize_policy" type="bool" value="true"/>
 
       <!-- <param name="task" value="gripperToHorizontalPlane"/> -->
+<<<<<<< HEAD
       <!-- <param name="task" value="gripperToVerticalPlane"/> -->
       <param name="task" value="gripperToHorizontalAndVerticalPlane"/>
+=======
+      <!--param name="task" value="gripperToVerticalPlane"/-->
+      <param name="task" value="gripperToHorizontalAndVerticalPlane"/> 
+>>>>>>> fd8d0e97ab87add6c538404c169bdf601c829521
 
   </node>
 </launch>
