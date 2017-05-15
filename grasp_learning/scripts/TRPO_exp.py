@@ -7,7 +7,6 @@ import bisect
 import itertools
 from grasp_learning.srv import *
 from utils import *
-from value_function import *
 from std_msgs.msg import Empty
 from copy import deepcopy
 from math import sqrt
@@ -25,11 +24,13 @@ class ValueNet(object):
         self.net = None
 
         self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
+        self.num_outputs = 1
         self.x = tf.placeholder(tf.float32, shape=[None, self.num_inputs], name="x")
         self.y = tf.placeholder(tf.float32, shape=[None], name="y")
+        self.batch_size = tf.placeholder(tf.float32, name="batch_size")
         self.construct_ValueNet()
         self.initialize = True
+
     def construct_ValueNet(self):
         with self.vg.as_default():
 
@@ -42,7 +43,9 @@ class ValueNet(object):
             h2 = tf.nn.tanh(fully_connected(h1, hidden_size, hidden_size, weight_init, bias_init, "h2"))
             h3 = fully_connected(h2, hidden_size, 1, weight_init, bias_init, "h3")
             self.net = tf.reshape(h3, (-1,))
-            self.l2 = tf.nn.l2_loss(self.net - self.y)
+            self.l2 = tf.nn.l2_loss(self.net - self.y)/self.batch_size
+            self.optimizer = tf.train.AdamOptimizer().minimize(self.l2)
+            self.session.run(tf.global_variables_initializer())
 
     def reshape_input(self, input_):
         return input_.reshape(1,self.num_inputs)
@@ -62,12 +65,8 @@ class ValueNet(object):
     def train(self, input_data, output_data, batch_size = 1.0, n_iter=50):
         with self.vg.as_default():
             self.initialize = False
-
-            train = tf.train.AdamOptimizer().minimize(self.l2)
-            self.session.run(tf.global_variables_initializer())
-
             for _ in range(50):
-                self.session.run(train, {self.x: input_data, self.y: output_data})
+                self.session.run(self.optimizer, {self.x: input_data, self.y: output_data, self.batch_size: batch_size})
 
 class Policy(object):
     """docstring for Policy"""
@@ -84,9 +83,10 @@ class Policy(object):
         num_outputs = rospy.get_param('~num_outputs', ' ')
         num_rewards = rospy.get_param('~num_rewards', ' ')
         load_example_model = rospy.get_param('~load_model', ' ')
-        example_model_name = rospy.get_param('~model_name', ' ')
+        model_name = rospy.get_param('~model_name', ' ')
         hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ') 
-        relative_path =        rospy.get_param('~relative_path', ' ') 
+        self.batch_size = rospy.get_param('~batch_size', '5')
+        self.relative_path = rospy.get_param('~relative_path', ' ')
 
         self.action_dim = num_outputs
         self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
@@ -97,7 +97,6 @@ class Policy(object):
         self.num_train_episode = 0
         self.num_eval_episode = 0
         self.gamma = 0.9992
-        self.batch_size = 10
         self.burn_in_trials = 20
         self.g = tf.Graph()
         self.train = True
@@ -120,8 +119,8 @@ class Policy(object):
         self.all_actions_dist = []
         self.actions = []
         
-        self.task_errors = []
-        self.all_task_errors = []
+        self.states = []
+        self.all_states = []
 
         self.task_measure = []
         self.all_task_measure = []
@@ -147,10 +146,10 @@ class Policy(object):
 
 
 
-        self.set_bookkeeping_files(relative_path)
+        self.set_bookkeeping_files(self.relative_path)
 
         action_dist_logstd_param = tf.Variable((np.asarray([np.ones(num_outputs)])).astype(np.float32), name="policy_logstd")
-        self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs)
+        self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
 
         self.action_dist_logstd = tf.tile(self.std*action_dist_logstd_param, tf.stack((tf.shape(self.ff_NN_train)[0], 1)))
         log_p_n = gauss_log_prob(self.ff_NN_train, self.action_dist_logstd, self.action_placeholder)
@@ -200,9 +199,9 @@ class Policy(object):
         saver = tf.train.Saver()
 
         if load_example_model:
-           saver.restore(self.sess, example_model_name)
+           saver.restore(self.sess, self.relative_path+model_name)
         else:
-             save_path = saver.save(self.sess, "/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/model.ckpt")
+             save_path = saver.save(self.sess,self.relative_path+model_name)
 
         self.store_weights()
 
@@ -216,66 +215,64 @@ class Policy(object):
         input_ = []
         output_ = []
         i = 0
+        j=0
         with open(input_file, 'rU') as f:
             for line in f:
+                #Skip first two lines of the file
                 if (i==0 or i==1):
-                # if (i==0):
                     i+=1
+                    continue
+                if (j+1%3==0):
+                    j+=1
                     continue
                 line = line.split()
                 for string in xrange(len(line)):
                     if string%2==0:
-                        input_data.append(float(line[string]))
-                        # input_data.append(float(line[string])+np.random.normal(0, 0.15))
-
+                        input_data.append(float(line[string]))#+np.random.normal(0, 0.01))
+                    #Every second column contains the output data
                     else:
                         # if string == 1:
                         output_data.append(float(line[string]))
-                        # output_data.append(float(line[string])+np.random.normal(0, 0.01))
-                        # output_data.append(float(line[string]))
+                        # output_data.append(float(line[string])+np.random.normal(0, 0.5))
 
                 input_.append(input_data)
                 output_.append(output_data)
                 input_data = []
                 output_data = []
-
+                j+=1
         return np.asarray(input_), np.asarray(output_)
 
-    def construct_ff_NN(self, state_placeholder, action_placeholder, task_errors, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 5):
+    def construct_ff_NN(self, state_placeholder, action_placeholder, states, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 5):
         with self.g.as_default():
 
+            weights_1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]),name="w1")
+            biases_1 = tf.Variable(tf.zeros([HIDDEN_UNITS_L1]), name="b1")
+            layer_1_outputs = tf.nn.tanh(tf.matmul(state_placeholder, weights_1) + biases_1,name="L1")
 
-            weight_init = tf.random_uniform_initializer(-0.05, 0.05)
-            bias_init = tf.constant_initializer(0)
-            initializer=weight_init
+            weights_2 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L1, NUM_OUTPUTS]),name="w2")
+            biases_2 = tf.Variable(tf.zeros([NUM_OUTPUTS]),name="b2")
+            # layer_2_outputs = tf.nn.tanh(tf.matmul(layer_1_outputs, weights_2) + biases_2)
+            self.ff_NN_train = tf.add(tf.matmul(layer_1_outputs, weights_2),biases_2,name="output")
 
-            self.w1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]), name="input_layer")
-            self.b1 = tf.Variable(tf.zeros([HIDDEN_UNITS_L1]))
-            layer_1_outputs = tf.nn.tanh(tf.matmul(state_placeholder, self.w1) + self.b1)
+            # weights_3 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L2, NUM_OUTPUTS]))
+            # biases_3 = tf.Variable(tf.zeros([NUM_OUTPUTS]))
+            # self.ff_NN_train = tf.add(tf.matmul(layer_2_outputs, weights_3),biases_3,name="output")
 
-            self.w2 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L1, NUM_OUTPUTS]))
-            self.b2 = tf.Variable(tf.zeros([NUM_OUTPUTS]))
-            # layer_2_outputs = tf.nn.tanh(tf.matmul(layer_1_outputs, self.w2) + self.b2)
-            self.ff_NN_train = tf.matmul(layer_1_outputs, self.w2)+self.b2
+            error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, action_placeholder)))
 
-            # self.w3 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L2, NUM_OUTPUTS]))
-            # self.b3 = tf.Variable(tf.zeros([NUM_OUTPUTS]))
-            # self.ff_NN_train = tf.matmul(layer_2_outputs, self.w3)+self.b3
+            train_op = tf.train.AdamOptimizer(0.01).minimize(error_function)
+            self.sess.run(tf.global_variables_initializer())
 
-            # error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, action_placeholder)))
+            task_dyn= task_dyn.reshape(task_dyn.shape[0],NUM_OUTPUTS)
+            states= states.reshape(states.shape[0],NUM_INPUTS)
 
-            # train_step = tf.train.AdamOptimizer(0.001).minimize(error_function)
-            # self.sess.run(tf.global_variables_initializer())
-
-            # task_dyn= task_dyn.reshape(task_dyn.shape[0],1)
-            # task_errors= task_errors.reshape(task_errors.shape[0],1)
-            # for i in range(500):
-            #     _, loss = self.sess.run([train_step, error_function],
-            #                feed_dict={state_placeholder: task_errors,
-            #                           action_placeholder: task_dyn})
-
-            print "Network Initialized"
-            # print loss
+            feed_dict={state_placeholder: states,
+                        action_placeholder: task_dyn} 
+            
+            for i in range(500):
+                _, loss = self.sess.run([train_op, error_function],feed_dict)
+            print loss
+            print "Network trained"
 
     def set_bookkeeping_files(self,relative_path):
 
@@ -286,7 +283,10 @@ class Policy(object):
         self.action_dist_mean_file_name = relative_path+'action_dist_mean.txt'
         self.exploration_file_name = relative_path+'exploration.txt'
 
-        self.states_file_name = relative_path+'task_errors.txt'
+        self.explored_states_file_name = relative_path+'explored_states.txt'
+
+        self.evaluated_states_file_name = relative_path+'evaluated_states.txt'
+
         self.task_measure_file_name = relative_path+'task_measure.txt'
 
         self.neural_network_param_file_name = relative_path+'weights.txt'
@@ -300,8 +300,9 @@ class Policy(object):
         self.unnorm_advantageages_file_name = relative_path+'unnorm_advantages.txt'
         
         self.reset_files([self.neural_network_param_file_name, self.advantageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
-                             self.reward_file_name, self.actions_file_name, self.states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
-                             self.task_measure_file_name, self.exploration_file_name, self.kl_divergence_file_name, self.surrogate_loss_file_name, self.dist_entropy_file_name])
+                             self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name,
+                            self.action_dist_mean_file_name, self.task_measure_file_name, self.exploration_file_name, self.kl_divergence_file_name, self.surrogate_loss_file_name,
+                             self.dist_entropy_file_name])
 
     def store_weights(self):
 
@@ -319,8 +320,11 @@ class Policy(object):
     def store_task_measure(self):
         self.save_matrix_data_to_file(self.task_measure_file_name, self.task_measure)
 
-    def store_task_errors(self):
-        self.save_matrix_data_to_file(self.states_file_name, self.task_errors)
+    def store_exploration_states(self):
+        self.save_matrix_data_to_file(self.explored_states_file_name, self.states)
+
+    def store_evaluation_states(self):
+        self.save_matrix_data_to_file(self.evaluated_states_file_name, self.states)
 
     def store_actions(self):
         self.save_matrix_data_to_file(self.actions_file_name, self.actions)
@@ -361,27 +365,22 @@ class Policy(object):
             running_add = running_add * self.gamma + reward[t]
             discounted_r[t] = running_add
 
-        # discounted_r = self.normalize_data(discounted_r)
         return discounted_r
-
 
     def calculate_return(self, curr_reward):
 
-
         dist_square = np.square(np.asarray(curr_reward))
-        alpha = 1e-15
+        dist_abs = np.abs(np.asarray(curr_reward))
 
-        rollout_return = np.zeros_like(dist_square[:,0])
+        alpha = 1e-15#1e-17
+        rollout_return = 0
 
-        for e in xrange(dist_square.shape[1]):
-            if e==0:
-                rollout_return += -2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
-            else:
-                rollout_return += -2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
+        dist = np.sqrt(np.sum(dist_square,axis=1))
+        # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
+        rollout_return = -50*dist+25*np.exp(-15*dist)
 
-
-        self.all_unnormalized_returns.append(rollout_return) 
-
+        # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
+        
         return rollout_return
 
 
@@ -426,8 +425,8 @@ class Policy(object):
         self.actions.pop()
         self.all_actions.append(np.asarray(self.actions))
 
-        self.task_errors.pop()
-        self.all_task_errors.append(np.asarray(self.task_errors))
+        self.states.pop()
+        self.all_states.append(np.asarray(self.states))
 
         self.arrange_by_return(self.episode_disc_reward.sum())
 
@@ -443,7 +442,7 @@ class Policy(object):
         self.store_actions()
         self.store_task_measure()
         self.store_rewards()
-        self.store_task_errors()
+        self.store_exploration_states()
         self.store_exploration()
     
     def store_batch_data_to_file(self, batch_data):
@@ -454,7 +453,7 @@ class Policy(object):
 
     def reset_episode(self):
         self.task_measure[:] = []
-        self.task_errors[:]  = []
+        self.states[:]  = []
         self.actions[:]      = []
         self.NN_output[:]    = []
         self.action_dist_logstd_ = []
@@ -464,6 +463,7 @@ class Policy(object):
         self.prev_eval_mean_return = curr_eval_return
         self.store_NN_output()
         self.reset_episode()
+        self.store_evaluation_states()
         self.eval_episode = False
 
     def reset_batch(self):
@@ -475,14 +475,13 @@ class Policy(object):
         self.all_disc_returns[:] = []
         self.all_actions[:]      = []
         self.all_actions_dist[:] = []
-        self.all_task_errors[:]  = []
+        self.all_states[:]  = []
         self.all_task_measure[:] = []
         self.all_action_dist_logstd = []
 
-    def get_NN_output_mean(self):
-        print "Mean of actions: ", abs(np.mean(self.actions,axis=0).flatten())[0]
-        # return np.mean(abs(np.mean(self.actions,axis=0)))
-        return abs(np.mean(self.actions,axis=0).reshape(-1))
+    def get_action_mean(self):
+        print "Mean of actions: " + str(abs(np.mean(self.actions,axis=0)))
+        return abs(np.mean(self.actions,axis=0))
 
     def data_from_best_episodes(self,data):
         return np.concatenate([data[i] for i in self.best_rollouts[::-1][0:self.batch_size]])
@@ -490,26 +489,34 @@ class Policy(object):
     def policy_search(self, req):
         with self.g.as_default():
             
-
-            #Do an evaluation episode (episode with no noise) every self.eval_episode
-            if self.eval_episode == True:
+            if self.eval_episode:
                 self.num_eval_episode += 1
                 print "Evaluation episode number "+str(self.num_eval_episode)+" finished!"
+                # Calculates the mean return from the evaluation episode 
                 curr_eval_return = self.get_undiscounted_reward().sum()
                 print "Average return from evaluation is " + str(curr_eval_return)
-
+                # The difference between the returns of the current and previous evaluation episode
                 diff = curr_eval_return-self.prev_eval_mean_return
+                # If the return from the evaluation episode is higher than a threshold value the policy has converged
                 if curr_eval_return>self.max_rew_before_convergence:
                     print "Policy converged in " +str(self.num_train_episode+self.num_eval_episode)+" episodes!"
                     self.train = False
+                # If the difference is positive meaning that the policy is improving than we increase the kl divergence.
+                # This corresponds to a higher learning rate and that the new policy will differ more than the current
                 elif diff>0:
                     print "Policy improved by", diff
+                    self.kl += 0.01
+                # If the policy is not improving reset the kl divergence to a base value.
                 else:
+                    self.kl = 0.01 
                     print "Policy got worse by", diff
-                
-                self.curr_std = 1*self.get_NN_output_mean()
-                self.reset_eval_episode(curr_eval_return)
 
+                # The variance of the Gaussian distribution is set as the mean of the actions from the evaluation episode.
+                # In this way the exploration is high enough
+                self.curr_std = self.get_action_mean()
+                # However, the variance is limited upwards otherwise the expolarion can be too high and damage the real robot
+                self.curr_std[self.curr_std<0.4]=0.4
+                self.reset_eval_episode(curr_eval_return)
                 return PolicySearchResponse(not self.train)
 
             self.compute_episode_data()
@@ -518,21 +525,28 @@ class Policy(object):
             self.num_train_episode +=1
             print "Training episode number "+str(self.num_train_episode)+" finished with a disounted return of " + str(self.episode_disc_reward.sum()) 
 
-            if self.num_train_episode >= self.burn_in_trials  and self.train:
+            if self.num_train_episode % self.batch_size == 0 and self.train:
 
                 print "Updating policy"
                 if self.train:
 
-                    rewards = self.data_from_best_episodes(self.all_disc_returns)
-                    task_errors = self.data_from_best_episodes(self.all_task_errors) 
-                    actions = self.data_from_best_episodes(self.all_actions) 
-                    action_dist = self.data_from_best_episodes(self.all_actions_dist) 
-                    action_dist_logstd = self.data_from_best_episodes(self.all_action_dist_logstd)
+                    #Concatenating all relevant data for each training episode into one 1D vector
+                    rewards = np.concatenate(self.all_disc_returns) 
+                    states = np.concatenate(self.all_states)
+                    actions = np.concatenate(self.all_actions)
+                    action_dist = np.concatenate(self.all_actions_dist) 
+                    action_dist_logstd = np.concatenate(self.all_action_dist_logstd)
 
-                    advantage, unnorm_advantages, baseline =  self.calculate_advantages_with_VN(rewards, task_errors)
+                    # rewards = self.data_from_best_episodes(self.all_disc_returns)
+                    # states = self.data_from_best_episodes(self.all_states) 
+                    # actions = self.data_from_best_episodes(self.all_actions) 
+                    # action_dist = self.data_from_best_episodes(self.all_actions_dist) 
+                    # action_dist_logstd = self.data_from_best_episodes(self.all_action_dist_logstd)
+
+                    advantage, unnorm_advantages, baseline =  self.calculate_advantages_with_VN(rewards, states)
 
 
-                    feed_dict = {self.state_placeholder      : task_errors,
+                    feed_dict = {self.state_placeholder      : states,
                                  self.action_placeholder     : actions,
                                  self.advantage              : advantage,
                                  self.oldaction_dist         : action_dist,
@@ -591,9 +605,10 @@ class Policy(object):
                     batch_dic[self.surrogate_loss_file_name] = [surrogate_prev, surrogate_after]
                     batch_dic[self.dist_entropy_file_name] = [entropy_prev, entropy_after]
                     
-                    self.VN.train(task_errors, rewards, self.batch_size)
                     self.store_batch_data_to_file(batch_dic)
-                    # self.reset_batch() 
+
+                    self.VN.train(states, rewards, self.batch_size)
+                    self.reset_batch() 
                     print "Finished updating"
 
             self.reset_episode()
@@ -604,7 +619,7 @@ class Policy(object):
     def handle_query_NN_(self,req):
         with self.g.as_default(): 
             self.task_measure.append(req.task_measures)
-            self.task_errors.append(req.task_measures)
+            self.states.append(req.task_measures)
             # start_time = time.time()
             mean_values, action_dist_logstd = self.sess.run([self.ff_NN_train, self.action_dist_logstd], feed_dict={self.state_placeholder : np.asarray([req.task_measures]),
                                                                                                                     self.std                    : self.curr_std})

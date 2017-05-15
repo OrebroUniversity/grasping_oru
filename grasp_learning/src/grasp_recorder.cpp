@@ -65,7 +65,7 @@ namespace hiqp{
 			// }
 			// output_file.close();			
 
-			std::string task_dynamics_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode__" + convert.str() +".txt";
+			std::string task_dynamics_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_linear_episode_" + convert.str() +".txt";
 
 			std::ofstream output_file2 (task_dynamics_file_name.c_str());
 			if (output_file2.is_open()){

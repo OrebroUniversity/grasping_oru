@@ -6,9 +6,12 @@ import sys
 def get_weights():
 	return np.loadtxt("/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights.txt")
 
-def get_states():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_errors.txt')
+def get_explored_states():
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/explored_states.txt')
 	
+def get_evaluated_states():
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/evaluated_states.txt')
+
 def get_actions():
 	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions.txt')
 	
@@ -69,7 +72,8 @@ def get_episode_data():
 	episode_data["baseline"] = get_baseline()
 	episode_data["rewards"] = get_rewards()
 	episode_data["disc_rewards"] = get_disc_rewards()
-	episode_data["states"] = get_states()
+	episode_data["explored_states"] = get_explored_states()
+	episode_data["evaluated_states"] = get_evaluated_states()
 	episode_data["actions"] = get_actions()
 	episode_data["mean_action"] = get_mean_action()
 	episode_data["exploration"] = get_exploration()
@@ -92,15 +96,15 @@ def plot_rollout(num_rollout,batch_size=5, num_figs=1):
 	start_row = get_start_row(num_rollout, batch_size)
 	plt.figure(dpi=200)
 	if num_figs==1:
-		plt.plot(episode_data["states"][num_rollout+1][:],label='states')
-		plt.plot(episode_data["actions"][num_rollout+1][:],label='actions')
-		plt.plot(episode_data["mean_action"][num_rollout+1][:],label='mean_actions')
-		plt.plot(episode_data["exploration"][num_rollout][:],label='exploration')
+		plt.plot(episode_data["explored_states"][num_rollout+1][:],label='states')
+		# plt.plot(episode_data["actions"][num_rollout+1][:],label='actions')
+		# plt.plot(episode_data["mean_action"][num_rollout+1][:],label='mean_actions')
+		# plt.plot(episode_data["exploration"][num_rollout][:],label='exploration')
 
-		# plt.plot(episode_data["rewards"][num_rollout], label='rewards')
+		plt.plot(episode_data["rewards"][num_rollout], label='rewards')
 		# plt.plot(episode_data["disc_rewards"][num_rollout], label='disc rewards')
 		# print episode_data["advantages"][start_row]
-		plt.plot(episode_data["advantages"][start_row][indicies[0]:indicies[1]], label='advantages')
+		# plt.plot(episode_data["advantages"][start_row][indicies[0]:indicies[1]], label='advantages')
 		# plt.plot(episode_data["baseline"][start_row][indicies[0]:indicies[1]], label='baseline')
 		plt.axhline(y=0,color='black')
 
@@ -111,14 +115,14 @@ def plot_rollout(num_rollout,batch_size=5, num_figs=1):
 		plt.figure(1)
 		plt.subplot(211)
 
-		plt.plot(episode_data["states"][num_rollout+1][0::2],label='states')
+		plt.plot(episode_data["explored_states"][num_rollout+1][0::2],label='states')
 		# plt.plot(episode_data["actions"][num_rollout+1][0::2],label='actions')
-		plt.plot(episode_data["mean_action"][num_rollout+1][0::2],label='mean_actions')
+		# plt.plot(episode_data["mean_action"][num_rollout+1][0::2],label='mean_actions')
 		# plt.plot(episode_data["exploration"][num_rollout][0::2],label='exploration')
-		# plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
+		plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
 		# plt.plot([x/1 for x in episode_data["disc_rewards"][num_rollout]], label='disc rewards')
 		# print episode_data["advantages"][start_row]
-		plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
+		# plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
 		# plt.plot([x/1.0 for x in episode_data["unnorm_advantages"][start_row][indicies[0]:indicies[1]]], label='unnorm advantages')
 
 		# plt.plot([x/1.0 for x in episode_data["baseline"][start_row][indicies[0]:indicies[1]]], label='baseline')
@@ -126,15 +130,15 @@ def plot_rollout(num_rollout,batch_size=5, num_figs=1):
 		plt.axhline(y=0,color='black')
 		plt.subplot(212)
 
-		plt.plot(episode_data["states"][num_rollout][1::2],label='states')
+		plt.plot(episode_data["explored_states"][num_rollout][1::2],label='states')
 		# plt.plot(episode_data["actions"][num_rollout+1][1::2],label='actions')
-		plt.plot(episode_data["mean_action"][num_rollout+1][1::2],label='mean_actions')
+		# plt.plot(episode_data["mean_action"][num_rollout+1][1::2],label='mean_actions')
 		# plt.plot(episode_data["exploration"][num_rollout][1::2],label='exploration')
 
-		# plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
+		plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
 		# plt.plot([x/1 for x in episode_data["disc_rewards"][num_rollout]], label='disc rewards')
 		# print episode_data["advantages"][start_row]
-		plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
+		# plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
 		# plt.plot([x/1.0 for x in episode_data["unnorm_advantages"][start_row][indicies[0]:indicies[1]]], label='unnorm advantages')
 
 		# plt.plot([x/1.0 for x in episode_data["baseline"][start_row][indicies[0]:indicies[1]]], label='baseline')
@@ -155,22 +159,20 @@ def plot_weights_diff():
 		plt.waitforbuttonpress()
 	plt.close()
 
-def plot_states(lower, upper, batch_size):
+def plot_states(lower, upper):
 	episode_data = get_episode_data()
 	plt.figure(dpi=200)
-
-	for i in np.arange((lower-1)*3,(upper-1)*3,batch_size):
+	for i in xrange(lower,upper):
 		plt.figure(1)
 		plt.subplot(211)
-
-		plt.plot(episode_data["states"][i][1000::2],label='states' + str(i))
-		plt.axhline(y=0,color='black')
+		plt.plot(episode_data["evaluated_states"][i][2000::2],label='states' + str(i))
+		# plt.axhline(y=0,color='black')
 		plt.legend(loc='lower center')
 
 		plt.subplot(212)
-		plt.plot(episode_data["states"][i][1001::2],label='states' + str(i))
+		plt.plot(episode_data["evaluated_states"][i][2001::2],label='states' + str(i))
 
-		plt.axhline(y=0,color='black')
+		# plt.axhline(y=0,color='black')
 		plt.legend(loc='lower center')
 	plt.grid()
 
@@ -197,10 +199,10 @@ if __name__ == '__main__':
 			print "Plotting rollout data"
 			plot_rollout(rollout, batch_size, figs)
 		elif plot == 2:
-			print "Input lower level, upper level and batch size"
-			lower, upper, batch_size = map(int, raw_input("").split(" "))
+			print "Input lower and upper level"
+			lower, upper = map(int, raw_input("").split(" "))
 			print "plotting states"
-			plot_states(lower, upper, batch_size)
+			plot_states(lower, upper)
 		elif plot == 3:
 			print "Plotting the difference in weights from rollout to rollout"
 			plot_weights_diff()
