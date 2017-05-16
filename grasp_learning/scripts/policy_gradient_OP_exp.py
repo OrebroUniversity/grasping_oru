@@ -129,7 +129,6 @@ class Policy(object):
 
         self.sess = tf.InteractiveSession(graph=self.g) #,config=tf.ConfigProto(log_device_placement=True))
 
-        self.pg = 0
         # Placeholder to which the future task errors and task dynamics are loaded into 
         self.state_placeholder = tf.placeholder(tf.float32, [None, num_inputs]) 
         self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs])
@@ -192,22 +191,22 @@ class Policy(object):
         saver = tf.train.Saver()
 
         if load_example_model:
-           saver.restore(self.sess, self.relative_path+model_name)
+            saver.restore(self.sess, self.relative_path+model_name)
         else:
-             save_path = saver.save(self.sess, self.relative_path+model_name)
+            save_path = saver.save(self.sess, self.relative_path+model_name)
 
         self.store_weights()
                     
-	#setup tensor board writers
-	self.train_writer = tf.summary.FileWriter(self.relative_path+'graphs',self.g)
-	self.sess.run(tf.global_variables_initializer())
-	#freezing the main graph
-	self.g.finalize()
+    	#setup tensor board writers
+    	self.train_writer = tf.summary.FileWriter(self.relative_path+'graphs',self.g)
+    	self.sess.run(tf.global_variables_initializer())
+    	#freezing the main graph
+    	self.g.finalize()
 
 
     # The natural policy gradient (NPG) is the inverse of the fisher matrix times the gradient.
     # In this function the NPG is set by muliplying a placeholder storing the inverse of the fisher
-    # matrix with the corresponding policy gradient. The policy is the gradient of the neural network (NN)
+    # matrix with the corresponding policy gradient. The policy gradient is the gradient of the neural network (NN)
     # and in tensorflow the gradient of the NN is split into a list where each entry corresponds to the parameters
     # in each layer
     def set_natural_policy_gradients(self):
@@ -216,10 +215,12 @@ class Policy(object):
             grad = np.multiply(self.fisher_matrix[-1], g)
             self.NPG.append((grad, v))
 
+    # Opens and closes a file to empty its content
     def reset_files(self, file_names):
         for file in file_names:
             open(file, 'w').close()
 
+    # Parses the training data stored in parameter input_file into corresponding input and output data 
     def parse_input_output_data(self, input_file):
         input_data = []
         output_data = []
@@ -236,7 +237,7 @@ class Policy(object):
                 line = line.split()
                 for string in xrange(len(line)):
                     if string%2==0:
-                        input_data.append(float(line[string]))#+np.random.normal(0, 0.5))
+                        input_data.append(float(line[string]))#+np.random.normal(0, 0.))
                     #Every second column contains the output data
                     else:
                         # if string == 1:
@@ -423,6 +424,7 @@ class Policy(object):
 
         self.eval_episode = False
 
+        # Reset the data belonging to a batch, i.e. empty the lists storing all data used for that particular batch
     def reset_batch(self):
 
         self.eval_episode = True
@@ -440,6 +442,8 @@ class Policy(object):
         print "Mean of actions: " + str(abs(np.mean(self.actions,axis=0)))
         return abs(np.mean(self.actions,axis=0))
 
+        # Calculates the disounted returns from one episode. The cumulative disounted return (R) starts summing from the last reward (r) at time T.
+        # At time T-1 the return is R(T-1)=r(t-1)+gamma*r(T),  at time T-2 it is R(T-2)=r(t-2)+gamma*r(t-1), and so on until R(0)=r(0)+gamma*r(1).
     def discount_rewards(self, reward):
 
         discounted_r = np.zeros_like(reward)
@@ -448,7 +452,6 @@ class Policy(object):
             running_add = running_add * self.gamma + reward[t]
             discounted_r[t] = running_add
 
-        # discounted_r = self.normalize_data(discounted_r)
         return discounted_r
 
         #This function calculates the reward recieved from doing an action. The reward is calculated as
