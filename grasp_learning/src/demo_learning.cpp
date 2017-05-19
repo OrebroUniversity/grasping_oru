@@ -302,7 +302,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalAndVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-6}, 10);
+    {1e-6}, 1.2);
    hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name, grasp_vertical_.plane.name});
  }
 

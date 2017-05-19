@@ -70,7 +70,7 @@ class ValueNet(object):
     def train(self, input_data, output_data, batch_size = 1.0, n_iter=50):
         with self.vg.as_default():
             self.initialize = False
-            for _ in range(50):
+            for _ in range(n_iter):
                 self.session.run(self.optimizer, {self.x: input_data, self.y: output_data, self.batch_size: batch_size})
 
 
@@ -92,9 +92,10 @@ class Policy(object):
         self.policy_search_ = rospy.Service('policy_Search', PolicySearch, self.policy_search)
 
         self.sigma = np.zeros(num_outputs)
+	self.random_bias = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
-    	self.gamma = 0.99
+    	self.gamma = 0.9 #0.99 #TSV: testing a much more local approach
     	self.kl = 0.01
 
         self.g = tf.Graph()
@@ -102,6 +103,8 @@ class Policy(object):
         self.eval_episode = True
         self.max_rew_before_convergence = 15000
         self.mean = np.zeros(num_outputs)
+        self.ffnn_mean = np.zeros(num_outputs)
+        
         self.prev_action = np.zeros(num_outputs)
         self.all_returns = []
         self.all_disc_returns = []
@@ -134,6 +137,7 @@ class Policy(object):
         self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs])
         # Placeholder for the learning rate
         self.learning_rate = tf.placeholder(tf.float32, shape=[])
+	tf.summary.scalar('learning_rate',self.learning_rate)
 
         # Placeholder for the advantage function
         self.advantage = tf.placeholder(tf.float32,[None,num_rewards])
@@ -160,29 +164,32 @@ class Policy(object):
         # This is the most important function of them all. It is the loss function and by taking the gradient of it we obtain the
         # policy gradient telling us in what direction we should change our parameters, in this case the weights of the neural network, as to
         # increase future rewards.
-        self.loss = -tf.reduce_mean(self.loglik * self.advantage)
+        self.loss = -tf.reduce_mean(tf.multiply(self.loglik,self.advantage,'loss_prod'),name='loss_reduce_mean') 
+	#self.loss = -tf.reduce_mean(self.loglik * self.advantage)
         # Get the list of all trainable variables in our tensorflow graph
         self.var_list = tf.trainable_variables()
         # Compute the analytic gradients of the loss function given the trainable variables in our graph
         self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
 
-    	tf.summary.histogram('loglik', self.loglik)
-    	tf.summary.histogram('adv', self.advantage)
-
-    	with tf.device('/cpu:0'):
-    	    loss_prod = tf.multiply(self.loglik,self.advantage,'mrNasty')
-            self.loss = -tf.reduce_mean(loss_prod) 
-            
-            tf.summary.histogram('loss', self.loss)
-    	self.merged_summary = tf.summary.merge_all()
+    	tf.summary.histogram('loglik_hist', self.loglik)
+    	tf.summary.histogram('loss_hist', self.loss)
+    	tf.summary.histogram('adv_hist', self.advantage)
+        tf.summary.tensor_summary('loglikelihood', self.loglik)
+        tf.summary.tensor_summary('advantages', self.advantage)
+        tf.summary.tensor_summary('loss', self.loss)
 
         # Get the list of all trainable variables in our tensorflow graph
         self.var_list = tf.trainable_variables()
         # Compute the analytic gradients of the loss function given the trainable variables in our graph
     	#with tf.device('/cpu:0'):
     	self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
-        # Calculate the gradients of the policy
+	#tf.summary.tensor_summary('loss_gradients_summary', self.loss_grads) #didn't work. why?
+	#tf.summary.histogram('loss_grad_hist', self.loss_grads)
+        
+	# Calculate the gradients of the policy
         self.pg = tf.gradients(self.loglik, self.var_list)
+	#tf.summary.tensor_summary('policy_gradients', self.pg)
+	#tf.summary.histogram('policy_grad_hist', self.pg)
 
         self.set_natural_policy_gradients()
         
@@ -199,6 +206,7 @@ class Policy(object):
                     
     	#setup tensor board writers
     	self.train_writer = tf.summary.FileWriter(self.relative_path+'graphs',self.g)
+    	self.merged_summary = tf.summary.merge_all()
     	self.sess.run(tf.global_variables_initializer())
     	#freezing the main graph
     	self.g.finalize()
@@ -280,7 +288,7 @@ class Policy(object):
                         task_dyn_placeholder: task_dyn,
                         self.learning_rate : 0.001} 
 
-            for i in range(1000):
+            for i in range(5000):
                 _, loss = self.sess.run([train_op, error_function],feed_dict)
 
             print "Network trained"
@@ -310,10 +318,18 @@ class Policy(object):
         self.log_likelihood_file_name = relative_path+'log_likelihood.txt'
 
         self.gradients_file_name = relative_path+'gradients.txt'
+        self.nn_mean_file_name = relative_path+'means.m'
+        self.tdyn_file_name = relative_path+'tdyn.m'
 
         self.reset_files([self.neural_network_param_file_name, self.advantageageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
-                             self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name, self.gradients_file_name])
+                             self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name, self.gradients_file_name, self.nn_mean_file_name, self.tdyn_file_name])
+	f_handle = file(self.nn_mean_file_name,'a')
+	f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
+	f_handle.close()
+	f_handle = file(self.tdyn_file_name,'a')
+	f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
+	f_handle.close()
 
 
     def store_weights(self):
@@ -384,8 +400,12 @@ class Policy(object):
         self.actions.pop()
         self.all_actions.append(np.asarray(self.actions))
 
+	#print "Task measures shapes are "
+	#print self.task_measure
         self.task_measure.pop(0)
+	#print self.task_measure
         self.episode_reward = self.calculate_return(self.task_measure)
+	#print "Episode rewards ",self.episode_reward
         self.all_returns.append(self.episode_reward)
 
         self.episode_disc_reward = self.discount_rewards(self.episode_reward) 
@@ -440,7 +460,7 @@ class Policy(object):
         # the mean value for all the actions. They are used to set the variance for the exploration
     def get_action_mean(self):
         print "Mean of actions: " + str(abs(np.mean(self.actions,axis=0)))
-        return abs(np.mean(self.actions,axis=0))
+        return abs(np.mean(np.abs(self.actions),axis=0))
 
         # Calculates the disounted returns from one episode. The cumulative disounted return (R) starts summing from the last reward (r) at time T.
         # At time T-1 the return is R(T-1)=r(t-1)+gamma*r(T),  at time T-2 it is R(T-2)=r(t-2)+gamma*r(t-1), and so on until R(0)=r(0)+gamma*r(1).
@@ -464,10 +484,14 @@ class Policy(object):
 
         alpha = 1e-15#1e-17
         rollout_return = 0
-
-        dist = np.sqrt(np.sum(dist_square,axis=1))
+	
+	#print "Dist square ", dist_square, "\n Dist abs", dist_abs
+	#dist = np.sqrt(np.sum(dist_square,axis=1))
+        dist = 0.5*np.sum(dist_abs,axis=1)
+	#print "Dist ", dist 
         # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
-        rollout_return = -50*dist+25*np.exp(-15*dist)
+	#rollout_return = -50*dist+25*np.exp(-15*dist)
+        rollout_return = -100*dist-10*np.square(dist)
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
         
@@ -520,7 +544,8 @@ class Policy(object):
         baseline = np.zeros_like(rewards)
         for i in xrange(len(states)):
             baseline[i] = self.VN.predict(states[i,:]).flatten()
-            advantages[i] = rewards[i]-np.abs(baseline[i])
+	    #advantages[i] = rewards[i]-np.abs(baseline[i])
+            advantages[i] = rewards[i]
 
         norm_advantages = self.normalize_data(advantages)
         advantages = advantages.reshape(advantages.shape[0],1)
@@ -558,10 +583,20 @@ class Policy(object):
 
                 # The variance of the Gaussian distribution is set as the mean of the actions from the evaluation episode.
                 # In this way the exploration is high enough
-                self.sigma = self.get_action_mean()
+                self.sigma = self.get_action_mean()/3.
                 # However, the variance is limited upwards otherwise the expolarion can be too high and damage the real robot
-                self.sigma[self.sigma<0.4]=0.4
+                self.sigma[self.sigma>0.4]=0.4
                 self.reset_eval_episode(curr_eval_return)
+
+		#clean up output file
+		f_handle = file(self.nn_mean_file_name,'a')
+		f_handle.write("];\n")
+		f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
+		f_handle.close()
+		f_handle = file(self.tdyn_file_name,'a')
+		f_handle.write("];\n")
+		f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
+		f_handle.close()
                 return PolicySearchResponse(not self.train)
 
             # First we compute the necessary data based on one episode
@@ -571,6 +606,8 @@ class Policy(object):
 
             self.num_train_episode +=1
             print "Training episode number "+str(self.num_train_episode)+" finished with a reward of " + str(self.episode_reward.sum()) 
+	    self.random_bias = np.random.normal(self.mean, self.sigma)
+	    print "Random bias for next rollout is" + str(self.random_bias)
 
             # The policy is only updated if the number of training episodes match the batch size
             if self.num_train_episode % self.batch_size == 0 and self.train:
@@ -655,6 +692,15 @@ class Policy(object):
 		    
 
             self.reset_episode()
+	    #clean up output file
+	    f_handle = file(self.nn_mean_file_name,'a')
+	    f_handle.write("];\n")
+	    f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
+	    f_handle.close()
+	    f_handle = file(self.tdyn_file_name,'a')
+	    f_handle.write("];\n")
+	    f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
+	    f_handle.close()
 
             return PolicySearchResponse(not self.train)
 
@@ -664,18 +710,32 @@ class Policy(object):
             self.task_measure.append(req.task_measures)
             self.states.append(req.task_measures)
             feed_dict = {self.state_placeholder: np.array([req.task_measures])}
-            mean = self.sess.run(self.ff_NN_train, feed_dict)
+            self.ffnn_mean = self.sess.run(self.ff_NN_train, feed_dict)
+           
+	    f_handle = file(self.nn_mean_file_name,'a')
+#f_handle.write("mean%i (:,:) = [" % (self.num_train_episode+1));
+# f_handle.write("];")
+	    np.savetxt(f_handle, self.ffnn_mean, fmt='%.5f', delimiter=',')
+	    f_handle.close()
+		
             if self.train and not self.eval_episode:
                 # Sample the noise
                 noise = np.random.normal(self.mean, self.sigma)
+                random_noise = np.random.normal(self.mean, [0.002,0.002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
                 # The new task dynamics is the mean of the output from the NN plus the noise
-                task_dynamics = 0.2*self.prev_action+0.8*(mean+noise)#(mean+noise)
-                self.exploration.append(mean-task_dynamics)
+                task_dynamics = self.ffnn_mean+random_noise+self.random_bias  #0.2*self.prev_action+0.8*(self.ffnn_mean+noise)#(mean+noise)
+                self.exploration.append(self.ffnn_mean-task_dynamics)
                 self.prev_action = task_dynamics
             else:
-                task_dynamics = mean
+                task_dynamics = self.ffnn_mean
+
+	    #plot task dynamics
+	    f_handle = file(self.tdyn_file_name,'a')
+	    np.savetxt(f_handle, task_dynamics, fmt='%.5f', delimiter=',')
+	    f_handle.close()
+
             # Store the output from the neural network which is the action with no noise added to it
-            self.mean_action.append(mean.flatten())
+            self.mean_action.append(self.ffnn_mean.flatten())
             self.actions.append(task_dynamics[0])
             return  task_dynamics.flatten()
 
