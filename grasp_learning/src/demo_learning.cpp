@@ -21,6 +21,10 @@ namespace demo_learning {
   // get params
     nh_.param<bool>("with_gazebo", with_gazebo_, false);
     nh_.param<bool>("generalize_policy", generalize_policy_, false);
+    nh_.param<double>("decay_rate", decay_rate_, 1);
+    nh_.param<std::string>("task_dynamics", task_dynamics_, "TDynPolicy");
+    nh_.param<double>("exec_time", exec_time_, 10);
+
 
     nh_.param<std::string>("task", task_name_, "gripperToHorizontalPlane");
 
@@ -180,12 +184,12 @@ bool DemoLearning::doGraspAndLift() {
   }
   else{
    grasp_horizontal_.plane = hiqp_ros::createPrimitiveMsg(
-    "table_plane_horizontal", "plane", "world", true, {0, 1, 0, 0.3},
+    "table_plane_horizontal", "plane", "world", true, {0, 1, 0, 0.4},
     {0, 0, 1,1});//0.89
 
    grasp_vertical_.plane = hiqp_ros::createPrimitiveMsg(
-    "table_plane_vertical", "plane", "world", true, {0, 0, 1, 0.3},
-    {0, 1, 0,0});//0.89
+    "table_plane_vertical", "plane", "world", true, {0, 0, 1, 0.4},
+    {0, -1, 0,0});//0.89
 
 
  }
@@ -197,81 +201,19 @@ bool DemoLearning::doGraspAndLift() {
   eef_point.name + " = " + grasp_horizontal_.plane.name,
   "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_vertical_.plane.name},
-  {"TDynPolicy", std::to_string(1.0),std::to_string(0.2 * DYNAMICS_GAIN)});
-  //{"TDynLinear", std::to_string(0.2 * DYNAMICS_GAIN)});
-
- // gripperToVerticalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_horizontal_plane", 1, true, true, true,
- //  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_vertical_.plane.name},
- //  {"TDynPolicy", std::to_string(1.0),std::to_string(0.2 * DYNAMICS_GAIN)});
+  {task_dynamics_, std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
  gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
   "point_to_horizontal_plane", 1, true, true, true,
   {"TDefMetaTask", "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_horizontal_.plane.name},
-  {"TDynPolicy", std::to_string(1.0),std::to_string(0.2 * DYNAMICS_GAIN)});
-
-
- // gripperToHorizontalAndVerticalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_horizontal_plane", 1, true, true, true,
- //  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_horizontal_.plane.name,
- //  "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_vertical_.plane.name},
- //  {"TDynLinear", std::to_string(3 * DYNAMICS_GAIN)});
-
- // gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_horizontal_plane", 1, true, true, true,
- //  {"TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_horizontal_.plane.name},
- //  {"TDynPolicy", std::to_string(1.0),std::to_string(0.2 * DYNAMICS_GAIN)});
-
-
- // gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_horizontal_plane", 1, true, true, true,
- //  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_horizontal_.plane.name,
- //  "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_vertical_.plane.name},
- //  {"TDynRandom", std::to_string(1.0),std::to_string(2.5 * DYNAMICS_GAIN)});
-
- // gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_horizontal_plane", 1, true, true, true,
- //  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_horizontal_.plane.name,
- //  "TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_vertical_.plane.name},
- //  {"TDynLinear", std::to_string(1.5 * DYNAMICS_GAIN)});
-
+  {task_dynamics_,std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
  gripperToVerticalPlane = hiqp_ros::createTaskMsg(
   "point_to_vertical_plane", 1, true, true, true,
   {"TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_vertical_.plane.name},
-  {"TDynLinear", std::to_string(0.05 * DYNAMICS_GAIN)});
-
-  // Load this task for following a constant task dynamics policy
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //   "dummy", 1, true, true, true,
-  //   {"TDefGeomProj", "point", "plane",
-  //   eef_point.name + " = " +grasp_.plane.name},
-  //   {"TDynConstant", std::to_string(0),std::to_string(2.0 * DYNAMICS_GAIN)});
-
-  // Load this task for following a linear task dynamics
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //     "dummy", 1, true, true, true,
-  //     {"TDefGeomProj", "point", "plane",
-  //      eef_point.name + " = " +grasp_.plane.name},
-  //     {"TDynLinear", std::to_string(0.05 * DYNAMICS_GAIN)});
-
-  // Load this task for following a random task dynamics (sampled from a normal distribution)
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //     "dummy", 1, true, true, true,
-  //     {"TDefGeomProj", "point", "plane",
-  //      eef_point.name + " = " +grasp_horizontal_.plane.name},
-  //     {"TDynPolicy", std::to_string(1.0),std::to_string(2.5 * DYNAMICS_GAIN)});
-
+  {task_dynamics_, std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
  start_recording_.publish(start_msg_);
 
@@ -284,7 +226,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-10}, 1.2);
+    {1e-6}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name});
  }
  else if(task_name_.compare("gripperToVerticalPlane")==0){
@@ -293,7 +235,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-10}, 1.2);
+    {1e-6}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_vertical_.plane.name});
  }
  else if(task_name_.compare("gripperToHorizontalAndVerticalPlane")==0){
@@ -302,7 +244,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalAndVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-6}, 10);
+    {1e-6}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name, grasp_vertical_.plane.name});
  }
 

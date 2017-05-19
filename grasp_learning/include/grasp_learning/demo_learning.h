@@ -93,8 +93,9 @@ private:
   std::string output_data_file_;
 
   std::string task_name_;
-
-  double reward_treshold_ = 8;
+  std::string task_dynamics_;
+  double decay_rate_;
+  double exec_time_;
   std::vector<double> reward_vec_;
   unsigned int num_record_=0;
   // object

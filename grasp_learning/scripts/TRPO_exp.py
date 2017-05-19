@@ -103,7 +103,7 @@ class Policy(object):
         self.eval_episode = True
         self.max_kl = 0.01
 
-        self.max_rew_before_convergence = 3000
+        self.max_rew_before_convergence = 12000
 
         self.prev_action = np.zeros(num_outputs)
         self.all_returns = []
@@ -134,13 +134,13 @@ class Policy(object):
 
         self.sess = tf.InteractiveSession(graph=self.g)
 
-        self.state_placeholder = tf.placeholder(tf.float32, [None, num_inputs])
-        self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs])
-        self.oldaction_dist = tf.placeholder(tf.float32, [None, num_outputs])
-        self.advantage = tf.placeholder(tf.float32,[None,num_rewards])
-        self.std_old = tf.placeholder(tf.float32,[None, num_outputs])
-        self.std_new = tf.placeholder(tf.float32,[None, num_outputs])
-        self.std = tf.placeholder(tf.float32,[num_outputs])
+        self.state_placeholder = tf.placeholder(tf.float32, [None, num_inputs], name="State_placeholder")
+        self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs], name="Action_placeholder")
+        self.oldaction_dist = tf.placeholder(tf.float32, [None, num_outputs], name="Old_action_dist_placeholder")
+        self.advantage = tf.placeholder(tf.float32,[None,num_rewards], name="Advantage_placeholder")
+        self.std_old = tf.placeholder(tf.float32,[None, num_outputs], name="old_std_placeholder")
+        self.std_new = tf.placeholder(tf.float32,[None, num_outputs], name="new_std_placeholder")
+        self.std = tf.placeholder(tf.float32,[num_outputs], name="std_placeholder")
         self.curr_std = np.zeros(num_outputs)
         input_data, output_data = self.parse_input_output_data(input_output_data_file)
 
@@ -148,12 +148,13 @@ class Policy(object):
 
         self.set_bookkeeping_files(self.relative_path)
 
-        action_dist_logstd_param = tf.Variable((np.asarray([np.ones(num_outputs)])).astype(np.float32), name="policy_logstd")
+        action_dist_logstd_param = tf.Variable((np.asarray([0.05*np.ones(num_outputs)])).astype(np.float32), name="policy_logstd")
         self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
 
-        self.action_dist_logstd = tf.tile(self.std*action_dist_logstd_param, tf.stack((tf.shape(self.ff_NN_train)[0], 1)))
-        log_p_n = gauss_log_prob(self.ff_NN_train, self.action_dist_logstd, self.action_placeholder)
-        log_oldp_n = gauss_log_prob(self.oldaction_dist, self.std_old, self.action_placeholder)
+        # self.action_dist_logstd = tf.tile(self.std*action_dist_logstd_param, tf.stack((tf.shape(self.ff_NN_train)[0], 1)))
+        self.action_dist_logstd = tf.tile(action_dist_logstd_param, tf.stack((tf.shape(self.ff_NN_train)[0], 1)))
+        log_p_n = gauss_log_prob2(self.ff_NN_train, self.action_dist_logstd, self.action_placeholder)
+        log_oldp_n = gauss_log_prob2(self.oldaction_dist, self.std_old, self.action_placeholder)
 
         # tf.exp(log_p_n) / tf.exp(log_oldp_n)
         ratio = tf.exp(log_p_n - log_oldp_n)
@@ -194,14 +195,14 @@ class Policy(object):
         self.gf = GetFlat(self.sess, var_list)
         # call this to set parameter values
         self.sff = SetFromFlat(self.sess, var_list)
-        self.sess.run(tf.global_variables_initializer())
 
         saver = tf.train.Saver()
 
         if load_example_model:
-           saver.restore(self.sess, self.relative_path+model_name)
+           saver.restore(self.sess, self.relative_path+'models/'+model_name)
         else:
-             save_path = saver.save(self.sess,self.relative_path+model_name)
+             save_path = saver.save(self.sess,self.relative_path+'models/'+model_name)
+
 
         self.store_weights()
 
@@ -209,26 +210,24 @@ class Policy(object):
         for file in file_names:
             open(file, 'w').close()
 
+    # Parses the training data stored in parameter input_file into corresponding input and output data 
     def parse_input_output_data(self, input_file):
         input_data = []
         output_data = []
         input_ = []
         output_ = []
         i = 0
-        j=0
         with open(input_file, 'rU') as f:
             for line in f:
                 #Skip first two lines of the file
                 if (i==0 or i==1):
+                # if (i==0):
                     i+=1
-                    continue
-                if (j+1%3==0):
-                    j+=1
                     continue
                 line = line.split()
                 for string in xrange(len(line)):
                     if string%2==0:
-                        input_data.append(float(line[string]))#+np.random.normal(0, 0.01))
+                        input_data.append(float(line[string])+np.random.normal(0, 0.1))
                     #Every second column contains the output data
                     else:
                         # if string == 1:
@@ -239,7 +238,7 @@ class Policy(object):
                 output_.append(output_data)
                 input_data = []
                 output_data = []
-                j+=1
+
         return np.asarray(input_), np.asarray(output_)
 
     def construct_ff_NN(self, state_placeholder, action_placeholder, states, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 5):
@@ -271,38 +270,39 @@ class Policy(object):
             
             for i in range(500):
                 _, loss = self.sess.run([train_op, error_function],feed_dict)
-            print loss
             print "Network trained"
 
     def set_bookkeeping_files(self,relative_path):
 
-        self.reward_file_name = relative_path+'rewards.txt'
-        self.disc_reward_file_name = relative_path+'discounted_rewards.txt'
+        self.reward_file_name = relative_path+'data/rewards.txt'
+        self.disc_reward_file_name = relative_path+'data/discounted_rewards.txt'
 
-        self.actions_file_name = relative_path+'actions.txt'
-        self.action_dist_mean_file_name = relative_path+'action_dist_mean.txt'
-        self.exploration_file_name = relative_path+'exploration.txt'
+        self.actions_file_name = relative_path+'data/actions.txt'
+        self.action_dist_mean_file_name = relative_path+'data/action_dist_mean.txt'
+        self.exploration_file_name = relative_path+'data/exploration.txt'
 
-        self.explored_states_file_name = relative_path+'explored_states.txt'
+        self.explored_states_file_name = relative_path+'data/explored_states.txt'
 
-        self.evaluated_states_file_name = relative_path+'evaluated_states.txt'
+        self.evaluated_states_file_name = relative_path+'data/evaluated_states.txt'
 
-        self.task_measure_file_name = relative_path+'task_measure.txt'
+        self.task_measure_file_name = relative_path+'data/task_measure.txt'
 
-        self.neural_network_param_file_name = relative_path+'weights.txt'
+        self.neural_network_param_file_name = relative_path+'data/weights.txt'
         
-        self.kl_divergence_file_name = relative_path+'kl_div.txt'
-        self.surrogate_loss_file_name = relative_path+'surr_loss.txt'
-        self.dist_entropy_file_name = relative_path+'dist_ent.txt'
+        self.grad_file_name = relative_path+'data/gradients.txt'
 
-        self.baseline_file_name = relative_path+'baseline.txt'
-        self.advantageages_file_name = relative_path+'advantages.txt'
-        self.unnorm_advantageages_file_name = relative_path+'unnorm_advantages.txt'
+        self.kl_divergence_file_name = relative_path+'data/kl_div.txt'
+        self.surrogate_loss_file_name = relative_path+'data/surr_loss.txt'
+        self.dist_entropy_file_name = relative_path+'data/dist_ent.txt'
+
+        self.baseline_file_name = relative_path+'data/baseline.txt'
+        self.advantageages_file_name = relative_path+'data/advantages.txt'
+        self.unnorm_advantageages_file_name = relative_path+'data/unnorm_advantages.txt'
         
         self.reset_files([self.neural_network_param_file_name, self.advantageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name,
                             self.action_dist_mean_file_name, self.task_measure_file_name, self.exploration_file_name, self.kl_divergence_file_name, self.surrogate_loss_file_name,
-                             self.dist_entropy_file_name])
+                             self.dist_entropy_file_name, self.grad_file_name])
 
     def store_weights(self):
 
@@ -369,19 +369,22 @@ class Policy(object):
 
     def calculate_return(self, curr_reward):
 
-        dist_square = np.square(np.asarray(curr_reward))
+        squared_points = np.square(np.asarray(curr_reward))
         dist_abs = np.abs(np.asarray(curr_reward))
 
-        alpha = 1e-15#1e-17
+        alpha = 1e-5#1e-17
         rollout_return = 0
 
-        dist = np.sqrt(np.sum(dist_square,axis=1))
+        dist = np.sqrt(np.sum(squared_points,axis=1))
+        dist_square = np.sum(squared_points,axis=1)
         # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
-        rollout_return = -50*dist+25*np.exp(-15*dist)
+        # rollout_return = -50*dist+30*np.exp(-10*dist)
+        rollout_return = -1*(1*dist_square+1*np.log(alpha+dist_square))
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
         
         return rollout_return
+
 
 
     def normalize_data(self, data):
@@ -505,17 +508,19 @@ class Policy(object):
                 # This corresponds to a higher learning rate and that the new policy will differ more than the current
                 elif diff>0:
                     print "Policy improved by", diff
-                    self.kl += 0.01
+                    self.max_kl += 0.01
                 # If the policy is not improving reset the kl divergence to a base value.
                 else:
-                    self.kl = 0.01 
+                    self.max_kl = 0.01 
                     print "Policy got worse by", diff
 
                 # The variance of the Gaussian distribution is set as the mean of the actions from the evaluation episode.
                 # In this way the exploration is high enough
-                self.curr_std = self.get_action_mean()
+                self.curr_std = 1*self.get_action_mean().flatten()
                 # However, the variance is limited upwards otherwise the expolarion can be too high and damage the real robot
-                self.curr_std[self.curr_std<0.4]=0.4
+                # self.curr_std[self.curr_std<0.4]=0.4
+                print "Final task error " + str(self.states[-1])
+
                 self.reset_eval_episode(curr_eval_return)
                 return PolicySearchResponse(not self.train)
 
@@ -523,7 +528,7 @@ class Policy(object):
             self.store_episode_data_to_file()
 
             self.num_train_episode +=1
-            print "Training episode number "+str(self.num_train_episode)+" finished with a disounted return of " + str(self.episode_disc_reward.sum()) 
+            print "Training episode number "+str(self.num_train_episode)+" finished with a reward of " + str(self.episode_reward.sum()) 
 
             if self.num_train_episode % self.batch_size == 0 and self.train:
 
@@ -580,7 +585,6 @@ class Policy(object):
 
                     fullstep = stepdir / lm
                     negative_g_dot_steppdir = -g.dot(stepdir)
-
                     def loss(th):
                         self.sff(th)
                         # surrogate loss: policy gradient loss
@@ -590,7 +594,7 @@ class Policy(object):
 
                     surrogate_prev, kl_prev, entropy_prev = self.sess.run(self.losses,feed_dict)
                     # finds best parameter by starting with a big step and working backwards
-                    success, theta = linesearch(loss, thprev, fullstep, negative_g_dot_steppdir/ lm)
+                    success, theta, step_length = linesearch(loss, thprev, fullstep, negative_g_dot_steppdir/ lm)
                     print "success", success
                     # i guess we just take a fullstep no matter what
                     # theta = thprev + fullstep
@@ -604,7 +608,7 @@ class Policy(object):
                     batch_dic[self.kl_divergence_file_name] = [kl_prev, kl_after]
                     batch_dic[self.surrogate_loss_file_name] = [surrogate_prev, surrogate_after]
                     batch_dic[self.dist_entropy_file_name] = [entropy_prev, entropy_after]
-                    
+                    batch_dic[self.grad_file_name] = step_length*fullstep
                     self.store_batch_data_to_file(batch_dic)
 
                     self.VN.train(states, rewards, self.batch_size)
@@ -628,7 +632,7 @@ class Policy(object):
                 exp = np.exp(action_dist_logstd)*np.random.randn(*action_dist_logstd.shape)
                 task_dynamics = mean_values + exp
                 # Low-pass filter the action.  
-                task_dynamics = np.multiply(0.6,self.prev_action)+np.multiply(0.4,task_dynamics[0])
+                task_dynamics = np.multiply(0.8,self.prev_action)+np.multiply(0.2,task_dynamics[0])
                 self.prev_action = task_dynamics
                 self.exploration.append(exp)
             else:
@@ -638,6 +642,7 @@ class Policy(object):
             self.actions.append(task_dynamics)
             self.action_dist_logstd_.append(action_dist_logstd.flatten())
             return  task_dynamics
+
 
     def main(self):
         rospy.spin()

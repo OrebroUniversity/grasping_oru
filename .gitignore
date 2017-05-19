@@ -1,8 +1,8 @@
 grasp_planner/cfg/*
 *.pyc
-grasp_learning/stored_data/tested_data/*.txt
-grasp_learning/stored_data/tested_data/model*
+grasp_learning/stored_data/tested_data/data/*.txt
+grasp_learning/stored_data/tested_data/models/model*
 grasp_learning/stored_data/tested_data/events*
 grasp_learning/stored_data/tested_data/checkpoint*
-grasp_learning/stored_data/tested_data/tested_data/vgraphs/*
-grasp_learning/stored_data/tested_data/tested_data/graphs/*
+grasp_learning/stored_data/tested_data/vgraphs/*
+grasp_learning/stored_data/tested_data/graphs/*

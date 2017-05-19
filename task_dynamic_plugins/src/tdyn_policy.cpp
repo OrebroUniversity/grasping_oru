@@ -41,8 +41,8 @@ namespace tasks
                                const Eigen::VectorXd& e_final) {
 
     int size = parameters.size();
-    if (size != 3) {
-      printHiqpWarning("TDynPolicy requires 3 parameters, got " 
+    if (size != 2) {
+      printHiqpWarning("TDynPolicy requires 2 parameters, got " 
         + std::to_string(size) + "! Initialization failed!");
 
       return -1;
@@ -54,7 +54,7 @@ namespace tasks
 
     // lambda_ = std::stod( parameters.at(1) );
     // ROS_INFO("Initializing normal distrtibution with mean %lf and variance %lf",std::stod(parameters.at(1)),std::stod(parameters.at(2)));
-    std::normal_distribution<double> d2(std::stod(parameters.at(1)),std::stod(parameters.at(2)));
+    std::normal_distribution<double> d2(0,1);
     this->dist.param(d2.param());
     e_dot_star_.resize(e_initial.rows());
     performance_measures_.resize(e_initial.rows());

@@ -4,50 +4,52 @@ import matplotlib.pyplot as plt
 import sys
 
 def get_weights():
-	return np.loadtxt("/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/weights.txt")
+	return np.loadtxt("/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/weights.txt")
 
 def get_explored_states():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/explored_states.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/explored_states.txt')
 	
 def get_evaluated_states():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/evaluated_states.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/evaluated_states.txt')
 
 def get_actions():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/actions.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/actions.txt')
 	
 def get_rewards():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/rewards.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/rewards.txt')
 	
 def get_disc_rewards():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/discounted_rewards.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/discounted_rewards.txt')
 	
 def get_advantages():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/advantages.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/advantages.txt')
 	
 def get_unnorm_advantages():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/unnorm_advantages.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/unnorm_advantages.txt')
 
 def get_baseline():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/baseline.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/baseline.txt')
 
 def get_mean_action():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/action_dist_mean.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/action_dist_mean.txt')
 
 def get_exploration():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/exploration.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/exploration.txt')
 
 def get_surrogate_loss():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/surr_loss.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/surr_loss.txt')
 
 def get_kl_div():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/kl_div.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/kl_div.txt')
 
 def get_dist_ent():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/dist_ent.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/dist_ent.txt')
 
 def get_gradients():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/gradients.txt')
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/gradients.txt')
 
+def get_eval_actions():
+	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/eval_actions.txt')
 
 def read_file(filename):
 	with open(filename,"r") as f:
@@ -79,12 +81,44 @@ def get_episode_data():
 	episode_data["exploration"] = get_exploration()
 	episode_data["weights"] = get_weights()
 	episode_data["gradients"] = get_gradients()
-
+	episode_data["eval_actions"] = get_eval_actions()
 	# episode_data["surr_loss"] = get_surrogate_loss()
 	# episode_data["kl_div"] = get_kl_div()
 	# episode_data["dist_ent"] = get_dist_ent()
 
 	return episode_data
+
+def discount_rewards(reward):
+
+    discounted_r = np.zeros_like(reward)
+    running_add = 0
+    for t in reversed(xrange(0, len(reward))):
+        running_add = running_add * 0.99 + reward[t]
+        discounted_r[t] = running_add
+
+    return discounted_r
+
+def calculate_return(curr_reward):
+
+	x1 = curr_reward[0::2]
+	x2 = curr_reward[1::2]
+	points =  np.asarray([x1, x2]).T
+	squared_points = np.square(points)
+	dist_abs = np.abs(np.asarray(curr_reward))
+
+	alpha = 1e-5#1e-17
+	rollout_return = 0
+
+	dist = np.sqrt(np.sum(squared_points,axis=1))
+	dist_square = np.sum(squared_points,axis=1)
+        # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
+        # rollout_return = -50*dist+30*np.exp(-10*dist)
+	rollout_return = -1*(10*dist+1*np.log(alpha+dist))
+
+    # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
+        
+	return rollout_return
+
 
 def get_start_row(rollout,batch_size):
 	return int(np.floor(rollout/batch_size))
@@ -119,15 +153,17 @@ def plot_rollout(num_rollout,batch_size=5, num_figs=1):
 		# plt.plot(episode_data["actions"][num_rollout+1][0::2],label='actions')
 		# plt.plot(episode_data["mean_action"][num_rollout+1][0::2],label='mean_actions')
 		# plt.plot(episode_data["exploration"][num_rollout][0::2],label='exploration')
-		plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
-		# plt.plot([x/1 for x in episode_data["disc_rewards"][num_rollout]], label='disc rewards')
+		# plt.plot([x/1.0 for x in calculate_return(episode_data["explored_states"][num_rollout])], label='rewards')
+		plt.plot([x/1 for x in discount_rewards(episode_data["rewards"][num_rollout])], label='disc rewards 0.99')
 		# print episode_data["advantages"][start_row]
 		# plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
 		# plt.plot([x/1.0 for x in episode_data["unnorm_advantages"][start_row][indicies[0]:indicies[1]]], label='unnorm advantages')
 
 		# plt.plot([x/1.0 for x in episode_data["baseline"][start_row][indicies[0]:indicies[1]]], label='baseline')
 		# f1.canvas.set_window_title('Task 1') 
-		plt.axhline(y=0,color='black')
+		# plt.axhline(y=0,color='black')
+		plt.legend(loc='lower center')
+
 		plt.subplot(212)
 
 		plt.plot(episode_data["explored_states"][num_rollout][1::2],label='states')
@@ -135,16 +171,16 @@ def plot_rollout(num_rollout,batch_size=5, num_figs=1):
 		# plt.plot(episode_data["mean_action"][num_rollout+1][1::2],label='mean_actions')
 		# plt.plot(episode_data["exploration"][num_rollout][1::2],label='exploration')
 
-		plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
+		# plt.plot([x/1.0 for x in episode_data["rewards"][num_rollout]], label='rewards')
 		# plt.plot([x/1 for x in episode_data["disc_rewards"][num_rollout]], label='disc rewards')
 		# print episode_data["advantages"][start_row]
-		# plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
+		plt.plot([x/1.0 for x in episode_data["advantages"][start_row][indicies[0]:indicies[1]]], label='advantages')
 		# plt.plot([x/1.0 for x in episode_data["unnorm_advantages"][start_row][indicies[0]:indicies[1]]], label='unnorm advantages')
 
 		# plt.plot([x/1.0 for x in episode_data["baseline"][start_row][indicies[0]:indicies[1]]], label='baseline')
 		# f2.canvas.set_window_title('Task 2')
 
-		plt.axhline(y=0,color='black')
+		# plt.axhline(y=0,color='black')
 		plt.legend(loc='lower center')
 
 		plt.show()
@@ -178,6 +214,28 @@ def plot_states(lower, upper):
 
 	plt.show()
 
+def plot_actions(lower, upper):
+	episode_data = get_episode_data()
+	plt.figure(dpi=200)
+	for i in xrange(lower,upper):
+		plt.figure(1)
+		plt.subplot(211)
+		plt.plot(episode_data["eval_actions"][i][0::2],label='states' + str(i))
+		# plt.axhline(y=0,color='black')
+		plt.grid()
+		plt.legend(loc='lower center')
+
+		plt.subplot(212)
+		plt.plot(episode_data["eval_actions"][i][1::2],label='states' + str(i))
+		plt.grid()
+
+		# plt.axhline(y=0,color='black')
+		plt.legend(loc='lower center')
+
+
+	plt.show()
+
+
 def plot_gradients(num_rollout):
 	episode_data = get_episode_data()
 	plt.figure(dpi=200)
@@ -188,33 +246,33 @@ def plot_gradients(num_rollout):
 	plt.show()
 
 if __name__ == '__main__':
-
-	while True:
-		print "Input what data do you want to plot?"
-		print "1 for rollout data\n2 for states\n3 for weights\n4 for gradients\n5 to quit"
-		plot = int(raw_input(""))
-		if plot == 1:
-			print "Input rollout number, batch size, and number of outputs"
-			rollout, batch_size, figs = map(int, raw_input("").split(" "))
-			print "Plotting rollout data"
-			plot_rollout(rollout, batch_size, figs)
-		elif plot == 2:
-			print "Input lower and upper level"
-			lower, upper = map(int, raw_input("").split(" "))
-			print "plotting states"
-			plot_states(lower, upper)
-		elif plot == 3:
-			print "Plotting the difference in weights from rollout to rollout"
-			plot_weights_diff()
-		elif plot == 4:
-			print "Input rollout number"
-			rollout = int(raw_input(""))
-			print "plotting gradients"
-			plot_gradients(rollout)
-		elif plot == 5:
-			break;
-		else:
-			print "Invalid input data"
+	plot_actions(0, 7)
+	# while True:
+	# 	print "Input what data do you want to plot?"
+	# 	print "1 for rollout data\n2 for states\n3 for weights\n4 for gradients\n5 to quit"
+	# 	plot = int(raw_input(""))
+	# 	if plot == 1:
+	# 		print "Input rollout number, batch size, and number of outputs"
+	# 		rollout, batch_size, figs = map(int, raw_input("").split(" "))
+	# 		print "Plotting rollout data"
+	# 		plot_rollout(rollout, batch_size, figs)
+	# 	elif plot == 2:
+	# 		print "Input lower and upper level"
+	# 		lower, upper = map(int, raw_input("").split(" "))
+	# 		print "plotting states"
+	# 		plot_states(lower, upper)
+	# 	elif plot == 3:
+	# 		print "Plotting the difference in weights from rollout to rollout"
+	# 		plot_weights_diff()
+	# 	elif plot == 4:
+	# 		print "Input rollout number"
+	# 		rollout = int(raw_input(""))
+	# 		print "plotting gradients"
+	# 		plot_gradients(rollout)
+	# 	elif plot == 5:
+	# 		break;
+	# 	else:
+	# 		print "Invalid input data"
 
 
 	# plot_states(int(sys.argv[1]), int(sys.argv[2]))

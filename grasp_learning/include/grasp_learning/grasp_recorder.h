@@ -15,7 +15,9 @@ namespace hiqp{
 		class grasp_recorder
 		{
 		public:
-			grasp_recorder(){num_record_ = 0;};
+			grasp_recorder(std::string file_name){
+				file_name_ = file_name;
+				num_record_ = 0;};
 			~grasp_recorder(){};
 		
 			template <typename ROSMessageType>
@@ -36,7 +38,7 @@ namespace hiqp{
 
 			std::vector< sensor_msgs::JointState > joint_state_vec_;
 			std::vector< hiqp_msgs::TaskMeasures > task_dynamics_vec_;
-
+			std::string file_name_;
 			int num_record_;
 			bool record_ = true;
 		};

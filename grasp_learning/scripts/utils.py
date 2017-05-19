@@ -10,10 +10,16 @@ def gauss_selfKL_firstfixed(mu, logstd):
     return gauss_KL(mu1, logstd1, mu2, logstd2)
 
 # probability to take action x, given paramaterized guassian distribution
-def gauss_log_prob(mu, logstd, x):
+def gauss_log_prob(mu, var, x):
+    logvar = tf.log(var)
+    gp = -tf.square(x - mu)/(2*var) - .5*tf.log(tf.constant(2*np.pi)) - .5*logvar
+    return gp#tf.reduce_sum(gp, [1],name="log_likelihood")
+
+# probability to take action x, given paramaterized guassian distribution
+def gauss_log_prob2(mu, logstd, x):
     var = tf.exp(2*logstd)
-    gp = -tf.square(x - mu)/(2*var) - .5*tf.log(tf.constant(2*np.pi)) - .5*logstd
-    return gp# tf.reduce_sum(gp, [1])
+    gp = -tf.square(x - mu)/(2*var) - .5*tf.log(tf.constant(2*np.pi)) - logstd
+    return  gp#tf.reduce_sum(gp, [1])
 
 # KL divergence between two paramaterized guassian distributions
 def gauss_KL(mu1, logstd1, mu2, logstd2):
@@ -117,8 +123,9 @@ def linesearch(f, x, fullstep, expected_improve_rate):
         expected_improve = expected_improve_rate * stepfrac
         ratio = actual_improve / expected_improve
         if ratio > accept_ratio and actual_improve > 0:
-            return True, xnew
-    return False, x
+            print "Step length ",stepfrac
+            return True, xnew, stepfrac
+    return False, x, 0
 
 class SetFromFlat(object):
 

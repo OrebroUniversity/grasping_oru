@@ -7,7 +7,11 @@
   <!-- launch the grasp_learning node -->
   <node name="demo_learning" pkg="grasp_learning" type="demo_learning" respawn="false" output="screen" >
      <param name="with_gazebo" type="bool" value="false"/>
-     <param name="generalize_policy" type="bool" value="true"/>
+     <param name="generalize_policy" type="bool" value="false"/>
+     <param name="decay_rate" type="double" value="0.5"/>
+     <param name="exec_time" type="double" value="10"/>
+     <param name="task_dynamics" value="TDynPolicy"/>
+     <!-- <param name="task_dynamics" value="TDynLinear"/> -->
 
       <!-- <param name="task" value="gripperToHorizontalPlane"/> -->
       <!--param name="task" value="gripperToVerticalPlane"/-->

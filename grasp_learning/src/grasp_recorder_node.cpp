@@ -7,8 +7,13 @@ int main(int argc, char **argv) {
   ros::init(argc,argv,"grasp_recorder_node");
   
   ros::NodeHandle nh;
+  ros::NodeHandle nh_;
 
-  grasp_recorder Recorder;
+  nh_ = ros::NodeHandle("~");
+
+  std::string file_name_;
+  nh_.param<std::string>("file_name", file_name_, "test");
+  grasp_recorder Recorder(file_name_);
 
   Recorder.addSubscription<grasp_learning::StartRecording>(nh, "/start_recording",1);
   Recorder.addSubscription<grasp_learning::FinishRecording>(nh, "/finish_recording",1);
