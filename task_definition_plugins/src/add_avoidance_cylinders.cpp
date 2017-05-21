@@ -40,7 +40,7 @@ int main(int argn, char** args) {
   std::array<std::string, 5> lh_frames = {"yumi_link_4_l", "yumi_link_5_l",
                                           "yumi_link_6_l", "yumi_link_7_l",
                                           "yumi_link_tool_l"};
-  std::array<double, 5> radius = {0.05, 0.07, 0.07, 0.0575, 0.001};
+  std::array<double, 5> radius = {0.06, 0.07, 0.07, 0.055, 0.001};
 
   // std::array<std::string, 2> rh_frames = {"yumi_link_tool_r",
   // "yumi_link_7_r"};
@@ -88,7 +88,7 @@ int main(int argn, char** args) {
 
     double length = axis_r.length();
     if (rh_frames[i + 1].find("tool") != std::string::npos)
-      length = length - 0.020;
+      length = length - 0.02;
     hiqp_client.setPrimitive(rh_frames[i], "cylinder", rh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_r.getX(), axis_r.getY(), axis_r.getZ(), 0.00,
@@ -96,7 +96,7 @@ int main(int argn, char** args) {
 
     length = axis_l.length();
     if (lh_frames[i + 1].find("tool") != std::string::npos)
-      length = length - 0.020;
+      length = length - 0.02;
 
     hiqp_client.setPrimitive(lh_frames[i], "cylinder", lh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
@@ -111,19 +111,19 @@ int main(int argn, char** args) {
 
   hiqp_client.setPrimitive("yumi_link_6_r", "cylinder", "yumi_link_6_r", true,
                            {1.0, 1.0, 0.0, 0.5},
-                           {0.0, 0.0, 1.0, 0.0, 0.0, -0.04, 0.05, 0.08});
+                           {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.05, 0.05});
   def.push_back("cylinder");
   def.push_back("yumi_link_6_r");
 
   hiqp_client.setPrimitive("yumi_link_6_l", "cylinder", "yumi_link_6_l", true,
                            {1.0, 1.0, 0.0, 0.5},
-                           {0.0, 0.0, 1.0, 0.0, 0.0, -0.04, 0.05, 0.08});
+                           {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.05, 0.05});
   def.push_back("cylinder");
   def.push_back("yumi_link_6_l");
 
 
   hiqp_client.setTask("avoid_collisions_sdf", 1, true, true, true, def,
-                      {"TDynLinear", "2.0"});
+                      {"TDynLinear", "1.5"});
   ros::shutdown();
   return 0;
 }

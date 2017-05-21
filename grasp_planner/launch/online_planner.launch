@@ -6,7 +6,8 @@
   <node name="gplanner" pkg="grasp_planner" type="grasp_planner_node" output="screen">
     
     <!--param name="gripper_file" value="$(find grasp_planner)/cfg/cylinder_05mm.cons"/-->
-    <param name="gripper_file" value="$(find grasp_planner)/cfg/yumi_cyl_03mm.cons"/>
+    <!-- param name="gripper_file" value="$(find grasp_planner)/cfg/yumi_cyl_03mm.cons"/ -->
+    <param name="gripper_file" value="$(find grasp_planner)/cfg/yumi_cylinder_05.cons"/>
     <param name="map_frame_name" value="sdf_map_frame"/>
     <param name="use_tf" value="true"/>
 
@@ -18,11 +19,15 @@
     <param name="depth_info_topic_name2" value="/kinect2/hd/camera_info"/>
 
     <!-- SDF related parameters -->
-    <param name="GridSizeX" value= "250"/>
-    <param name="GridSizeY" value= "190"/>
-    <param name="GridSizeZ" value= "120"/>
+    <param name="GridSizeX" value= "150"/>
+    <param name="GridSizeY" value= "110"/>
+    <param name="GridSizeZ" value= "90"/>
+    <!-- <param name="GridSizeX" value= "250"/> -->
+    <!-- <param name="GridSizeY" value= "190"/> -->
+    <!-- <param name="GridSizeZ" value= "150"/> -->
+
     <param name="PositiveTruncationDistance" value= "0.03" />
-    <param name="NegativeTruncationDistance" value= "-0.003" />
+    <param name="NegativeTruncationDistance" value= "-0.009" />
     <param name="RobustStatisticCoefficient" value= "0.01" />
     <param name="OutputVolume" value= "false" />
     <param name="InteractiveMode" value= "false" />

@@ -31,8 +31,8 @@
 #include <sdf_tracker_msgs/GetSDFMap.h>
 
 #define POINT_SCALE  0.02
-#define LINE_SCALE   0.3
-#define PLANE_SCALE  1
+#define LINE_SCALE   0.06
+#define PLANE_SCALE  0.3
 #define CONE_SCALE   0.3
 #define LINE_WIDTH   0.005
 

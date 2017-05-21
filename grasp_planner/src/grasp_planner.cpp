@@ -572,7 +572,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
   bottom.frame_id = grasping_frame;  // TODO: Check this.
   bottom.visible = false;
   bottom.color = {0.0, 0.0, 1.0, 0.2};
-  bottom.parameters = {normal(0), normal(1), normal(2), d + plane_tolerance};
+  bottom.parameters = {normal(0), normal(1), normal(2),
+                       d - plane_tolerance - 0.01};
 
   // top
   normal = grasp2global.rotation() * out.upper_plane.a;
@@ -583,7 +584,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
   top.frame_id = grasping_frame;  // TODO: Check this.
   top.visible = false;
   top.color = {0.0, 0.0, 1.0, 0.2};
-  top.parameters = {-normal(0), -normal(1), -normal(2), -d - plane_tolerance};
+  top.parameters = {-normal(0), -normal(1), -normal(2),
+                    -d - plane_tolerance + 0.01};
 
   // left
   normal = grasp2global.rotation() * out.left_bound_plane.a;
@@ -715,7 +717,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
     addCylinderMarker(
         marker_array, tmpose, zaxis.cast<double>(),
         out.outer_cylinder.radius_ - cylinder_tolerance, gripper_frame_name,
-        out.upper_plane.b - out.lower_plane.b + 2 * plane_tolerance);
+        out.upper_plane.b - out.lower_plane.b + 2 * plane_tolerance, "cylinder",
+        0, 0, 1);
     // add request cylinder
     addCylinderMarker(marker_array, Eigen::Vector3d::Zero(),
                       Eigen::Vector3d::UnitZ(), req.object_radius,
