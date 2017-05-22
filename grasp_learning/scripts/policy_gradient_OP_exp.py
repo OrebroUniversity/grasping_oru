@@ -95,7 +95,7 @@ class Policy(object):
 	self.random_bias = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
-    	self.gamma = 0.9 #0.99 #TSV: testing a much more local approach
+    	self.gamma = 0.1 #0.99 #TSV: testing a much more local approach
     	self.kl = 0.01
 
         self.g = tf.Graph()
@@ -175,11 +175,11 @@ class Policy(object):
     	tf.summary.histogram('loglik', self.loglik)
     	tf.summary.histogram('adv', self.advantage)
 
-    	with tf.device('/cpu:0'):
-    	    self.loss_prod = tf.multiply(self.loglik,self.advantage,'mrNasty')
-            self.loss = -tf.reduce_mean(self.loss_prod,name="Loss_function")/self.batch_size
+        self.loss = -tf.reduce_mean(tf.multiply(self.loglik,self.advantage,'loss_prod'),name='loss_reduce_mean') 
+	#self.loss_prod = tf.multiply(self.loglik,self.advantage,'mrNasty')
+	#self.loss = -tf.reduce_mean(self.loss_prod,name="Loss_function")/self.batch_size
             
-            tf.summary.histogram('loss', self.loss)
+        tf.summary.histogram('loss', self.loss)
     	self.merged_summary = tf.summary.merge_all()
     	tf.summary.histogram('loglik_hist', self.loglik)
     	tf.summary.histogram('loss_hist', self.loss)
@@ -304,7 +304,7 @@ class Policy(object):
 
             feed_dict={task_error_placeholder: states,
                         task_dyn_placeholder: task_dyn,
-                        self.learning_rate : 0.01} 
+                        self.learning_rate : 0.001} 
 
             for i in range(2000):
                 _, loss = self.sess.run([train_op, error_function],feed_dict)
@@ -632,7 +632,7 @@ class Policy(object):
 		if(self.num_eval_episode == 1) :
 		    self.sigma = self.get_action_mean()/4
 		else:
-		    self.sigma = self.gamma*self.sigma
+		    self.sigma = 0.95*self.sigma
 		print "SIGMA is ",self.sigma
                 # However, the variance is limited upwards otherwise the expolarion can be too high and damage the real robot
 
@@ -777,7 +777,7 @@ class Policy(object):
             if self.train and not self.eval_episode:
                 # Sample the noise
                 noise = np.random.normal(self.mean, self.sigma)
-                random_noise = np.random.normal(self.mean, [0.0002,0.0002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
+                random_noise = np.random.normal(self.mean, [0.002,0.002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
                 # The new task dynamics is the mean of the output from the NN plus the noise
                 # task_dynamics = 0.8*self.prev_action+0.2*(mean+noise)#(mean+noise)
                 # task_dynamics = mean+noise
