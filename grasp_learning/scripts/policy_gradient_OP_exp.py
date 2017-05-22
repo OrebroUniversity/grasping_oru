@@ -716,7 +716,7 @@ class Policy(object):
                     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                     run_metadata = tf.RunMetadata()
                     for i in range(1):
-                        _, error, ll, summary, loss_prod = self.sess.run([self.train_op, self.loss, self.loglik, self.merged_summary, self.loss_prod], feed_dict,
+                        _, error, ll, summary = self.sess.run([self.train_op, self.loss, self.loglik, self.merged_summary], feed_dict,
         				run_options,
         				run_metadata)
                     
