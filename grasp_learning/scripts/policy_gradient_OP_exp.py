@@ -101,7 +101,7 @@ class Policy(object):
         self.g = tf.Graph()
         self.train = True
         self.eval_episode = True
-        self.max_rew_before_convergence = 15000
+        self.max_rew_before_convergence = 150000
         self.mean = np.zeros(num_outputs)
         self.ffnn_mean = np.zeros(num_outputs)
         
@@ -513,7 +513,8 @@ class Policy(object):
         alpha = 1e-5#1e-17
         rollout_return = 0
         
-        dist = np.sqrt(np.sum(squared_points,axis=1))
+	#dist = np.sqrt(np.sum(squared_points,axis=1))
+        dist = 0.5*(np.sum(dist_abs,axis=1))
         # dist_square = np.sum(squared_points,axis=1)
         # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
         # rollout_return = -50*dist+30*np.exp(-10*dist)
@@ -523,8 +524,10 @@ class Policy(object):
     	# dist = np.sqrt(np.sum(dist_square))
         # dist = 0.5*np.sum(dist_abs,axis=1)
 	   #print "Dist ", dist 
-        rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
-	   #rollout_return = -50*dist+25*np.exp(-15*dist)
+	#rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
+
+	#rollout_return = -50*dist+25*np.exp(-10*dist)
+	rollout_return = -100*dist-10*np.exp(dist) #TSV original
         # rollout_return = -100*dist-10*np.square(dist)
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
@@ -625,10 +628,15 @@ class Policy(object):
                 # In this way the exploration is high enough
 
                 # self.sigma = 15*self.get_action_mean()
-                self.sigma = self.get_action_mean()/3.
+		# self.sigma = self.get_action_mean()/3.
+		if(self.num_eval_episode == 1) :
+		    self.sigma = self.get_action_mean()/4
+		else:
+		    self.sigma = self.gamma*self.sigma
+		print "SIGMA is ",self.sigma
                 # However, the variance is limited upwards otherwise the expolarion can be too high and damage the real robot
 
-                self.sigma[self.sigma>0.4]=0.4
+		#self.sigma[self.sigma>0.4]=0.4
                 print "Final task error " + str(self.states[-1])
 
                 self.reset_eval_episode(curr_eval_return)
@@ -769,7 +777,7 @@ class Policy(object):
             if self.train and not self.eval_episode:
                 # Sample the noise
                 noise = np.random.normal(self.mean, self.sigma)
-                random_noise = np.random.normal(self.mean, [0.002,0.002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
+                random_noise = np.random.normal(self.mean, [0.0002,0.0002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
                 # The new task dynamics is the mean of the output from the NN plus the noise
                 # task_dynamics = 0.8*self.prev_action+0.2*(mean+noise)#(mean+noise)
                 # task_dynamics = mean+noise
