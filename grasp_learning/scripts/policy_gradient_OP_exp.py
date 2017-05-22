@@ -149,8 +149,8 @@ class Policy(object):
         self.fisher_matrix = []
 
         # Create the optimizer
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
-        # self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
+        # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
 
         input_data, output_data = self.parse_input_output_data(input_output_data_file)
 
@@ -277,7 +277,7 @@ class Policy(object):
 
             weights_1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]),name="w1")
             biases_1 = tf.Variable(tf.zeros([HIDDEN_UNITS_L1]), name="b1")
-            layer_1_outputs = tf.nn.softplus(tf.matmul(task_error_placeholder, weights_1,name="Input_W1_Mul") + biases_1,name="L1")
+            layer_1_outputs = tf.nn.tanh(tf.matmul(task_error_placeholder, weights_1,name="Input_W1_Mul") + biases_1,name="L1")
 
             weights_2 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L1, NUM_OUTPUTS]),name="w2")
             biases_2 = tf.Variable(tf.zeros([NUM_OUTPUTS]),name="b2")
@@ -523,9 +523,9 @@ class Policy(object):
     	# dist = np.sqrt(np.sum(dist_square))
         # dist = 0.5*np.sum(dist_abs,axis=1)
 	   #print "Dist ", dist 
-        rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
+        # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
 	   #rollout_return = -50*dist+25*np.exp(-15*dist)
-        # rollout_return = -100*dist-10*np.square(dist)
+        rollout_return = -100*dist-10*np.square(dist)
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
         
@@ -585,7 +585,7 @@ class Policy(object):
         baseline = np.zeros_like(rewards)
         for i in xrange(len(states)):
             baseline[i] = self.VN.predict(states[i,:]).flatten()
-            advantages[i] = rewards[i]#-np.abs(baseline[i])
+            advantages[i] = rewards[i]-np.abs(baseline[i])
 
         norm_advantages = self.normalize_data(advantages)
         advantages = advantages.reshape(advantages.shape[0],1)
