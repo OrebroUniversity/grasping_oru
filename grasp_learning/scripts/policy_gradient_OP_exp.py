@@ -95,7 +95,7 @@ class Policy(object):
 	self.random_bias = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
-    	self.gamma = 0.1 #0.99 #TSV: testing a much more local approach
+    	self.gamma = 0.99 #0.99 #TSV: testing a much more local approach
     	self.kl = 0.01
 
         self.g = tf.Graph()
@@ -204,7 +204,8 @@ class Policy(object):
 
         self.set_natural_policy_gradients()
         
-        self.train_op = self.optimizer.apply_gradients(self.NPG)
+	self.train_op = self.optimizer.apply_gradients(self.NPG)
+	#self.train_op = self.optimizer.apply_gradients(self.pg)
 
         saver = tf.train.Saver()
 
@@ -232,7 +233,7 @@ class Policy(object):
         i=1
         for g,v in self.loss_grads:
             self.fisher_matrix.append(tf.placeholder(tf.float32, g.shape,name="Fisher_"+str(i)))
-            grad = tf.multiply(self.fisher_matrix[-1], g,name="PG_Fisher_Mul_"+str(i))
+	    grad = tf.multiply(self.fisher_matrix[-1], g,name="PG_Fisher_Mul_"+str(i))
             self.NPG.append((grad, v))
             i+=1
     # Opens and closes a file to empty its content
@@ -513,8 +514,9 @@ class Policy(object):
         alpha = 1e-5#1e-17
         rollout_return = 0
         
-	#dist = np.sqrt(np.sum(squared_points,axis=1))
-        dist = 0.5*(np.sum(dist_abs,axis=1))
+	dist = np.sqrt(np.sum(squared_points,axis=1))
+	dist_l1 = np.sum(dist_abs,axis=1)
+	#dist = 0.5*(np.sum(dist_abs,axis=1))
         # dist_square = np.sum(squared_points,axis=1)
         # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
         # rollout_return = -50*dist+30*np.exp(-10*dist)
@@ -527,7 +529,15 @@ class Policy(object):
 	#rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
 
 	#rollout_return = -50*dist+25*np.exp(-10*dist)
-	rollout_return = -100*dist-10*np.exp(2*dist) #TSV original
+
+	#rollout_return = -100*dist-10*np.exp(dist) #TSV original
+	
+	delta = 0.2
+	sq_factor = 20
+	lin_factor = 0.05
+	rollout_return = -sq_factor*np.square(dist) #TSV new
+        rollout_return[dist_l1 > delta] = -sq_factor*delta*delta + lin_factor*(delta-dist_l1[dist_l1 > delta])
+
         # rollout_return = -100*dist-10*np.square(dist)
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
@@ -572,7 +582,7 @@ class Policy(object):
             flatten_lg = self.flattenVectors(lg)
             flatten_lg = flatten_lg.reshape(flatten_lg.shape[0],1)
             flatten_fisher = flatten_fisher.reshape(flatten_fisher.shape[0],1)
-            eps = 1e-3
+            eps = 1e-5
             denom = eps+np.square(flatten_lg).T.dot(flatten_fisher)
             step_size = np.sqrt(self.kl/denom)
 
@@ -588,6 +598,7 @@ class Policy(object):
         baseline = np.zeros_like(rewards)
         for i in xrange(len(states)):
             baseline[i] = self.VN.predict(states[i,:]).flatten()
+	    #TSV: here to comment in VN
             advantages[i] = rewards[i]#-np.abs(baseline[i])
 
         norm_advantages = self.normalize_data(advantages)
@@ -618,10 +629,10 @@ class Policy(object):
                 # This corresponds to a higher learning rate and that the new policy will differ more than the current
                 elif diff>0:
                     print "Policy improved by", diff
-                    # self.kl += 0.01
+                    self.kl += 0.01
                 # If the policy is not improving reset the kl divergence to a base value.
                 else:
-                    # self.kl = 0.01 
+                    self.kl = 0.01 
                     print "Policy got worse by", diff
 
                 # The variance of the Gaussian distribution is set as the mean of the actions from the evaluation episode.
@@ -630,7 +641,7 @@ class Policy(object):
                 # self.sigma = 15*self.get_action_mean()
 		# self.sigma = self.get_action_mean()/3.
 		if(self.num_eval_episode == 1) :
-		    self.sigma = self.get_action_mean()/4
+		    self.sigma = self.get_action_mean()/3
 		else:
 		    self.sigma = 0.95*self.sigma
 		print "SIGMA is ",self.sigma
@@ -742,8 +753,8 @@ class Policy(object):
                     self.store_batch_data_to_file(batch_dic)
                     # Trains the value net with the task errors (e) as input and the cumulated rewards from that state onwards as output.
                     # The training is done after the batch update to not add bias
-                    print "Training Value Network"
-                    self.VN.train(states, rewards, self.batch_size)
+		    #print "Training Value Network"
+		    #self.VN.train(states, rewards, self.batch_size)
                     self.reset_batch() 
 		    
 
@@ -777,13 +788,13 @@ class Policy(object):
             if self.train and not self.eval_episode:
                 # Sample the noise
                 noise = np.random.normal(self.mean, self.sigma)
-                random_noise = np.random.normal(self.mean, [0.002,0.002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
+                random_noise = np.random.normal(self.mean, [0.02,0.02]) # should find some good way to choose this: can't be more than the controller handles in a single time step
                 # The new task dynamics is the mean of the output from the NN plus the noise
                 # task_dynamics = 0.8*self.prev_action+0.2*(mean+noise)#(mean+noise)
                 # task_dynamics = mean+noise
                 # self.exploration.append(mean-task_dynamics)
 
-                task_dynamics = self.ffnn_mean+random_noise+self.random_bias  #0.2*self.prev_action+0.8*(self.ffnn_mean+noise)#(mean+noise)
+                task_dynamics = 0.3*self.prev_action+0.7*(self.ffnn_mean+random_noise+self.random_bias)  #0.2*self.prev_action+0.8* 0.2*self.prev_action+0.8*(self.ffnn_mean+noise)#(mean+noise)
                 self.exploration.append(self.ffnn_mean-task_dynamics)
                 self.prev_action = task_dynamics
                 self.mean_action.append(self.ffnn_mean.flatten())

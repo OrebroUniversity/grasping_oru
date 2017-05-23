@@ -3,53 +3,55 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+home_dir = "/home/tsv"
+
 def get_weights():
-	return np.loadtxt("/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/weights.txt")
+	return np.loadtxt(home_dir+"/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/weights.txt")
 
 def get_explored_states():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/explored_states.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/explored_states.txt')
 	
 def get_evaluated_states():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/evaluated_states.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/evaluated_states.txt')
 
 def get_actions():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/actions.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/actions.txt')
 	
 def get_rewards():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/rewards.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/rewards.txt')
 	
 def get_disc_rewards():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/discounted_rewards.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/discounted_rewards.txt')
 	
 def get_advantages():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/advantages.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/advantages.txt')
 	
 def get_unnorm_advantages():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/unnorm_advantages.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/unnorm_advantages.txt')
 
 def get_baseline():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/baseline.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/baseline.txt')
 
 def get_mean_action():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/action_dist_mean.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/action_dist_mean.txt')
 
 def get_exploration():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/exploration.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/exploration.txt')
 
 def get_surrogate_loss():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/surr_loss.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/surr_loss.txt')
 
 def get_kl_div():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/kl_div.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/kl_div.txt')
 
 def get_dist_ent():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/dist_ent.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/dist_ent.txt')
 
 def get_gradients():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/gradients.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/gradients.txt')
 
 def get_eval_actions():
-	return read_file('/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/eval_actions.txt')
+	return read_file(home_dir+'/grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/data/eval_actions.txt')
 
 def read_file(filename):
 	with open(filename,"r") as f:
@@ -246,33 +248,33 @@ def plot_gradients(num_rollout):
 	plt.show()
 
 if __name__ == '__main__':
-	plot_actions(0, 7)
-	# while True:
-	# 	print "Input what data do you want to plot?"
-	# 	print "1 for rollout data\n2 for states\n3 for weights\n4 for gradients\n5 to quit"
-	# 	plot = int(raw_input(""))
-	# 	if plot == 1:
-	# 		print "Input rollout number, batch size, and number of outputs"
-	# 		rollout, batch_size, figs = map(int, raw_input("").split(" "))
-	# 		print "Plotting rollout data"
-	# 		plot_rollout(rollout, batch_size, figs)
-	# 	elif plot == 2:
-	# 		print "Input lower and upper level"
-	# 		lower, upper = map(int, raw_input("").split(" "))
-	# 		print "plotting states"
-	# 		plot_states(lower, upper)
-	# 	elif plot == 3:
-	# 		print "Plotting the difference in weights from rollout to rollout"
-	# 		plot_weights_diff()
-	# 	elif plot == 4:
-	# 		print "Input rollout number"
-	# 		rollout = int(raw_input(""))
-	# 		print "plotting gradients"
-	# 		plot_gradients(rollout)
-	# 	elif plot == 5:
-	# 		break;
-	# 	else:
-	# 		print "Invalid input data"
+#plot_actions(0, 7)
+	 while True:
+	 	print "Input what data do you want to plot?"
+	 	print "1 for rollout data\n2 for states\n3 for weights\n4 for gradients\n5 to quit"
+	 	plot = int(raw_input(""))
+	 	if plot == 1:
+	 		print "Input rollout number, batch size, and number of outputs"
+	 		rollout, batch_size, figs = map(int, raw_input("").split(" "))
+	 		print "Plotting rollout data"
+	 		plot_rollout(rollout, batch_size, figs)
+	 	elif plot == 2:
+	 		print "Input lower and upper level"
+	 		lower, upper = map(int, raw_input("").split(" "))
+	 		print "plotting states"
+	 		plot_states(lower, upper)
+	 	elif plot == 3:
+	 		print "Plotting the difference in weights from rollout to rollout"
+	 		plot_weights_diff()
+	 	elif plot == 4:
+	 		print "Input rollout number"
+	 		rollout = int(raw_input(""))
+	 		print "plotting gradients"
+	 		plot_gradients(rollout)
+	 	elif plot == 5:
+	 		break;
+	 	else:
+	 		print "Invalid input data"
 
 
 	# plot_states(int(sys.argv[1]), int(sys.argv[2]))
