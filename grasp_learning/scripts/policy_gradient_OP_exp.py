@@ -533,10 +533,11 @@ class Policy(object):
 	#rollout_return = -100*dist-10*np.exp(dist) #TSV original
 	
 	delta = 0.2
-	sq_factor = 20
+	sq_factor = 10
 	lin_factor = 0.05
 	rollout_return = -sq_factor*np.square(dist) #TSV new
-        rollout_return[dist_l1 > delta] = -sq_factor*delta*delta + lin_factor*(delta-dist_l1[dist_l1 > delta])
+#rollout_return = -sq_factor*np.square(dist) #TSV new
+#rollout_return[dist_l1 > delta] = -sq_factor*delta*delta + lin_factor*(delta-dist_l1[dist_l1 > delta])
 
         # rollout_return = -100*dist-10*np.square(dist)
 
