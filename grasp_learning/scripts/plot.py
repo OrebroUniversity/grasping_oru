@@ -7,23 +7,26 @@ d2=np.arange(-2,2,0.01)
 dist= np.asarray([d1,d2])
 dist = np.sqrt(np.sum(np.square(dist),axis=0))
 
-alpha = 1e-15
+alpha = 1e-5
 
 # weighted_dist = -10*dist
 # # plt.plot(d1,weighted_dist,label='w_log')
 # for i in np.arange(1,7,1):
 # 	print i
 
-# 	weighted_log  = -i*np.log(alpha+dist)
+# weighted_log  = -i*np.log(alpha+dist)
 # 	lab = str(i)
 # 	# plt.plot(d1,weighted_log,label=lab)
-# 	error=weighted_dist+weighted_log
+# error=weighted_dist+weighted_log
 # 	plt.plot(d1,error,label=lab)
 weighted_exp = 50*np.exp(-15*dist)
 weighted_dist = -20*dist
 error=weighted_dist+weighted_exp
 
-plt.plot(d1,error,label="weighted_exp")
+weighted_log  = -2*np.log(alpha+dist)
+error=weighted_dist+weighted_log
+
+plt.plot(d1,error,label="weighted_log")
 # error[i-1]=weighted_dist+weighted_log[i-1]
 
 # weighted_log[i-1]  = -0.6*np.log(alpha+10*dist)
@@ -44,6 +47,8 @@ plt.plot(d1,error,label="weighted_exp")
 
 #plt.plot(d1,weighted_sqrt, label='w_sqrt')
 # plt.legend(loc='upper left')
+plt.xlabel('Distance')
+plt.ylabel('Reward')
 plt.axhline(y=0,color='black')
 
 plt.legend(loc='lower center')

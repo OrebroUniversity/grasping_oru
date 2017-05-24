@@ -40,7 +40,7 @@ class Policy(object):
         self.random_bias = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
-    	self.gamma = 0.99 #0.99 #TSV: testing a much more local approach
+    	self.gamma = 0.1 #0.99 #TSV: testing a much more local approach
     	self.kl = 0.01
 
         self.g = tf.Graph()
@@ -69,11 +69,9 @@ class Policy(object):
 
         # This list holds the natural policy gradients which is composed of the inverse of the fisher
         # matrix mulitpled by the policy gradient. For more info check http://www.scholarpedia.org/article/Policy_gradient_methods
-        self.NPG = []
 
         self.prev_eval_mean_return = 0
 
-        self.VN = NeuralNetworkValueFunction(num_inputs, num_outputs, self.relative_path)
         # self.VN = LinearValueFunction()
         self.sess = tf.InteractiveSession(graph=self.g) #,config=tf.ConfigProto(log_device_placement=True))
 
@@ -89,9 +87,6 @@ class Policy(object):
 
         # Placehoalder for the variance of the added noise
         self.var = tf.placeholder(tf.float32, [num_outputs], name="Variance_placeholder")
-
-        # List that will containg the placehoalder for the fisher matrices
-        self.fisher_matrix = []
 
         # Create the optimizer
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
@@ -146,11 +141,8 @@ class Policy(object):
             
     	#tf.summary.tensor_summary('policy_gradients', self.pg)
     	#tf.summary.histogram('policy_grad_hist', self.pg)
-
-        self.set_natural_policy_gradients()
         
-	self.train_op = self.optimizer.apply_gradients(self.NPG)
-	#self.train_op = self.optimizer.apply_gradients(self.pg)
+        self.train_op = self.optimizer.apply_gradients(self.loss_grads)
 
         saver = tf.train.Saver()
 
@@ -167,24 +159,6 @@ class Policy(object):
     	# self.sess.run(tf.global_variables_initializer())
     	#freezing the main graph
     	# self.g.finalize()
-
-
-    # The natural policy gradient (NPG) is the inverse of the fisher matrix times the gradient.
-    # In this function the NPG is set by muliplying a placeholder storing the inverse of the fisher
-    # matrix with the corresponding policy gradient. The policy gradient is the gradient of the neural network (NN)
-    # and in tensorflow the gradient of the NN is split into a list where each entry corresponds to the parameters
-    # in each layer
-    def set_natural_policy_gradients(self):
-        i=1
-        for g,v in self.loss_grads:
-            self.fisher_matrix.append(tf.placeholder(tf.float32, g.shape,name="Fisher_"+str(i)))
-	    grad = tf.multiply(self.fisher_matrix[-1], g,name="PG_Fisher_Mul_"+str(i))
-            self.NPG.append((grad, v))
-            i+=1
-    # Opens and closes a file to empty its content
-    def reset_files(self, file_names):
-        for file in file_names:
-            open(file, 'w').close()
 
     # Parses the training data stored in parameter input_file into corresponding input and output data 
     def parse_input_output_data(self, input_file):
@@ -282,11 +256,7 @@ class Policy(object):
         self.loss_file_name = relative_path+'data/losses.txt'
         self.log_likelihood_file_name = relative_path+'data/log_likelihood.txt'
 
-        self.NPG_file_name = relative_path+'data/NPG.txt'
-
         self.PG_file_name = relative_path+'data/PG.txt'
-
-        self.fisher_file_name = relative_path+'data/fisher.txt'
 
         self.loss_grads_file_name = relative_path+'data/loss_grads.txt'
 
@@ -297,13 +267,18 @@ class Policy(object):
         self.reset_files([self.neural_network_param_file_name, self.advantageageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
                              self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name, self.gradients_file_name, self.nn_mean_file_name, self.tdyn_file_name,
-                             self.PG_file_name, self.fisher_file_name, self.loss_grads_file_name])
+                             self.PG_file_name, self.loss_grads_file_name])
         f_handle = file(self.nn_mean_file_name,'a')
     	f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
     	f_handle.close()
     	f_handle = file(self.tdyn_file_name,'a')
     	f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
     	f_handle.close()
+
+    # Opens and closes a file to empty its content
+    def reset_files(self, file_names):
+        for file in file_names:
+            open(file, 'w').close()
 
 
     def store_weights(self):
@@ -453,103 +428,32 @@ class Policy(object):
         # to the constraint, i.e. the task error.
     def calculate_return(self, curr_reward):
 
-        squared_points = np.square(np.asarray(curr_reward))
+        # squared_points = np.square(np.asarray(curr_reward))
         dist_abs = np.abs(np.asarray(curr_reward))
 
-        alpha = 1e-5#1e-17
         rollout_return = 0
         
-	dist = np.sqrt(np.sum(squared_points,axis=1))
-	dist_l1 = np.sum(dist_abs,axis=1)
-	#dist = 0.5*(np.sum(dist_abs,axis=1))
-        # dist_square = np.sum(squared_points,axis=1)
-        # rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
-        # rollout_return = -50*dist+30*np.exp(-10*dist)
-        # rollout_return = -1*(10*dist+1*np.log(alpha+dist))
-	
-    	#print "Dist square ", dist_square, "\n Dist abs", dist_abs
-    	# dist = np.sqrt(np.sum(dist_square))
-        # dist = 0.5*np.sum(dist_abs,axis=1)
-	   #print "Dist ", dist 
-	#rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
-
-	#rollout_return = -50*dist+25*np.exp(-10*dist)
-
-	#rollout_return = -100*dist-10*np.exp(dist) #TSV original
-	
-	delta = 0.2
-	sq_factor = 10
-	lin_factor = 0.05
-	#rollout_return = -sq_factor*np.square(dist) #simple quadratic
-	rollout_return = -sq_factor*np.square(dist) #TSV new
-	rollout_return[dist_l1 > delta] = -sq_factor*delta*delta + lin_factor*(delta-dist_l1[dist_l1 > delta])
-        # rollout_return = -100*dist-10*np.square(dist)
-
-        # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
+        dist = (np.sum(dist_abs,axis=1))
+        rollout_return = -np.log(dist)
         
         return rollout_return
-
-        #Normalizes the data to have mean 0 and variance 1
-    def normalize_data(self, data):
-        print "Mean and variance of data is " + str(np.mean(data,axis=0)) + " " + str(np.std(data,axis=0))
-        return (data-np.mean(data,axis=0))/(np.std(data,axis=0)+1e-8)
-
-
-        # Calculates the inverse of the fisher matrix used for the natural policy gradient
-        # http://www.scholarpedia.org/article/Policy_gradient_methods
-    def calculate_inverse_Fisher_Matrix(self, input_data, output):
-        with self.g.as_default():
-            pg = np.asarray(self.sess.run(self.pg, feed_dict={self.state_placeholder:input_data, self.action_placeholder : output, self.var : np.power(self.sigma,2)}))
-            fisher = []
-            eps = 1e-8
-            for g in pg:
-                fisher.append((np.asarray(1/(np.square(g.flatten())+eps)).reshape(g.shape))/self.batch_size)
-
-            return fisher, pg
 
         # Concatenates a list of lists to one vector
     def flattenVectors(self, vec):
     	vec = [idx.flatten().tolist() for idx in vec]
     	vec = np.asarray(list(itertools.chain.from_iterable(vec)))
     	return vec
-        # Calculates the step size for the gradient descent suggesed by Jan Peters and Stefan Schaal in their paper
-        # "Reinforcement learning of motor skills with policy gradients" 
-        # http://www.kyb.mpg.de/fileadmin/user_upload/files/publications/attachments/Neural-Netw-2008-21-682_4867%5b0%5d.pdf 
-    def calculate_learning_rate(self, fisher, input_data, output_data, rewards):
-        with self.g.as_default():
-            feed_dict={self.state_placeholder  : input_data,
-                        self.action_placeholder : output_data,
-                        self.advantage          : rewards,
-                        self.var : np.power(self.sigma,2) }
-
-            lg = np.asarray(self.sess.run(self.lg, feed_dict=feed_dict))
-            flatten_fisher = self.flattenVectors(fisher)
-            flatten_lg = self.flattenVectors(lg)
-            flatten_lg = flatten_lg.reshape(flatten_lg.shape[0],1)
-            flatten_fisher = flatten_fisher.reshape(flatten_fisher.shape[0],1)
-            eps = 1e-5
-            denom = eps+np.square(flatten_lg).T.dot(flatten_fisher)
-            step_size = np.sqrt(self.kl/denom)
-
-            print "STEPSIZE"
-            print step_size
-            return step_size
 
         # Calculates the advantage function by substracting a baseline from the return at each time step. 
         # The baseline predicts a value representing how good that state is and is approximated as a neural
         # network. Advanage functions are explained in https://arxiv.org/abs/1506.02438
-    def calculate_advantages_with_VN(self, rewards, states):
+    def calculate_advantages(self, rewards, states):
         advantages = np.zeros_like(rewards)
-        baseline = np.zeros_like(rewards)
         for i in xrange(len(states)):
-            baseline[i] = self.VN.predict(states[i,:]).flatten()
-	    #TSV: here to comment in VN
-            advantages[i] = rewards[i]#-np.abs(baseline[i])
+            advantages[i] = rewards[i]
 
-        norm_advantages = self.normalize_data(advantages)
         advantages = advantages.reshape(advantages.shape[0],1)
-        norm_advantages = norm_advantages.reshape(norm_advantages.shape[0],1)
-        return norm_advantages, advantages, baseline
+        return advantages
 
 
         # This function updates the policy according to the natural policy gradient. 
@@ -574,10 +478,10 @@ class Policy(object):
                 # This corresponds to a higher learning rate and that the new policy will differ more than the current
                 elif diff>0:
                     print "Policy improved by", diff
-                    self.kl += 0.01
+                    # self.kl += 0.01
                 # If the policy is not improving reset the kl divergence to a base value.
                 else:
-                    self.kl = 0.01 
+                    # self.kl = 0.01 
                     print "Policy got worse by", diff
 
                 # The variance of the Gaussian distribution is set as the mean of the actions from the evaluation episode.
@@ -586,7 +490,7 @@ class Policy(object):
                 # self.sigma = 15*self.get_action_mean()
 		# self.sigma = self.get_action_mean()/3.
 		if(self.num_eval_episode == 1) :
-		    self.sigma = self.get_action_mean()/3
+		    self.sigma = self.get_action_mean()/4
 		else:
 		    self.sigma = 0.95*self.sigma
 		print "SIGMA is ",self.sigma
@@ -616,7 +520,7 @@ class Policy(object):
             self.num_train_episode +=1
             print "Training episode number "+str(self.num_train_episode)+" finished with a reward of " + str(self.episode_reward.sum()) 
     	    self.random_bias = np.random.normal(self.mean, self.sigma)
-    	    # print "Random bias for next rollout is" + str(self.random_bias)
+    	    print "Random bias for next rollout is" + str(self.random_bias)
 
             # The policy is only updated if the number of training episodes match the batch size
             if self.num_train_episode % self.batch_size == 0 and self.train:
@@ -633,7 +537,7 @@ class Policy(object):
                 states = states.reshape(states.shape[0],self.state_placeholder.shape[1])
 
                 # Calculate the advantages. The unnormalized advantages are not used but stored in a file such that it can be analyzed afterhand 
-                advantage, unnorm_advantages, baseline = self.calculate_advantages_with_VN(rewards, states)
+                advantage, unnorm_advantages, baseline = self.calculate_advantages(rewards, states)
 
                 # Calculate the mean of all returns for the batch. It is only done to see if the return between batches increases
                 curr_batch_mean_return = np.mean([ ret.sum() for ret in self.all_returns])
@@ -643,28 +547,18 @@ class Policy(object):
                 # If the policy has not converged or it is an evaluation episode than train the policy
                 if self.train:
 
-                    fisher, pg = self.calculate_inverse_Fisher_Matrix(states, actions)
-                    learning_rate = float(self.calculate_learning_rate(fisher, states, actions, unnorm_advantages))
-
 
                     # Load all batch data into a dictionary
                     feed_dict={self.state_placeholder  : states,
                                self.action_placeholder : actions,
-                               self.advantage          : unnorm_advantage,s
+                               self.advantage          : advantage,
                                self.var                : np.power(self.sigma,2),
-                               self.learning_rate      : learning_rate}
+                               self.learning_rate      : 0.001}
 
-                    i=0
-                    # The fisher matrix is loaded differently due to the fact that it is split up into a list
-                    for f in fisher:
-                        feed_dict[self.fisher_matrix[i]] = f
-
-                        i+=1
 
                     # Here the NPG are calculated. This is only done for the sole purpose of storing the gradients such that
                     # they can be plotted and analyzed in afterhand
                     loss_grads = self.flattenVectors(self.sess.run([g for g,v in self.loss_grads],feed_dict))
-                    NPG = self.flattenVectors(self.sess.run([grad[0] for grad in self.NPG],feed_dict))
                     unum = int (self.num_train_episode / self.batch_size)
 
                     # run i numbers of gradient descent updates
@@ -685,21 +579,18 @@ class Policy(object):
                     # This dictionary holds all the batch data recently used. In this way the dictionary can be passed
                     # to a function which in turn saves all the data to files.
                     batch_dic = {}
-                    batch_dic[self.baseline_file_name] = baseline
-                    batch_dic[self.advantageageages_file_name] = advantage.flatten()
-                    batch_dic[self.unnorm_advantageages_file_name] = unnorm_advantages.flatten()
+                    # batch_dic[self.baseline_file_name] = baseline
+                    # batch_dic[self.advantageageages_file_name] = advantage.flatten()
+                    # batch_dic[self.unnorm_advantageages_file_name] = unnorm_advantages.flatten()
                     batch_dic[self.log_likelihood_file_name] = [ll]
                     batch_dic[self.loss_file_name] = [error]
-                    batch_dic[self.NPG_file_name] = NPG
                     batch_dic[self.loss_grads_file_name] = loss_grads
-                    batch_dic[self.PG_file_name] = self.flattenVectors(pg)
-                    batch_dic[self.fisher_file_name] = self.flattenVectors(fisher)
+                    # batch_dic[self.PG_file_name] = self.flattenVectors(pg)
                     # Function that stores the batch data in corresponding files
                     self.store_batch_data_to_file(batch_dic)
                     # Trains the value net with the task errors (e) as input and the cumulated rewards from that state onwards as output.
                     # The training is done after the batch update to not add bias
-		    #print "Training Value Network"
-		    #self.VN.train(states, rewards, self.batch_size)
+                    print "Training Value Network"
                     self.reset_batch() 
 		    
 
@@ -733,13 +624,13 @@ class Policy(object):
             if self.train and not self.eval_episode:
                 # Sample the noise
                 noise = np.random.normal(self.mean, self.sigma)
-                random_noise = np.random.normal(self.mean, [0.02,0.02]) # should find some good way to choose this: can't be more than the controller handles in a single time step
+                random_noise = np.random.normal(self.mean, [0.002,0.002]) # should find some good way to choose this: can't be more than the controller handles in a single time step
                 # The new task dynamics is the mean of the output from the NN plus the noise
                 # task_dynamics = 0.8*self.prev_action+0.2*(mean+noise)#(mean+noise)
                 # task_dynamics = mean+noise
                 # self.exploration.append(mean-task_dynamics)
 
-                task_dynamics = 0.3*self.prev_action+0.7*(self.ffnn_mean+random_noise+self.random_bias)  #0.2*self.prev_action+0.8* 0.2*self.prev_action+0.8*(self.ffnn_mean+noise)#(mean+noise)
+                task_dynamics = self.ffnn_mean+random_noise+self.random_bias  #0.2*self.prev_action+0.8*(self.ffnn_mean+noise)#(mean+noise)
                 self.exploration.append(self.ffnn_mean-task_dynamics)
                 self.prev_action = task_dynamics
                 self.mean_action.append(self.ffnn_mean.flatten())
@@ -765,7 +656,7 @@ class Policy(object):
 # Main function.
 if __name__ == '__main__':
     try:
-        rospy.init_node('policy_gradient_OP_exp')
+        rospy.init_node('VPG')
         policy = Policy()
         policy.main()
     except rospy.ROSInterruptException:

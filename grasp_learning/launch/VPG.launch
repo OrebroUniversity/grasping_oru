@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+
+	<param name="use_sim_time" value="true"/>
+	<node name="VPG" pkg="grasp_learning" type="VPG.py" output="screen">
+	 	<param name="input_output_data" value="$(find grasp_learning)/stored_data/training_data/task_dynamics/two_tasks_linear_dynamics_lambda_0.51.txt	" />
+	 	<param name="batch_size" value="20" />
+ 		<param name="num_inputs" value="2" />
+		<param name="num_outputs" value="2" />
+		<param name="num_rewards" value="1" />
+		<param name="hidden_layer_size" value="4" />
+		<param name="relative_path" value="$(find grasp_learning)/stored_data/tested_data/" />
+		<param name="load_model" value="0" />
+		<param name="model_name" value="model.ckpt" />
+
+ 	</node>
+</launch>
