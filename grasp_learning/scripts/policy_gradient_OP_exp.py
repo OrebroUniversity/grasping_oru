@@ -472,7 +472,7 @@ class Policy(object):
 	#rollout_return = -10*dist-1.5*np.log(alpha+10*dist)
 
 	#rollout_return = -50*dist+25*np.exp(-10*dist)
-	rollout_return = -10*dist-10*np.exp(dist) #TSV original
+	   rollout_return = -100*dist-10*np.exp(2*dist) #TSV original
         # rollout_return = -100*dist-10*np.square(dist)
 
         # rollout_return += -10*np.log(alpha+10*dist_abs[:,e])#-10000*dist_abs[:,e]-10*np.log(alpha+15*dist_abs[:,e])#0.5*np.log(dist_square[:,e]+alpha)#-2*dist_square[:,e]-0.4/18*np.log(dist_square[:,e]+alpha)#-1*np.sqrt(dist_square[:,e]+alpha)
@@ -517,7 +517,7 @@ class Policy(object):
             flatten_lg = self.flattenVectors(lg)
             flatten_lg = flatten_lg.reshape(flatten_lg.shape[0],1)
             flatten_fisher = flatten_fisher.reshape(flatten_fisher.shape[0],1)
-            eps = 1e-8
+            eps = 1e-3
             denom = eps+np.square(flatten_lg).T.dot(flatten_fisher)
             step_size = np.sqrt(self.kl/denom)
 
