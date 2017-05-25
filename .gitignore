@@ -3,7 +3,7 @@ grasp_planner/cfg/*
 grasp_learning/stored_data/tested_data/data/*.txt
 grasp_learning/stored_data/tested_data/models/model*
 grasp_learning/stored_data/tested_data/events*
-grasp_learning/stored_data/tested_data/*.m
-grasp_learning/stored_data/tested_data/checkpoint*
+grasp_learning/stored_data/tested_data/data/*.m
+grasp_learning/stored_data/tested_data/models/checkpoint*
 grasp_learning/stored_data/tested_data/vgraphs/*
 grasp_learning/stored_data/tested_data/graphs/*

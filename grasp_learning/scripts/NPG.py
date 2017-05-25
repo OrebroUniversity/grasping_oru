@@ -765,7 +765,7 @@ class Policy(object):
 # Main function.
 if __name__ == '__main__':
     try:
-        rospy.init_node('policy_gradient_OP_exp')
+        rospy.init_node('NPG')
         policy = Policy()
         policy.main()
     except rospy.ROSInterruptException:
