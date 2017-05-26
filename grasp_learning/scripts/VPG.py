@@ -270,17 +270,13 @@ class Policy(object):
         self.loss_grads_file_name = relative_path+'data/loss_grads.txt'
 
         self.gradients_file_name = relative_path+'data/gradients.txt'
-        self.nn_mean_file_name = relative_path+'data/means.m'
+        self.eval_rewards_file_name = relative_path+'data/eval_rewards.m'
         self.tdyn_file_name = relative_path+'data/tdyn.m'
 
         self.reset_files([self.neural_network_param_file_name, self.advantageageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
-                          self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name,
-                          self.action_dist_mean_file_name, self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name,
-                          self.gradients_file_name, self.nn_mean_file_name, self.tdyn_file_name, self.PG_file_name, self.loss_grads_file_name])
-
-        f_handle = file(self.nn_mean_file_name,'a')
-    	f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
-    	f_handle.close()
+                             self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
+                             self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name, self.gradients_file_name, self.eval_rewards_file_name, self.tdyn_file_name,
+                             self.PG_file_name, self.loss_grads_file_name])
     	f_handle = file(self.tdyn_file_name,'a')
     	f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
     	f_handle.close()
@@ -505,10 +501,6 @@ class Policy(object):
 
     def store_files_to_matlab(self):
         #clean up output file
-        f_handle = file(self.nn_mean_file_name,'a')
-        f_handle.write("];\n")
-        f_handle.write("mean%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
-        f_handle.close()
         f_handle = file(self.tdyn_file_name,'a')
         f_handle.write("];\n")
         f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode))
@@ -540,6 +532,10 @@ class Policy(object):
                 print "Average return from evaluation is " + str(curr_eval_return)
                 # The difference between the returns of the current and previous evaluation episode
                 diff = curr_eval_return-self.prev_eval_mean_return
+		f_handle = file(self.eval_rewards_file_name,'a')
+		f_handle.write("reward(%i) = %.5f\n" % (self.num_eval_episode, curr_eval_return));
+		f_handle.close()
+
                 # If the difference is positive meaning that the policy is improving than we increase the learning rate.
                 if diff>0:
                     print "Policy improved by", diff
@@ -647,8 +643,6 @@ class Policy(object):
 
                 self.reset_batch()
 
-                print "Training Value Network"
-
 
             self.reset_episode()
     	    #clean up output file
@@ -662,9 +656,6 @@ class Policy(object):
             self.states.append(req.task_measures)
             feed_dict = {self.state_placeholder: np.array([req.task_measures])}
             self.ffnn_mean = self.sess.run(self.ff_NN_train, feed_dict)
-    	    f_handle = file(self.nn_mean_file_name,'a')
-    	    np.savetxt(f_handle, self.ffnn_mean, fmt='%.5f', delimiter=',')
-    	    f_handle.close()
 		
             if self.train and not self.eval_episode:
                 # Sample the noise
