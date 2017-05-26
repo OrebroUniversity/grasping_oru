@@ -9,7 +9,8 @@
  		<param name="num_inputs" value="2" />
 		<param name="num_outputs" value="2" />
 		<param name="num_rewards" value="1" />
-		<param name="hidden_layer_size" value="4" />
+		<param name="num_hidden_layers" value="1" />
+		<rosparam param="hidden_layers_sizes">[2]</rosparam>
 		<param name="learning_rate" value="0.001"/>
 		<param name="subtract_baseline" value="0"/>
 		<param name="batch_size" value="20" />

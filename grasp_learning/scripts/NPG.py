@@ -29,7 +29,8 @@ class Policy(object):
         num_inputs = rospy.get_param('~num_inputs', ' ')
         num_outputs = rospy.get_param('~num_outputs', ' ')
         num_rewards = rospy.get_param('~num_rewards', ' ')
-        hidden_layer_size  =  rospy.get_param('~hidden_layer_size', ' ')
+        num_hidden_layers = rospy.get_param('~num_hidden_layers', ' ')
+        hidden_layers_sizes  =  rospy.get_param('~hidden_layers_sizes', ' ')
         self.static_lr = rospy.get_param('~use_static_learning_rate', '1')
         self.lr = rospy.get_param('~learning_rate', '1')
         self.subtract_baseline = rospy.get_param('~subtract_baseline', '0')
@@ -106,7 +107,7 @@ class Policy(object):
 
         self.set_bookkeeping_files(self.relative_path)
 
-        self.construct_ff_NN(self.state_placeholder, self.action_placeholder , input_data, output_data, num_inputs, num_outputs, hidden_layer_size)
+        self.construct_Neural_Network(self.state_placeholder, self.action_placeholder , input_data, output_data, num_hidden_layers, hidden_layers_sizes)
                 
         # The output from the neural network is the mean of a Gaussian distribution. This variable is simply the
         # log likelihood of that Gaussian distribution
@@ -200,12 +201,6 @@ class Policy(object):
         tf.summary.histogram('task_errors_hist', self.state_placeholder)
         tf.summary.histogram('task_dynamics_hist', self.action_placeholder)
 
-        tf.summary.scalar('loglik_scalar', self.loglik)
-        tf.summary.scalar('loss_scalar', self.loss)
-        tf.summary.scalar('advantages_scalar', self.advantage)
-        tf.summary.scalar('variance_scalar', self.var)
-        tf.summary.scalar('task_errors_scalar', self.state_placeholder)
-        tf.summary.scalar('task_dynamics_scalar', self.action_placeholder)
         tf.summary.scalar('learning_rate',self.learning_rate)
 
         tf.summary.tensor_summary('task_errors', self.state_placeholder)
@@ -233,53 +228,48 @@ class Policy(object):
             for grad,var in container:
                 name = grad.name.split("/",2)
                 tf.summary.histogram(name[0]+"_"+name[1]+"_hist" , grad)
-                tf.summary.scalar(name[0]+"_"+name[1]+"_scalar", grad)
                 tf.summary.tensor_summary(name[0]+"_"+name[1], grad)
         elif type(container) is list:
             for var in container:
                 name = var.name.split("/",2)
                 tf.summary.histogram(name[0]+"_"+name[1]+"_hist" , var)
-                tf.summary.scalar(name[0]+"_"+name[1]+"_scalar", var)
                 tf.summary.tensor_summary(name[0]+"_"+name[1], var)
 
-    def construct_ff_NN(self, task_error_placeholder, task_dyn_placeholder, states, task_dyn, NUM_INPUTS = 1, NUM_OUTPUTS = 1, HIDDEN_UNITS_L1 = 10, HIDDEN_UNITS_L2 = 10):
+    def construct_Neural_Network(self, input_placeholder, output_placeholder, input_training_data, output_training_data, num_layers, layer_sizes):
         with self.g.as_default():
+            prev_layer = input_placeholder
+            for i in range(num_layers):
+                prev_layer = self.create_layer(prev_layer, layer_sizes[i], tf.nn.tanh,i)
 
-            weights_1 = tf.Variable(tf.truncated_normal([NUM_INPUTS, HIDDEN_UNITS_L1]),name="NN/w1/t")
-            biases_1 = tf.Variable(tf.zeros([HIDDEN_UNITS_L1]), name="NN/b1/t")
-            layer_1_outputs = tf.nn.tanh(tf.matmul(task_error_placeholder, weights_1,name="NN/Input_W1_Mul/t") + biases_1,name="NN/L1/t")
+            # last layer is a linear output layer
+            num_outputs = int(output_placeholder.shape[1])
+            self.ff_NN_train = self.create_layer(prev_layer, num_outputs, None, num_layers)
 
-            weights_2 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L1, NUM_OUTPUTS]),name="NN/w2/t")
-            biases_2 = tf.Variable(tf.zeros([NUM_OUTPUTS]),name="NN/b2/t")
-            self.ff_NN_train = tf.add(tf.matmul(layer_1_outputs, weights_2,name="NN/L1_W2_Mul/t"),biases_2,name="NN/output/t")
-
-
-            # weights_2 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L1, HIDDEN_UNITS_L2]),name="w2")
-            # biases_2 = tf.Variable(tf.zeros([HIDDEN_UNITS_L2]),name="b2")
-            # layer_2_outputs = tf.nn.softplus(tf.matmul(layer_1_outputs, weights_2) + biases_2)
-
-            # weights_3 = tf.Variable(tf.truncated_normal([HIDDEN_UNITS_L2, NUM_OUTPUTS]))
-            # biases_3 = tf.Variable(tf.zeros([NUM_OUTPUTS]))
-            # self.ff_NN_train = tf.add(tf.matmul(layer_2_outputs, weights_3,name="L1_W2_Mul"),biases_3,name="output")
-
-            # logits = tf.matmul(layer_2_outputs, weights_3)+biases_3
-
-            error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, task_dyn_placeholder)),0)
+            error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, output_placeholder)),0)
 
             train_op = self.optimizer.minimize(error_function)
-            self.sess.run(tf.global_variables_initializer())
 
-            task_dyn= task_dyn.reshape(task_dyn.shape[0],NUM_OUTPUTS)
-            states= states.reshape(states.shape[0],NUM_INPUTS)
-
-            feed_dict={task_error_placeholder: states,
-                        task_dyn_placeholder: task_dyn,
+            feed_dict={input_placeholder: input_training_data,
+                        output_placeholder: output_training_data,
                         self.learning_rate : 0.001} 
 
-            for i in range(2000):
+            self.sess.run(tf.global_variables_initializer())
+
+            for i in range(1100):
                 _, loss = self.sess.run([train_op, error_function],feed_dict)
 
             print "Network trained"
+
+    def create_layer(self, prev_layer, layer_size, activation_fun, num_layer):
+        with self.g.as_default():
+            weights = tf.Variable(tf.truncated_normal([int(prev_layer.shape[1]), layer_size]),name="NN/w"+str(num_layer)+"/t")
+            biases = tf.Variable(tf.zeros([layer_size]), name="NN/b"+str(num_layer)+"/t")
+            if activation_fun == None:
+                layer_output = tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases,name="NN/output/t")
+            else:
+                layer_output = activation_fun(tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases),name="NN/L"+str(num_layer)+"/t")
+
+            return layer_output
 
     def set_bookkeeping_files(self, relative_path):
 
