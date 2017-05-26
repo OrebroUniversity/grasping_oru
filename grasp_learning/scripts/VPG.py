@@ -99,13 +99,13 @@ class Policy(object):
 
         self.set_bookkeeping_files(self.relative_path)
 
-        self.construct_Neural_Network(self.state_placeholder, self.action_placeholder , input_data, output_data, num_hidden_layers, hidden_layers_sizes)
-
+        self.ff_NN_train = self.construct_Neural_Network(self.state_placeholder, self.action_placeholder, num_hidden_layers, hidden_layers_sizes)
+        self.train_Neural_Network(self.state_placeholder, self.action_placeholder, input_data, output_data)
         # The output from the neural network is the mean of a Gaussian distribution. This variable is simply the
         # log likelihood of that Gaussian distribution
         self.loglik = gauss_log_prob(self.ff_NN_train, self.var, self.state_placeholder)
 
-        self.loss = -tf.reduce_mean(tf.multiply(self.loglik,self.advantage,'loss_prod'),name='loss_reduce_mean')/self.batch_size            
+        self.loss = -tf.reduce_mean(tf.multiply(self.loglik,self.advantage,'loss_prod'), 0, name='loss_reduce_mean')/self.batch_size            
 
         # Get the list of all trainable variables in our tensorflow graph
         self.var_list = tf.trainable_variables()
@@ -117,7 +117,8 @@ class Policy(object):
         self.pg = tf.gradients(self.loglik, self.var_list,name="Policy_gradients")
         self.lg = tf.gradients(self.loss, self.var_list, name="Loss_gradients")
 
-        self.train_op = self.optimizer.apply_gradients(self.loss_grads)
+        with tf.name_scope("VPG"):
+            self.train_op = self.optimizer.apply_gradients(self.loss_grads)
 
         saver = tf.train.Saver()
 
@@ -162,41 +163,46 @@ class Policy(object):
         return np.asarray(input_), np.asarray(output_)
 
 
-    def construct_Neural_Network(self, input_placeholder, output_placeholder, input_training_data, output_training_data, num_layers, layer_sizes):
+    def construct_Neural_Network(self, input_placeholder, output_placeholder, num_layers, layer_sizes):
         with self.g.as_default():
             prev_layer = input_placeholder
             for i in range(num_layers):
-                prev_layer = self.create_layer(prev_layer, layer_sizes[i], tf.nn.tanh,i)
+                prev_layer = self.create_layer(prev_layer, layer_sizes[i], tf.nn.tanh,i , "Hidden")
 
             # last layer is a linear output layer
             num_outputs = int(output_placeholder.shape[1])
-            self.ff_NN_train = self.create_layer(prev_layer, num_outputs, None, num_layers)
+            return self.create_layer(prev_layer, num_outputs, None, num_layers, "Output")
 
-            error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, output_placeholder)),0)
+    def train_Neural_Network(self, input_placeholder, output_placeholder, input_training_data, output_training_data):
 
+        error_function = tf.reduce_mean(tf.square(tf.subtract(self.ff_NN_train, output_placeholder)),0)
+
+        with tf.name_scope("Train"):
             train_op = self.optimizer.minimize(error_function)
 
-            feed_dict={input_placeholder: input_training_data,
-                        output_placeholder: output_training_data,
-                        self.learning_rate : 0.001} 
+        feed_dict={input_placeholder: input_training_data,
+                    output_placeholder: output_training_data,
+                    self.learning_rate : 0.001} 
 
-            self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.global_variables_initializer())
 
-            for i in range(2000):
-                _, loss = self.sess.run([train_op, error_function],feed_dict)
+        for i in range(2000):
+            _, loss = self.sess.run([train_op, error_function],feed_dict)
 
-            print "Network trained"
+        print "Network trained"
 
-    def create_layer(self, prev_layer, layer_size, activation_fun, num_layer):
-        with self.g.as_default():
-            weights = tf.Variable(tf.truncated_normal([int(prev_layer.shape[1]), layer_size]),name="NN/w"+str(num_layer)+"/t")
-            biases = tf.Variable(tf.zeros([layer_size]), name="NN/b"+str(num_layer)+"/t")
-            if activation_fun == None:
-                layer_output = tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases,name="NN/output/t")
-            else:
-                layer_output = activation_fun(tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases),name="NN/L"+str(num_layer)+"/t")
 
-            return layer_output
+    def create_layer(self, prev_layer, layer_size, activation_fun, num_layer, name):
+        with tf.name_scope(name):
+            with self.g.as_default():
+                weights = tf.Variable(tf.truncated_normal([int(prev_layer.shape[1]), layer_size]),name="NN/w"+str(num_layer)+"/t")
+                biases = tf.Variable(tf.truncated_normal([layer_size]), name="NN/b"+str(num_layer)+"/t")
+                if activation_fun == None:
+                    layer_output = tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases,name="NN/output/t")
+                else:
+                    layer_output = activation_fun(tf.add(tf.matmul(prev_layer, weights,name="NN/Input_W"+str(num_layer)+"_Mul/t"), biases),name="NN/L"+str(num_layer)+"/t")
+
+                return layer_output
 
 
     def setup_tensor_board(self):
@@ -532,9 +538,9 @@ class Policy(object):
                 print "Average return from evaluation is " + str(curr_eval_return)
                 # The difference between the returns of the current and previous evaluation episode
                 diff = curr_eval_return-self.prev_eval_mean_return
-		f_handle = file(self.eval_rewards_file_name,'a')
-		f_handle.write("reward(%i) = %.5f\n" % (self.num_eval_episode, curr_eval_return));
-		f_handle.close()
+                f_handle = file(self.eval_rewards_file_name,'a')
+                f_handle.write("reward(%i) = %.5f\n" % (self.num_eval_episode, curr_eval_return));
+                f_handle.close()
 
                 # If the difference is positive meaning that the policy is improving than we increase the learning rate.
                 if diff>0:
