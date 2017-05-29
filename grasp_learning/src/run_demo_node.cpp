@@ -13,10 +13,15 @@ namespace hiqp{
 
     template <>
     void runDemoNode::topicCallback<std_msgs::Empty>(const std_msgs::Empty& msg){
-      current_exec_++;
-      if (current_exec_<max_num_exec_){
-        ROS_INFO("Rollout number %d", current_exec_);
+      current_rollout_++;
+      if (current_rollout_<max_rollouts_){
+        ROS_INFO("Rollout number %d", current_rollout_);
         start_demo_client_.call(start_demo_srv_);
+      }
+      else if (current_rollout_==max_rollouts_)
+      {
+        current_rollout_=0;
+        reset_policy_search_node_client_.call(reset_policy_search_node_srv_);
       }
     }
   }

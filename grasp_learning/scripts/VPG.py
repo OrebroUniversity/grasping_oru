@@ -3,11 +3,9 @@ import roslib
 
 import rospy
 import sys
-import bisect
 import itertools
 from utils import *
 from value_function import *
-from grasp_learning.srv import QueryNN
 from grasp_learning.srv import *
 from std_msgs.msg import Empty
 from math import sqrt
@@ -15,8 +13,8 @@ from math import pow
 import tensorflow as tf
 import numpy as np
 import os
-
-
+from std_srvs.srv import Empty
+import csv
 
 class Policy(object):
 
@@ -24,29 +22,27 @@ class Policy(object):
 
         input_output_data_file = rospy.get_param('~input_output_data', ' ')
         load_example_model = rospy.get_param('~load_model', ' ')
-        model_name = rospy.get_param('~model_name', ' ')
+        self.model_name = rospy.get_param('~model_name', ' ')
         num_inputs = rospy.get_param('~num_inputs', ' ')
         num_outputs = rospy.get_param('~num_outputs', ' ')
         num_rewards = rospy.get_param('~num_rewards', ' ')
-        num_hidden_layers = rospy.get_param('~num_hidden_layers', ' ')
-        hidden_layers_sizes  =  rospy.get_param('~hidden_layers_sizes', ' ')
+        hidden_layers_sizes  =  rospy.get_param('~hidden_units', ' ')
         self.lr = rospy.get_param('~learning_rate', '1')
         self.subtract_baseline = rospy.get_param('~subtract_baseline', '0')
         self.batch_size = rospy.get_param('~batch_size', '5')
         self.gamma = rospy.get_param('~discount_factor', '0.99') #TSV: testing a much more local approach
         self.use_normalized_advantages = rospy.get_param('~use_normalized_advantages', '0')
         self.relative_path = rospy.get_param('~relative_path', ' ')
-
-        self.s = rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
-        
-        self.policy_search_ = rospy.Service('policy_Search', PolicySearch, self.policy_search)
+        self.read_params_from_file = rospy.get_param('~read_params_from_file', '0')
+        self.max_num_trials = rospy.get_param('~max_num_trials', '1')
+        self.min_dist_norm = rospy.get_param('~min_dist_norm', '0.05')
 
         self.sigma = np.zeros(num_outputs)
         self.random_bias = np.zeros(num_outputs)
         self.num_train_episode = 0
         self.num_eval_episode = 0
+        self.num_trial=1
 
-        self.g = tf.Graph()
         self.train = True
         self.eval_episode = True
         self.min_dist_norm = 0.04
@@ -69,50 +65,62 @@ class Policy(object):
 
         self.mean_action = []
 
-        # This list holds the natural policy gradients which is composed of the inverse of the fisher
-        # matrix mulitpled by the policy gradient. For more info check http://www.scholarpedia.org/article/Policy_gradient_methods
-
         self.prev_eval_mean_return = 0
 
+        self.set_services()
+        self.set_bookkeeping_files(self.relative_path)
+
+        self.create_tensorflow_graph(num_inputs, num_outputs, num_rewards, input_output_data_file, hidden_layers_sizes,load_example_model)
+
         self.VN = NeuralNetworkValueFunction(num_inputs, num_outputs, self.relative_path)
+        self.store_weights()
+
+        if self.read_params_from_file==True:
+            self.all_params = self.import_params()
+            self.set_next_params(self.num_trial)
+
+
+
+
+    def set_services(self):
+        rospy.Service('query_NN', QueryNN, self.handle_query_NN_)
+        rospy.Service('policy_Search', PolicySearch, self.policy_search)
+        rospy.Service('reset_node', Empty, self.reset_node)
+        self.start_demo = rospy.ServiceProxy('/demo_learning/start_demo', Empty)
+
+
+    def create_tensorflow_graph(self,num_inputs, num_outputs, num_rewards, input_output_data_file, hidden_layers_sizes,load_example_model):
+
+        self.g = tf.Graph()
 
         self.sess = tf.InteractiveSession(graph=self.g) #,config=tf.ConfigProto(log_device_placement=True))
-
         # Placeholder for the states i.e. task errors e 
         self.state_placeholder = tf.placeholder(tf.float32, [None, num_inputs],name="Task_error_placeholder") 
         # Placeholder for the actions i.e. task dynamics e_dot_star 
         self.action_placeholder = tf.placeholder(tf.float32, [None, num_outputs], name="Task_dynamics_placeholder")
-
         # Placeholder for the learning rate
         self.learning_rate = tf.placeholder(tf.float32, shape=[], name="Learning_rate_placeholder")
-
         # Placeholder for the advantage function
         self.advantage = tf.placeholder(tf.float32,[None,num_rewards], name="Advantage_placeholder")
-
         # Placehoalder for the variance of the added noise
         self.var = tf.placeholder(tf.float32, [num_outputs], name="Variance_placeholder")
-
         # Create the optimizer
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
-        input_data, output_data = self.parse_input_output_data(input_output_data_file)
+        self.input_data, self.output_data = self.parse_input_output_data(input_output_data_file)
 
-        self.set_bookkeeping_files(self.relative_path)
-
-        self.ff_NN_train = self.construct_Neural_Network(self.state_placeholder, self.action_placeholder, num_hidden_layers, hidden_layers_sizes)
-        self.train_Neural_Network(self.state_placeholder, self.action_placeholder, input_data, output_data)
+        self.ff_NN_train = self.construct_Neural_Network(self.state_placeholder, self.action_placeholder, hidden_layers_sizes)
+        self.train_Neural_Network(self.state_placeholder, self.action_placeholder, self.input_data, self.output_data)
         # The output from the neural network is the mean of a Gaussian distribution. This variable is simply the
         # log likelihood of that Gaussian distribution
         self.loglik = gauss_log_prob(self.ff_NN_train, self.var, self.state_placeholder)
 
         self.loss = -tf.reduce_mean(tf.multiply(self.loglik,self.advantage,'loss_prod'), 0, name='loss_reduce_mean')/self.batch_size            
-
         # Get the list of all trainable variables in our tensorflow graph
         self.var_list = tf.trainable_variables()
-
         # Compute the analytic gradients of the loss function given the trainable variables in our graph
-    	#with tf.device('/cpu:0'):
-    	self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
+        #with tf.device('/cpu:0'):
+        self.loss_grads = self.optimizer.compute_gradients(self.loss, self.var_list)
         # Calculate the gradients of the policy
         self.pg = tf.gradients(self.loglik, self.var_list,name="Policy_gradients")
         self.lg = tf.gradients(self.loss, self.var_list, name="Loss_gradients")
@@ -120,15 +128,13 @@ class Policy(object):
         with tf.name_scope("VPG"):
             self.train_op = self.optimizer.apply_gradients(self.loss_grads)
 
-        saver = tf.train.Saver()
+        self.saver = tf.train.Saver()
 
         if load_example_model:
-            saver.restore(self.sess, self.relative_path+'models/'+model_name)
+            self.saver.restore(self.sess, self.relative_path+'models/'+self.model_name)
         else:
-            save_path = saver.save(self.sess, self.relative_path+'models/'+model_name)
+            self.saver.save(self.sess, self.relative_path+'models/'+self.model_name)
 
-        self.store_weights()
-                    
         self.setup_tensor_board()
 
 
@@ -143,16 +149,13 @@ class Policy(object):
             for line in f:
                 #Skip first two lines of the file
                 if (i==0 or i==1):
-                # if (i==0):
                     i+=1
                     continue
                 line = line.split()
                 for string in xrange(len(line)):
                     if string%2==0:
                         input_data.append(float(line[string])+np.random.normal(0, 0.1))
-                    #Every second column contains the output data
                     else:
-                        # if string == 1:
                         output_data.append(float(line[string]))
 
                 input_.append(input_data)
@@ -162,16 +165,37 @@ class Policy(object):
 
         return np.asarray(input_), np.asarray(output_)
 
+    def import_params(self):
+        params = []
+        with open(self.relative_path+'../parameter_data/parameters.csv', "rb") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                params.append(row)
+        return params
 
-    def construct_Neural_Network(self, input_placeholder, output_placeholder, num_layers, layer_sizes):
+    def set_next_params(self, current_trial):
+        curr_param = self.all_params[current_trial]
+        self.lr = float(curr_param[0])
+        self.subtract_baseline = int(curr_param[1])
+        self.batch_size = int(curr_param[2])
+        self.gamma = float(curr_param[3])
+        self.use_normalized_advantages = int(curr_param[4])
+        self.min_dist_norm = float(curr_param[5])
+        data = ["Learning_rate", "Subtract_baseline","Batch_Size","Discount_factor","Normalize_advantage","Min_dist_until_convergance"]
+        self.save_vector_data_to_file(self.param_file, data)
+        self.save_vector_data_to_file(self.param_file, curr_param)
+
+    def construct_Neural_Network(self, input_placeholder, output_placeholder, hidden_units):
         with self.g.as_default():
             prev_layer = input_placeholder
-            for i in range(num_layers):
-                prev_layer = self.create_layer(prev_layer, layer_sizes[i], tf.nn.tanh,i , "Hidden")
+            layer = 0
+            for units in hidden_units:
+                prev_layer = self.create_layer(prev_layer, units, tf.nn.tanh, layer , "Hidden")
+                layer+=1
 
             # last layer is a linear output layer
             num_outputs = int(output_placeholder.shape[1])
-            return self.create_layer(prev_layer, num_outputs, None, num_layers, "Output")
+            return self.create_layer(prev_layer, num_outputs, None, layer, "Output")
 
     def train_Neural_Network(self, input_placeholder, output_placeholder, input_training_data, output_training_data):
 
@@ -227,11 +251,18 @@ class Policy(object):
         self.store_containers_in_tensorboard(self.pg)
         self.store_containers_in_tensorboard(self.var_list)
 
-        #setup tensor board writers
-        self.train_writer = tf.summary.FileWriter(self.relative_path+'/graphs',self.g)
         self.merged_summary = tf.summary.merge_all()
+        self.set_tensorflow_summary_writer()
         #freezing the main graph
-        self.g.finalize()
+        # self.g.finalize()
+
+    def set_tensorflow_summary_writer(self):
+        dir_path = self.relative_path+'/graphs/trial_'+str(self.num_trial)
+        self.create_directory(dir_path)
+
+        #setup tensor board writers
+        self.train_writer = tf.summary.FileWriter(dir_path,self.g)
+
 
     def store_containers_in_tensorboard(self, container):
 
@@ -248,44 +279,54 @@ class Policy(object):
 
     def set_bookkeeping_files(self, relative_path):
 
-        self.reward_file_name = relative_path+'data/rewards.txt'
-        self.disc_reward_file_name = relative_path+'data/discounted_rewards.txt'
+        dir_path = relative_path+'data/trial_'+str(self.num_trial)
+        self.create_directory(dir_path)
 
-        self.actions_file_name = relative_path+'data/actions.txt'
-        self.action_dist_mean_file_name = relative_path+'data/action_dist_mean.txt'
-        self.exploration_file_name = relative_path+'data/exploration.txt'
-        self.eval_action_file_name = relative_path+'data/eval_actions.txt'
+        self.param_file = dir_path+'/params.txt'
+
+        self.reward_file_name = dir_path+'/rewards.txt'
+        self.disc_reward_file_name = dir_path+'/discounted_rewards.txt'
+
+        self.actions_file_name = dir_path+'/actions.txt'
+        self.action_dist_mean_file_name = dir_path+'/action_dist_mean.txt'
+        self.exploration_file_name = dir_path+'/exploration.txt'
+        self.eval_action_file_name = dir_path+'/eval_actions.txt'
         
-        self.explored_states_file_name = relative_path+'data/explored_states.txt'
+        self.explored_states_file_name = dir_path+'/explored_states.txt'
 
-        self.evaluated_states_file_name = relative_path+'data/evaluated_states.txt'
+        self.evaluated_states_file_name = dir_path+'/evaluated_states.txt'
 
-        self.task_measure_file_name = relative_path+'data/task_measure.txt'
+        self.task_measure_file_name = dir_path+'/task_measure.txt'
 
-        self.neural_network_param_file_name = relative_path+'data/weights.txt'
+        self.neural_network_param_file_name = dir_path+'/weights.txt'
 
-        self.baseline_file_name = relative_path+'data/baseline.txt'
-        self.advantageageages_file_name = relative_path+'data/advantages.txt'
-        self.unnorm_advantageages_file_name = relative_path+'data/unnorm_advantages.txt'
+        self.baseline_file_name = dir_path+'/baseline.txt'
+        self.advantageageages_file_name = dir_path+'/advantages.txt'
+        self.unnorm_advantageages_file_name = dir_path+'/unnorm_advantages.txt'
 
-        self.loss_file_name = relative_path+'data/losses.txt'
-        self.log_likelihood_file_name = relative_path+'data/log_likelihood.txt'
+        self.loss_file_name = dir_path+'/losses.txt'
+        self.log_likelihood_file_name = dir_path+'/log_likelihood.txt'
 
-        self.PG_file_name = relative_path+'data/PG.txt'
+        self.PG_file_name = dir_path+'/PG.txt'
 
-        self.loss_grads_file_name = relative_path+'data/loss_grads.txt'
+        self.loss_grads_file_name = dir_path+'/loss_grads.txt'
 
-        self.gradients_file_name = relative_path+'data/gradients.txt'
-        self.eval_rewards_file_name = relative_path+'data/eval_rewards.m'
-        self.tdyn_file_name = relative_path+'data/tdyn.m'
+        self.gradients_file_name = dir_path+'/gradients.txt'
+        self.eval_rewards_file_name = dir_path+'/eval_rewards.m'
+        self.tdyn_file_name = dir_path+'/tdyn.m'
 
         self.reset_files([self.neural_network_param_file_name, self.advantageageages_file_name, self.unnorm_advantageages_file_name, self.baseline_file_name,
                              self.reward_file_name, self.actions_file_name, self.explored_states_file_name, self.evaluated_states_file_name, self.disc_reward_file_name, self.action_dist_mean_file_name,
                              self.task_measure_file_name, self.exploration_file_name, self.loss_file_name, self.log_likelihood_file_name, self.gradients_file_name, self.eval_rewards_file_name, self.tdyn_file_name,
-                             self.PG_file_name, self.loss_grads_file_name])
+                             self.PG_file_name, self.loss_grads_file_name, self.param_file])
     	f_handle = file(self.tdyn_file_name,'a')
     	f_handle.write("tdyn%i_%i (:,:) = [\n" % (self.num_train_episode,self.num_eval_episode));
     	f_handle.close()
+
+    def create_directory(self, newpath):
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
+
 
     # Opens and closes a file to empty its content
     def reset_files(self, file_names):
@@ -402,6 +443,7 @@ class Policy(object):
         self.store_evaluation_states()
         self.reset_episode()
         self.eval_episode = False
+
         # Reset the data belonging to a batch, i.e. empty the lists storing all data used for that particular batch
     def reset_batch(self):
 
@@ -477,6 +519,11 @@ class Policy(object):
     	vec = np.asarray(list(itertools.chain.from_iterable(vec)))
     	return vec
 
+        #Normalizes the data to have mean 0 and variance 1
+    def normalize_data(self, data):
+        print "Mean and variance of data is " + str(np.mean(data)) + " " + str(np.std(data))
+        return (data-np.mean(data))/(np.std(data)+1e-8)
+
         # Calculates the advantage function by substracting a baseline from the return at each time step. 
         # The baseline predicts a value representing how good that state is and is approximated as a neural
         # network. Advanage functions are explained in https://arxiv.org/abs/1506.02438
@@ -489,9 +536,9 @@ class Policy(object):
                 advantages[i] = rewards[i]-np.abs(baseline[i])
             else:
                 advantages[i] = rewards[i]
-
         if self.use_normalized_advantages:
             advantages = self.normalize_data(advantages)
+            advantages = advantages.reshape(advantages.shape[0],1)
         else:
             advantages = advantages.reshape(advantages.shape[0],1)
         return advantages, baseline
@@ -568,7 +615,6 @@ class Policy(object):
 
                 self.store_files_to_matlab()
                 self.reset_eval_episode(curr_eval_return)
-
                 return PolicySearchResponse(not self.train)
 
             # First we compute the necessary data based on one episode
@@ -609,7 +655,6 @@ class Policy(object):
                            self.advantage          : advantage,
                            self.var                : np.power(self.sigma,2),
                            self.learning_rate      : self.lr}
-
 
                 # Here the VPG are calculated. This is only done for the sole purpose of storing the gradients such that
                 # they can be plotted and analyzed in afterhand
@@ -682,6 +727,22 @@ class Policy(object):
             self.mean_action.append(self.ffnn_mean.flatten())
             self.actions.append(task_dynamics[0])
             return  task_dynamics.flatten()
+
+    def reset_node(self, req):
+        if self.num_trial<self.max_num_trials:
+            self.num_trial+=1
+            self.saver.restore(self.sess, self.relative_path+'models/'+self.model_name)
+            self.reset_episode()
+            self.reset_batch()
+            self.set_bookkeeping_files(self.relative_path)
+            self.set_tensorflow_summary_writer()
+            self.num_train_episode = 0
+            self.num_eval_episode = 0
+            self.set_next_params(self.num_trial)
+            self.start_demo()
+        else:
+            print "Max number of trials reached"
+        return []
 
     def main(self):
         rospy.spin()
