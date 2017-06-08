@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "-Wno-missing-braces")
 
+set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+set(GUROBI_LIB_DIR "$ENV{GUROBI_HOME}/lib")
+include_directories(${GUROBI_INCLUDE_DIR})
+link_directories(${GUROBI_LIB_DIR})
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -35,7 +40,6 @@ add_service_files(
   FILES
   QueryNN.srv
   PolicySearch.srv
-
 )
 
 
@@ -74,6 +78,9 @@ add_executable(run_demo_node
   src/run_demo_node.cpp
 )
 
+add_executable(teleop_remapper_node
+ src/teleop_remapper.cpp
+)
 
 
 ## Specify libraries to link a library or executable target against
@@ -84,3 +91,5 @@ target_link_libraries(grasp_recorder_node ${catkin_LIBRARIES})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(run_demo_node ${catkin_LIBRARIES})
+
+target_link_libraries(teleop_remapper_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})

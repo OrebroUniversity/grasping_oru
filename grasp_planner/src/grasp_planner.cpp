@@ -35,7 +35,7 @@ GraspPlanner::GraspPlanner(SDF_Parameters &parameters) {
 
   nh_.param<bool>("map_is_euclidean", myParameters_.map_is_euclidean, false);
   double tfx, tfy, tfz, yaw, pitch, roll;
-  
+
   nh_.param<double>("tf_world2sdf_x", tfx, 0.0);
   nh_.param<double>("tf_world2sdf_y", tfy, 0.0);
   nh_.param<double>("tf_world2sdf_z", tfz, 0.0);
@@ -52,7 +52,7 @@ GraspPlanner::GraspPlanner(SDF_Parameters &parameters) {
   tfWorld2SDF.setOrigin(translationWorld2SDF);
 
   tf::transformTFToEigen(tfWorld2SDF, myParameters_.tf_world2sdf);
-  
+
   // node specific parameters
   nh_.param("use_tf", use_tf_, false);
   nh_.param("runTrackerFromVolume", offlineTracker, false);
@@ -88,7 +88,7 @@ GraspPlanner::GraspPlanner(SDF_Parameters &parameters) {
   nh_.getParam("CenterPointY", myParameters_.cy);
 
   //	    nh_.param<double>("orientation_tolerance", orientation_tolerance,
-  //0.5); //RADIAN
+  // 0.5); //RADIAN
   nh_.param<int>("min_envelope_volume", MIN_ENVELOPE_VOLUME,
                  5);       // Number of configurations
   cylinder_tolerance = 0;  //-0.015;
@@ -108,19 +108,13 @@ GraspPlanner::GraspPlanner(SDF_Parameters &parameters) {
   fused_pc_publisher_ =
       nh_.advertise<sensor_msgs::PointCloud2>(fused_pc_topic, 10);
 
-  depth_subscriber_ =
-      n_.subscribe(depth_topic_name_, 1, &GraspPlanner::depthCallback, this);
   depth_camera_info_subscriber_ = n_.subscribe(
       depth_info_topic_name_, 1, &GraspPlanner::depthInfoCallback, this);
 
-  if (depth_topic_name2_ != "none") {
-    depth_subscriber2_ = n_.subscribe(depth_topic_name2_, 1,
-                                      &GraspPlanner::depthCallback2, this);
-    depth_camera_info_subscriber2_ = n_.subscribe(
-        depth_info_topic_name2_, 1, &GraspPlanner::depthInfoCallback2, this);
-  }
+  depth_camera_info_subscriber2_ = n_.subscribe(
+      depth_info_topic_name2_, 1, &GraspPlanner::depthInfoCallback2, this);
 
-  plan_grasp_serrver_ = nh_.advertiseService(
+  plan_grasp_server_ = nh_.advertiseService(
       "plan_grasp", &GraspPlanner::planGraspCallback, this);
   publish_map_server_ = nh_.advertiseService(
       "publish_map", &GraspPlanner::publishMapCallback, this);
@@ -134,6 +128,11 @@ GraspPlanner::GraspPlanner(SDF_Parameters &parameters) {
       "load_volume", &GraspPlanner::loadVolumeCallback, this);
   load_constraints_server_ = nh_.advertiseService(
       "load_constraints", &GraspPlanner::loadConstraintsCallback, this);
+  start_tracker_server_ = nh_.advertiseService(
+      "start_tracker", &GraspPlanner::startTrackerCallback, this);
+  stop_tracker_server_ = nh_.advertiseService(
+      "stop_tracker", &GraspPlanner::stopTrackerCallback, this);
+
   vis_pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>("sdf_marker", 10, true);
   constraint_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
@@ -281,6 +280,7 @@ void GraspPlanner::depthInfoCallback(
   isInfoSet1 = true;
 
   ROS_INFO("Parameters set for camera 1");
+  depth_camera_info_subscriber_.shutdown();
 }
 
 void GraspPlanner::depthInfoCallback2(
@@ -296,10 +296,14 @@ void GraspPlanner::depthInfoCallback2(
   isInfoSet2 = true;
 
   ROS_INFO("Parameters set for camera 2");
+  depth_camera_info_subscriber2_.shutdown();
 }
 
 void GraspPlanner::depthCallback(const sensor_msgs::Image::ConstPtr &msg) {
   if (myTracker_ == NULL) return;
+
+  static Eigen::Affine3d cam2map, prev_cam2map;
+
   camera_link_ = msg->header.frame_id;
   tf::StampedTransform camera_frame_to_map;
   try {
@@ -351,6 +355,7 @@ void GraspPlanner::depthCallback(const sensor_msgs::Image::ConstPtr &msg) {
 
 void GraspPlanner::depthCallback2(const sensor_msgs::Image::ConstPtr &msg) {
   if (myTracker_ == NULL) return;
+  static Eigen::Affine3d cam2map, prev_cam2map;
   camera_link_ = msg->header.frame_id;
   tf::StampedTransform camera_frame_to_map;
   try {
@@ -428,6 +433,7 @@ bool GraspPlanner::mapToEdtCallback(
   myTracker_->toMessage(res.map);
   tracker_m.unlock();
 
+  publishPC();
   res.map.header.frame_id = object_map_frame_name;
   return true;
 }
@@ -438,6 +444,27 @@ bool GraspPlanner::saveMapCallback(std_srvs::Empty::Request &req,
   tracker_m.lock();
   myTracker_->SaveSDF();
   tracker_m.unlock();
+  return true;
+}
+
+bool GraspPlanner::startTrackerCallback(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res) {
+  depth_subscriber_ =
+      n_.subscribe(depth_topic_name_, 1, &GraspPlanner::depthCallback, this);
+
+  if (depth_topic_name2_ != "none") {
+    depth_subscriber2_ = n_.subscribe(depth_topic_name2_, 1,
+                                      &GraspPlanner::depthCallback2, this);
+  }
+  return true;
+}
+
+bool GraspPlanner::stopTrackerCallback(std_srvs::Empty::Request &req,
+                                       std_srvs::Empty::Response &res) {
+  depth_subscriber_.shutdown();
+  if (depth_topic_name2_ != "none") {
+    depth_subscriber2_.shutdown();
+  }
   return true;
 }
 
@@ -545,7 +572,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
   bottom.frame_id = grasping_frame;  // TODO: Check this.
   bottom.visible = false;
   bottom.color = {0.0, 0.0, 1.0, 0.2};
-  bottom.parameters = {normal(0), normal(1), normal(2), d + plane_tolerance};
+  bottom.parameters = {normal(0), normal(1), normal(2),
+                       d - plane_tolerance - 0.01};
 
   // top
   normal = grasp2global.rotation() * out.upper_plane.a;
@@ -556,7 +584,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
   top.frame_id = grasping_frame;  // TODO: Check this.
   top.visible = false;
   top.color = {0.0, 0.0, 1.0, 0.2};
-  top.parameters = {-normal(0), -normal(1), -normal(2), -d - plane_tolerance};
+  top.parameters = {-normal(0), -normal(1), -normal(2),
+                    -d - plane_tolerance + 0.01};
 
   // left
   normal = grasp2global.rotation() * out.left_bound_plane.a;
@@ -688,7 +717,8 @@ bool GraspPlanner::planGraspCallback(grasp_planner::PlanGrasp::Request &req,
     addCylinderMarker(
         marker_array, tmpose, zaxis.cast<double>(),
         out.outer_cylinder.radius_ - cylinder_tolerance, gripper_frame_name,
-        out.upper_plane.b - out.lower_plane.b + 2 * plane_tolerance);
+        out.upper_plane.b - out.lower_plane.b + 2 * plane_tolerance, "cylinder",
+        0, 0, 1);
     // add request cylinder
     addCylinderMarker(marker_array, Eigen::Vector3d::Zero(),
                       Eigen::Vector3d::UnitZ(), req.object_radius,

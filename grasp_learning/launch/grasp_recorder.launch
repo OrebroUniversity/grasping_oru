@@ -1,4 +1,7 @@
 <launch>
 
-	<node name="grasp_recorder_node" pkg="grasp_learning" type="grasp_recorder_node" output="screen"/>
+	<node name="grasp_recorder_node" pkg="grasp_learning" type="grasp_recorder_node" output="screen">
+		<param name="file_name" value="two_tasks_linear_dynamics_lambda_0.5"/>
+	</node>
+
 </launch>

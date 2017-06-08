@@ -1,7 +1,0 @@
-<launch>
-
-	<node name="NPG" pkg="grasp_learning" type="NPG.py" output="screen">
- 		<param name="input_training_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/joint_states/joints_random_episode_1.txt" />
- 		<param name="output_training_data" value="/home/jejje/grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/task_dynamics_random_episode_1.txt" />
- 	</node>
-</launch>

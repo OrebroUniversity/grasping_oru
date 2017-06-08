@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!--
+  This file:
+   - launches Gazebo without gui and the world bunny.world
+   - spawns the urdf model of YuMi on the parameter server
+   - loads the yumi.yaml file
+   - if uncommented, loads the yumi_preload.yaml yaml file (predefined joint limits, primitives and tasks)
+   - spawns controllers specified by the controllers argument
+   - launches the robot_state_publisher node
+   - launches RviZ to visualize YuMi and the HiQP tasks
+  -->
+
+  <arg name="rviz" default="true"/>
+  <arg name="hardware_interface" default="VelocityJointInterface"/>
+  <arg name="controllers" default="joint_state_controller hiqp_joint_velocity_controller"/>
+
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="false"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <arg unless="$(arg debug)" name="launch_prefix" value="" />
+  <arg if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="world_name" value="$(find obstacle_avoidance_gazebo)/worlds/tableWbunnyObj.world"/>
+  </include>
+
+  <param name="robot_description" 
+         command="$(find xacro)/xacro '$(find yumi_description)/urdf/yumi.urdf.xacro' --inorder prefix:=$(arg hardware_interface)" />
+
+  <node name="urdf_spawner" 
+        pkg="gazebo_ros" 
+        type="spawn_model" 
+        respawn="false" 
+        output="screen"
+        args="-urdf -model yumi -param robot_description"/>
+
+  <rosparam file="$(find hiqp_demos)/config/yumi.yaml" command="load"/>
+  <!--rosparam file="$(find hiqp_demos)/config/yumi_preload.yaml" command="load"/-->
+
+  <node name="controller_spawner" 
+        pkg="controller_manager" 
+        type="spawner" 
+        respawn="false" 
+        output="screen"
+        ns="/yumi"
+        args="$(arg controllers)"/>
+
+  <node name="robot_state_publisher" 
+        pkg="robot_state_publisher" 
+        type="robot_state_publisher" 
+        respawn="false" 
+        output="screen">
+    <remap from="/joint_states" to="/yumi/joint_states" />
+  </node>
+
+  <node name="yumi_rviz" pkg="rviz" type="rviz" args="-d $(find obstacle_avoidance_gazebo)/launch/gazebo.rviz" if="$(arg rviz)"/>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="use_gui" value="false"/>
+    <param name="rate" value="50.0" />
+    <rosparam param="/source_list">[yumi/joint_states]</rosparam>
+  </node>
+
+
+  <node name="hiqp_joint_trajectory_controller_node" type="hiqp_joint_trajectory_controller_node" pkg="hiqp_ros" output="screen"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="camera1_pub"
+        args="-0.326 0.312 0.444 -0.3 0.5 0.0 world camera1_frame 50" />
+
+  <node pkg="tf" type="static_transform_publisher" name="camera1pub"
+        args="0.0 0.0 0.0 -1.570796 0.0 -1.570796 camera1_frame camera1_link 50" />
+
+  <node pkg="tf" type="static_transform_publisher" name="camera2_pub"
+        args="0.960834 0.0 0.63106 3.14 0.9 0.0 world camera2_frame 50" />
+  
+  <node pkg="tf" type="static_transform_publisher" name="camera2pub"
+        args="0.0 0.0 0.0 -1.570645 0.0 -1.570645 camera2_frame camera2_link 50" />
+
+</launch>

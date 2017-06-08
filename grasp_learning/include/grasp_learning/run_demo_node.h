@@ -16,9 +16,11 @@ namespace hiqp{
 		{
 		public:
 			runDemoNode(){
-				max_num_exec_ = 100;
+				nh_ = ros::NodeHandle("~");
 				start_demo_client_ = nh.serviceClient<std_srvs::Empty>("demo_learning/start_demo");
-				current_exec_ = 0;
+				reset_policy_search_node_client_ = nh.serviceClient<std_srvs::Empty>("reset_node");
+    			nh_.param<int>("max_rollouts", max_rollouts_, 100);
+				current_rollout_ = 0;
 			};
 			~runDemoNode(){};
 		
@@ -38,10 +40,14 @@ namespace hiqp{
 		private:
 			std::vector<ros::Subscriber> subs_;
 			ros::NodeHandle nh;
+  			ros::NodeHandle nh_;
 			ros::ServiceClient start_demo_client_;
-			unsigned int max_num_exec_;
-			unsigned int current_exec_;
+			ros::ServiceClient reset_policy_search_node_client_;
+
+			int max_rollouts_;
+			int current_rollout_;
 			std_srvs::Empty start_demo_srv_;
+			std_srvs::Empty reset_policy_search_node_srv_;
 		};
 	}
 }

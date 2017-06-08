@@ -80,21 +80,27 @@ void ConstraintMap::getConfigsForDisplay(
   uint8_t r = 255, g = 0, b = 0;  // Red color
   uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   invalid.rgb = *reinterpret_cast<float *>(&rgb);  // in collision with palm
+  
   r = 0, g = 250, b = 0;                           // Green color
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   select.rgb = *reinterpret_cast<float *>(&rgb);
-  r = 100, g = 50, b = 20;  // Orange color
+  
+  r = 255, g = 0, b = 127;  // Purple color
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   valid.rgb = *reinterpret_cast<float *>(&rgb);
+  
   r = 10, g = 10, b = 10;  // dark gray
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   deleted.rgb = *reinterpret_cast<float *>(&rgb);
-  r = 255, g = 100, b = 100;  // pinky
+  
+  r = 255, g = 255, b = 0;  // yellow
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   finger.rgb = *reinterpret_cast<float *>(&rgb);
+  
   r = 10, g = 10, b = 200;  // blue
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   empty.rgb = *reinterpret_cast<float *>(&rgb);
+  
   r = 100, g = 100, b = 100;  // light gray
   rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   orient.rgb = *reinterpret_cast<float *>(&rgb);

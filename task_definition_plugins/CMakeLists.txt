@@ -3,6 +3,7 @@ project(task_definition_plugins)
 
 set(CMAKE_BUILD_TYPE RelWithDebinfo)
 set(CMAKE_CXX_STANDARD 11)
+
 add_definitions(-Wno-missing-braces)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -15,9 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
 )
 
-find_package(Boost REQUIRED COMPONENTS timer)
-
-# find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES tdef_avoid_collisions_sdf
@@ -27,10 +25,9 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
 )
 
-add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp) #src/tdef_meta_task.cpp)
+add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp)
 add_dependencies(task_definition_plugins ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_definition_plugins ${catkin_LIBRARIES})
 

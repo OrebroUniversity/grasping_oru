@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- launch the demo_grasping node -->
+  <node name="demo_grasping" pkg="demo_grasping" type="demo_grasping" respawn="false" output="screen"> <!-- launch-prefix="xterm -e gdb -args" -->
+     <param name="with_gazebo" type="bool" value="false"/>
+     
+     <param name="grasp_req_frame" value="world"/>
+     <param name="grasp_req_radius" value="0.028"/>
+     <param name="grasp_req_height" value="0.075"/>
+     <param name="grasp_req_px" value="0.457"/>
+     <!-- param name="grasp_req_py" value="0.22"/ -->
+     <param name="grasp_req_py" value="-0.005"/>
+     <param name="grasp_req_pz" value="0.13"/>
+     <param name="grasp_req_ox" value="0"/>
+     <param name="grasp_req_oy" value="0"/>
+     <param name="grasp_req_oz" value="0"/>
+     <param name="grasp_req_ow" value="1"/>
+     
+     <remap from="/get_grasp_interval" to="/gplanner/plan_grasp"/>
+     <remap from="/reset_map" to="/gplanner/clear_map"/>
+     <remap from="/close_gripper" to="/yumi/yumi_gripper/do_grasp"/>
+     <remap from="/open_gripper" to="/yumi/yumi_gripper/release_grasp"/>
+
+
+  </node>
+</launch>

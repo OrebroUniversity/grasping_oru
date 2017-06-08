@@ -4,12 +4,13 @@
 #include <sdf_tracker_msgs/GetSDFMap.h>
 #include <sdf_tracker_msgs/SDFMap.h>
 
+#include <eigen_conversions/eigen_msg.h>
 #include <ros/ros.h>
 #include <tf/transform_datatypes.h>
-#include <eigen_conversions/eigen_msg.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <mutex>
+#include <thread>
 
 namespace sdf_collision_check {
 
@@ -45,8 +46,10 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   int XSize, YSize, ZSize;
   int raycast_steps;
 
+  std::thread get_map_thread_;
   /// methods
  private:
+  void getMapThread();
   void mapCallback(const sdf_tracker_msgs::SDFMap &msg);
   /// returns the trilinear interpolated SDF value at location
   double SDF(const Eigen::Vector3d &location);
@@ -77,7 +80,7 @@ class SDFCollisionChecker : public CollisionCheckerBase {
   virtual void init();
   /// is the gradient smaller than the truncation size?
   virtual bool isValid(const Eigen::Vector3d &grad) {
-//    ROS_INFO("%lf, %lf, %lf", grad(0), grad(1), grad(2));
+    // ROS_INFO("%lf, %lf, %lf", grad(0), grad(1), grad(2));
     return (!std::isnan(grad(0) + grad(1) + grad(2)));
     /*		return (grad(0) > Dmin && grad(0) < Dmax &&
                             grad(1) > Dmin && grad(1) < Dmax &&

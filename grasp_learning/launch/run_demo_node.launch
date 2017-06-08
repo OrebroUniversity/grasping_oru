@@ -1,4 +1,6 @@
 <launch>
 
-	<node name="run_demo_node" pkg="grasp_learning" type="run_demo_node" output="screen"/>
+	<node name="run_demo_node" pkg="grasp_learning" type="run_demo_node" output="screen">
+		<param name="max_rollouts" type="double"  value="100" />
+ 	</node>
 </launch>
