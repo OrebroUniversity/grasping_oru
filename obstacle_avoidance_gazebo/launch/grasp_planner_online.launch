@@ -21,7 +21,7 @@
     <!-- SDF related parameters -->
     <param name="GridSizeX" value= "250"/>
     <param name="GridSizeY" value= "170"/>
-    <param name="GridSizeZ" value= "90"/>
+    <param name="GridSizeZ" value= "120"/>
     <param name="PositiveTruncationDistance" value= "0.03" />
     <param name="NegativeTruncationDistance" value= "-0.003" />
     <param name="RobustStatisticCoefficient" value= "0.01" />

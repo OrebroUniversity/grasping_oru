@@ -189,6 +189,7 @@ int TDefAvoidCollisionsSDF::init(const std::vector<std::string>& parameters,
       nh_.advertise<sdf_collision_check::SDFGradients>("sdf_gradients", 1);
   return 0;
 }
+
 //==================================================================================
 /// \bug Should rewrite to survive consistency check
 int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
@@ -326,6 +327,34 @@ int TDefAvoidCollisionsSDF::update(RobotStatePtr robot_state) {
       return -2;
     }
 
+    
+    std::vector<SamplesVector::iterator> min_elements;
+    int interval = 5;
+    for(unsigned int ii = 0; ii < std::ceil(gradients.size() / float(interval)); ii++) {
+
+      auto compareGradients = [] (const Eigen::Vector3d& lhs, const Eigen::Vector3d& rhs) {
+        return lhs.norm() < rhs.norm();
+      };
+      
+      SamplesVector::iterator min_element_in_region;
+      if(gradients.end() > gradients.begin() + (ii+1)*interval) {
+        min_element_in_region = std::min_element(gradients.begin() + ii*interval, gradients.begin() + (ii+1)*interval, compareGradients);
+      }
+      else
+        min_element_in_region = std::min_element(gradients.begin() + ii*interval, gradients.end(), compareGradients);
+
+      min_elements.push_back(min_element_in_region);
+    }
+
+    // Set the others to zero.
+    for(SamplesVector::iterator it = gradients.begin(); it != gradients.end(); it++) {
+      // ROS_INFO("%lf, %lf, %lf", it->x(), it->y(), it->z());
+      if(std::find(min_elements.begin(), min_elements.end(), it) == min_elements.end()) {
+        it->setZero();
+      }
+    }
+
+    //ROS_INFO("Min elements: %ld", min_elements.size());
     auto t_end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> grad_comp_time = t_end - t_begin;
     this->performance_measures_(0) =
@@ -419,7 +448,7 @@ void TDefAvoidCollisionsSDF::appendTaskFunction(
     Eigen::Vector3d gradient(gradients[i]);
     e_.conservativeResize(e_.size() + 1);
     // check if a gradient to an obstacle is valid
-    if (!collision_checker_->isValid(gradient)) {
+    if (!collision_checker_->isValid(gradient) || gradient.norm() == 0) {
       /// \bug this implicitly assumes that e*(e=0) = 0!
       e_(e_.size() - 1) = 0.0;  // insert zero
       continue;

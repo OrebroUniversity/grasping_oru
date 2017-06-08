@@ -88,7 +88,7 @@ int main(int argn, char** args) {
 
     double length = axis_r.length();
     if (rh_frames[i + 1].find("tool") != std::string::npos)
-      length = length - 0.02;
+      length = length + 0.05;
     hiqp_client.setPrimitive(rh_frames[i], "cylinder", rh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
                              {axis_r.getX(), axis_r.getY(), axis_r.getZ(), 0.00,
@@ -96,7 +96,7 @@ int main(int argn, char** args) {
 
     length = axis_l.length();
     if (lh_frames[i + 1].find("tool") != std::string::npos)
-      length = length - 0.02;
+      length = length + 0.05;
 
     hiqp_client.setPrimitive(lh_frames[i], "cylinder", lh_frames[i], true,
                              {1.0, 1.0, 0.0, 0.5},
