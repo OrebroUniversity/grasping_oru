@@ -21,6 +21,12 @@ namespace demo_learning {
   // get params
     nh_.param<bool>("with_gazebo", with_gazebo_, false);
     nh_.param<bool>("generalize_policy", generalize_policy_, false);
+    nh_.param<double>("decay_rate", decay_rate_, 1);
+    nh_.param<std::string>("task_dynamics", task_dynamics_, "TDynPolicy");
+    nh_.param<double>("exec_time", exec_time_, 10);
+
+
+    nh_.param<std::string>("task", task_name_, "gripperToHorizontalPlane");
 
     if (with_gazebo_) ROS_INFO("Grasping experiments running in Gazebo.");
 
@@ -29,7 +35,7 @@ namespace demo_learning {
     nh_.advertiseService("start_demo", &DemoLearning::startDemo, this);
 
     set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
-      "set_physics_properties");
+      "/gazebo/set_physics_properties");
 
     client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
 
@@ -41,19 +47,6 @@ namespace demo_learning {
 
     sample_And_Reweight_ = n_.advertise<std_msgs::Empty>("/sample_and_rewight",1);
 
-    addSubscription<grasp_learning::StartRecording>(n_, "/start_recording",1);
-    addSubscription<grasp_learning::FinishRecording>(n_, "/finish_recording",1);
-    addSubscription<hiqp_msgs::TaskMeasures>(n_, "/yumi/hiqp_joint_velocity_controller/task_measures",10000);
-    addSubscription<sensor_msgs::JointState>(n_, "/yumi/joint_states",10000);
-    // addSubscription<std_msgs::Float64MultiArray>(n_, "/joint_effort",1000);
-
-    if (!with_gazebo_) {
-    // close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
-    // open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
-
-    // close_gripper_clt_.waitForExistence();
-    // open_gripper_clt_.waitForExistence();
-    } else {
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
       set_gazebo_physics_clt_.waitForExistence();
@@ -81,8 +74,7 @@ namespace demo_learning {
         ros::shutdown();
       } else
       ROS_INFO("Disabled gravity in Gazebo.");
-    }
-
+  
   // PRE-DEFINED JOINT CONFIGURATIONS
   // configs have to be within the safety margins of the joint limits
 
@@ -105,114 +97,7 @@ namespace demo_learning {
   std::normal_distribution<double> d2(0,0.1);
   dist.param(d2.param());
 
-
-}
-
-    template <>
-void DemoLearning::topicCallback<sensor_msgs::JointState>(const sensor_msgs::JointState& msg){
-  if (record_)
-    this->joint_state_vec_.push_back(msg);
-}
-
-    template <>
-void DemoLearning::topicCallback<hiqp_msgs::TaskMeasures>(const hiqp_msgs::TaskMeasures& msg){
-  if (record_)
-    this->task_dynamics_vec_.push_back(msg);
-}
-
-    template <>
-void DemoLearning::topicCallback<grasp_learning::StartRecording>(const grasp_learning::StartRecording& msg){
-  std::cout<<"Start recording, empty previous vectors"<<std::endl;
-  this->task_dynamics_vec_.clear();
-  this->joint_state_vec_.clear();
-  record_ = true;
-}
-
-    template <>
-void DemoLearning::topicCallback<grasp_learning::FinishRecording>(const grasp_learning::FinishRecording& msg){
-  record_ = false;
-  ROS_INFO("FINISHED RECORDING, STORING FILES");
-  std::ostringstream convert;   // stream used for the conversion
-
-  convert << ++num_record_;      // insert the textual representation of 'Number' in the characters in the stream
-
-  std::string joint_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/joint_states/joint_positions_episode_" + convert.str() +".txt";
-
-  std::ofstream output_file (joint_file_name,std::ios_base::out);
-  if (output_file.is_open()){
-    for (float i=0;i<joint_state_vec_.size();i++){
-      if(i==0){
-        output_file << "Time ";
-        for(unsigned int j=1;j<joint_state_vec_[i].name.size();j++){
-          if((j+1)%2==0 && j>1){//Store only joint angles belonging the right arm
-            output_file << this->joint_state_vec_[i].name[j]<<" ";
-          }
-        }
-        output_file << "\n";
-      }
-      output_file << this->joint_state_vec_[i].header.stamp<<" ";
-      for(unsigned int j=0;j<joint_state_vec_[i].position.size();j++){
-        if((j+1)%2==0 && j>1){//Store only joint angles belonging the right arm
-          output_file << this->joint_state_vec_[i].position[j]<<" ";
-        }
-      }
-      output_file << "\n";
-    }
-    output_file.close();      
-  }
-  else{
-    std::cout<<"Could not open file\n"<<joint_file_name<<std::endl;
-  }
-
-  std::string joint_vel_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/joint_states/joint_velocities_episode_" + convert.str() +".txt";
-
-  std::ofstream output_file3 (joint_vel_file_name,std::ios_base::out);
-  if (output_file3.is_open()){
-    for (float i=0;i<joint_state_vec_.size();i++){
-      if(i==0){
-        output_file3 << "Time ";
-        for(unsigned int j=0;j<joint_state_vec_[i].name.size();j++){
-          if((j+1)%2==0 && j>1){
-            output_file3 << this->joint_state_vec_[i].name[j]<<" ";
-          }
-        }
-        output_file3 << "\n";
-      }
-      output_file3 << this->joint_state_vec_[i].header.stamp<<" ";
-      for(unsigned int j=0;j<joint_state_vec_[i].velocity.size();j++){
-        if((j+1)%2==0 && j>1){
-          output_file3 << this->joint_state_vec_[i].velocity[j]<<" ";
-        }
-      }
-      output_file3 << "\n";
-    }
-    output_file3.close();      
-  }
-  else{
-    std::cout<<"Could not open file\n"<<joint_vel_file_name<<std::endl;
-  }
-
-  std::string task_dynamics_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/tested_data/task_dynamics/task_dynamics_episode_" + convert.str() +".txt";
-
-  std::ofstream output_file2 (task_dynamics_file_name.c_str());
-  if (output_file2.is_open()){
-    for (float i=0;i<task_dynamics_vec_.size();i++){
-      if (i==0){
-        output_file2 << "task performance "<<"task dynamics"<<std::endl;
-      }
-      for(unsigned int j=0;j<task_dynamics_vec_[i].task_measures.size();j++){
-        for(unsigned int z=0;z<task_dynamics_vec_[i].task_measures[j].de.size();z++){
-          output_file2 << this->task_dynamics_vec_[i].task_measures[j].e[z]<<" ";
-          output_file2 << this->task_dynamics_vec_[i].task_measures[j].de[z]<<" ";  
-        }
-        output_file2 << "\n";
-      }
-    }
-    output_file2.close(); 
-  }
-  else{
-    std::cout<<"Could not open file\n"<<task_dynamics_file_name<<std::endl;
-  }
+      ROS_INFO("DEMO LEARNING READY.");
 
 }
 
@@ -266,18 +151,11 @@ std::vector<double> DemoLearning::generateStartPosition(std::vector<double> curr
 
 
 bool DemoLearning::doGraspAndLift() {
-  if (!with_gazebo_) {
-    // if (grasp_.isDefaultGrasp) {
-    //   ROS_WARN("Grasp is default grasp!");
-    //   return false;
-    // }
-  }
-
-
 
   hiqp_msgs::Task gripperToHorizontalPlane;
+  hiqp_msgs::Task gripperToPlane;
   hiqp_msgs::Task gripperToVerticalPlane;
-
+  hiqp_msgs::Task gripperToHorizontalAndVerticalPlane;
   hiqp_msgs::Primitive eef_point;
 
   // Some assertions to make sure that the grasping constraints are alright.
@@ -290,99 +168,85 @@ bool DemoLearning::doGraspAndLift() {
 
   // Primitive for the size effector point.
 
-    ROS_INFO("Has the policy converged %d", converged_policy_);
+  ROS_INFO("Has the policy converged %d", converged_policy_);
 
 
   if (generalize_policy_ && converged_policy_){
 
-    double delta_z = 1+this->dist(this->generator);
+    double delta_z = 1.3+this->dist(this->generator);
     ROS_INFO("Table height is now  %lf", delta_z);
 
-   grasp_horizontal_.plane = hiqp_ros::createPrimitiveMsg(
-    "table_plane", "plane", "world", true, {0, 1, 0, 0.2},
+    grasp_horizontal_.plane = hiqp_ros::createPrimitiveMsg(
+      "table_plane", "plane", "world", true, {0, 1, 0, 0.2},
     {0, 0, 1, delta_z});//0.89
 
 
   }
   else{
    grasp_horizontal_.plane = hiqp_ros::createPrimitiveMsg(
-    "table_plane_horizontal", "plane", "world", true, {0, 1, 0, 0.2},
+    "table_plane_horizontal", "plane", "world", true, {0, 1, 0, 0.4},
     {0, 0, 1,1});//0.89
 
    grasp_vertical_.plane = hiqp_ros::createPrimitiveMsg(
-    "table_plane_vertical", "plane", "world", true, {0, 0, 1, 0.2},
-    {0, 1, 0,0});//0.89
+    "table_plane_vertical", "plane", "world", true, {0, 0, 1, 0.4},
+    {0, -1, 0,0});//0.89
 
 
  }
   // Define tasks
 
-  // Load this task for following task dynamics given by the neural network policy
- gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
-  "point_to_horizontal_plane", 1, true, true, true,
+ gripperToHorizontalAndVerticalPlane = hiqp_ros::createTaskMsg(
+  "point_to_2_planes", 1, true, true, true,
   {"TDefMetaTask", "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_horizontal_.plane.name,
   "TDefGeomProj", "point", "plane",
   eef_point.name + " = " + grasp_vertical_.plane.name},
-  {"TDynRandom", std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
+  {task_dynamics_, std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
+ gripperToHorizontalPlane = hiqp_ros::createTaskMsg(
+  "point_to_horizontal_plane", 1, true, true, true,
+  {"TDefMetaTask", "TDefGeomProj", "point", "plane",
+  eef_point.name + " = " + grasp_horizontal_.plane.name},
+  {task_dynamics_,std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
- // gripperToVerticalPlane = hiqp_ros::createTaskMsg(
- //  "point_to_vertical_plane", 1, true, true, true,
- //  {"TDefGeomProj", "point", "plane",
- //  eef_point.name + " = " + grasp_vertical_.plane.name},
- //  {"TDynRandom",  std::to_string(0),std::to_string(1.0 * DYNAMICS_GAIN)});
-
-  // Load this task for following a constant task dynamics policy
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //   "dummy", 1, true, true, true,
-  //   {"TDefGeomProj", "point", "plane",
-  //   eef_point.name + " = " +grasp_.plane.name},
-  //   {"TDynConstant", std::to_string(0),std::to_string(2.0 * DYNAMICS_GAIN)});
-
-  // Load this task for following a linear task dynamics
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //     "dummy", 1, true, true, true,
-  //     {"TDefGeomProj", "point", "plane",
-  //      eef_point.name + " = " +grasp_.plane.name},
-  //     {"TDynLinear", std::to_string(0.05 * DYNAMICS_GAIN)});
-
-  // Load this task for following a random task dynamics (sampled from a normal distribution)
-  // gripperToPlane = hiqp_ros::createTaskMsg(
-  //     "dummy", 1, true, true, true,
-  //     {"TDefGeomProj", "point", "plane",
-  //      eef_point.name + " = " +grasp_.plane.name},
-  //     {"TDynRandom", std::to_string(1.0),std::to_string(2.5 * DYNAMICS_GAIN)});
-
-
-  // Set the primitives.
-
-  // hiqp_client_.setPrimitives(
-  // {eef_point, grasp_horizontal_.plane});
-
- hiqp_client_.setPrimitives(
-  {eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
+ gripperToVerticalPlane = hiqp_ros::createTaskMsg(
+  "point_to_vertical_plane", 1, true, true, true,
+  {"TDefGeomProj", "point", "plane",
+  eef_point.name + " = " + grasp_vertical_.plane.name},
+  {task_dynamics_, std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
  start_recording_.publish(start_msg_);
 
-  // Set the tasks
- hiqp_client_.setTasks({gripperToHorizontalPlane});
- // hiqp_client_.setTasks({gripperToVerticalPlane});
-
-
  using hiqp_ros::TaskDoneReaction;
 
-  // Wait for completion.
- hiqp_client_.waitForCompletion(
-  {gripperToHorizontalPlane.name},
-  {TaskDoneReaction::REMOVE},
-  {1e-10}, 1);
 
-  // hiqp_client_.waitForCompletion(
-  // {gripperToHorizontalPlane.name, gripperToVerticalPlane.name},
-  // {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-  // {1e-10, 1e-4}, 1.5);
-
+ if(task_name_.compare("gripperToHorizontalPlane")==0){
+   hiqp_client_.setPrimitives({eef_point, grasp_horizontal_.plane});
+   hiqp_client_.setTasks({gripperToHorizontalPlane});
+   hiqp_client_.waitForCompletion(
+    {gripperToHorizontalPlane.name},
+    {TaskDoneReaction::REMOVE},
+    {1e-6}, exec_time_);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name});
+ }
+ else if(task_name_.compare("gripperToVerticalPlane")==0){
+   hiqp_client_.setPrimitives({eef_point, grasp_vertical_.plane});
+   hiqp_client_.setTasks({gripperToVerticalPlane});
+   hiqp_client_.waitForCompletion(
+    {gripperToVerticalPlane.name},
+    {TaskDoneReaction::REMOVE},
+    {1e-6}, exec_time_);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_vertical_.plane.name});
+ }
+ else if(task_name_.compare("gripperToHorizontalAndVerticalPlane")==0){
+   hiqp_client_.setPrimitives({eef_point, grasp_horizontal_.plane, grasp_vertical_.plane});
+   hiqp_client_.setTasks({gripperToHorizontalAndVerticalPlane});
+   hiqp_client_.waitForCompletion(
+    {gripperToHorizontalAndVerticalPlane.name},
+    {TaskDoneReaction::REMOVE},
+    {1e-6}, exec_time_);
+   hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name, grasp_vertical_.plane.name});
+ }
 
  finish_recording_.publish(finish_msg_);
 
@@ -401,23 +265,15 @@ bool DemoLearning::startDemo(std_srvs::Empty::Request& req,
   ROS_INFO("Starting demo");
   hiqp_client_.resetHiQPController();
 
-  if (!with_gazebo_) {
-    std_srvs::Empty empty;
-
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = 1;
-
-  }
   // MANIPULATOR SENSING CONFIGURATION
-
   hiqp_client_.setJointAngles(sensing_config_);
 
   // TODO: Detect Stagnation.
-    // double accumulated_recent_rewards = prevRewards(reward_vec_,10);
+  // double accumulated_recent_rewards = prevRewards(reward_vec_,10);
 
-    // if (accumulated_recent_rewards < reward_treshold_){
+  // if (accumulated_recent_rewards < reward_treshold_){
   sample_And_Reweight_.publish(empty_msg_);
-    // }
+  // }
 
 
   // GRASP APPROACH
@@ -429,32 +285,15 @@ bool DemoLearning::startDemo(std_srvs::Empty::Request& req,
     return false;
   }
 
-  ROS_INFO("Grasp approach tasks executed successfully.");
-
-  if (!with_gazebo_) {
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = (grasp_horizontal_.e_frame_ == "gripper_l_base") ? 1 : 2;
-
-  }
-
-  if (!with_gazebo_) {
-    yumi_hw::YumiGrasp gr;
-    gr.request.gripper_id = 1;
-
-  }
 
   ROS_INFO("Updating policy");
   updatePolicy();
 
 
   ROS_INFO("Trying to put the manipulator in transfer configuration.");
-
-
   hiqp_client_.setJointAngles(sensing_config_);
 
   ROS_INFO("DEMO FINISHED.");
-
-
 
   run_new_episode_.publish(empty_msg_);
 

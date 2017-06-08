@@ -3,6 +3,7 @@ project(task_definition_plugins)
 
 set(CMAKE_BUILD_TYPE RelWithDebinfo)
 set(CMAKE_CXX_STANDARD 11)
+
 add_definitions(-Wno-missing-braces)
 
 find_package(catkin REQUIRED COMPONENTS

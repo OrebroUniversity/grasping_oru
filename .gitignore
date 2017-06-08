@@ -1,6 +1,14 @@
 grasp_planner/cfg/*
 CATKIN_IGNORE
-grasp_learning/stored_data/tested_data/*
-grasp_learning/tested_data/
+*.pyc
+grasp_learning/plotting/
+grasp_learning/stored_data/tested_data/data/*
+grasp_learning/stored_data/tested_data/models/model*
+grasp_learning/stored_data/tested_data/events*
+grasp_learning/stored_data/tested_data/data/*.m
+grasp_learning/stored_data/tested_data/models/checkpoint*
+grasp_learning/stored_data/tested_data/vgraphs/*
+grasp_learning/stored_data/tested_data/graphs/*
+grasp_learning/bin/*
 obstacle_avoidance_gazebo/bags
 obstacle_avoidance_gazebo/csvs

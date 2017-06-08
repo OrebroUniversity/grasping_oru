@@ -44,28 +44,7 @@ namespace hiqp{
 
 			convert << ++num_record_;      // insert the textual representation of 'Number' in the characters in the stream
 
-			// std::string joint_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/joint_states/joints_random_episode_" + convert.str() +".txt";
-
-			// std::ofstream output_file (joint_file_name.c_str());
-			// if (output_file.is_open()){
-			// 	for (float i=0;i<joint_state_vec_.size();i++){
-			// 		if(i==0){
-			// 			output_file << "Time ";
-			// 			for(unsigned int j=0;j<joint_state_vec_[i].name.size();j++){
-			// 				output_file << this->joint_state_vec_[i].name[j]<<" ";
-			// 			}
-			// 			output_file << "\n";
-			// 		}
-			// 		output_file << this->joint_state_vec_[i].header.stamp<<" ";
-			// 		for(unsigned int j=0;j<joint_state_vec_[i].position.size();j++){
-			// 			output_file << this->joint_state_vec_[i].position[j]<<" ";
-			// 		}
-			// 		output_file << "\n";
-			// 	}
-			// }
-			// output_file.close();			
-
-			std::string task_dynamics_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/multiple_task_dynamics_random_episode_" + convert.str() +".txt";
+			std::string task_dynamics_file_name = "../grasping_ws/src/grasping_oru/grasp_learning/stored_data/training_data/task_dynamics/"+ this->file_name_ + convert.str() +".txt";
 
 			std::ofstream output_file2 (task_dynamics_file_name.c_str());
 			if (output_file2.is_open()){

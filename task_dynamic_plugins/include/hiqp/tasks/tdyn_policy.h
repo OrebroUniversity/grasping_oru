@@ -65,7 +65,7 @@ namespace tasks
     std_msgs::String msg_;
     ros::ServiceClient client_NN_;
     ros::Publisher joint_effort_pub_;
-
+    ros::Time t;
     ros::NodeHandle nh_;
   };
 
