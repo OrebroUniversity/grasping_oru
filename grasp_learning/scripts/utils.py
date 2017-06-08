@@ -51,6 +51,9 @@ def cat_sample(prob_nk):
                 break
     return out
 
+def vec_2_mat(vec):
+    return [vec]
+
 def slice_2d(x, inds0, inds1):
     inds0 = tf.cast(inds0, tf.int64)
     inds1 = tf.cast(inds1, tf.int64)

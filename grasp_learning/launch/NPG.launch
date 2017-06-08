@@ -9,14 +9,16 @@
  		<param name="num_inputs" value="2" />
 		<param name="num_outputs" value="2" />
 		<param name="num_rewards" value="1" />
-		<param name="num_hidden_layers" value="1" />
-		<rosparam param="hidden_layers_sizes">[2]</rosparam>
+		<rosparam param="hidden_units">[2]</rosparam>
 		<param name="use_static_learning_rate" value="1"/>
 		<param name="learning_rate" value="0.5"/>
 		<param name="subtract_baseline" value="0"/>
-		<param name="batch_size" value="20" />
+		<param name="batch_size" value="10" />
 		<param name="discount_factor" value="0.99" />
 		<param name="use_normalized_advantages" value="0" />
 		<param name="relative_path" value="$(find grasp_learning)/stored_data/tested_data/" />
+		<param name="read_params_from_file" value="0" />
+		<param name="max_num_trials" value="1" />
+		<param name="min_dist_norm" value="0.04" />
  	</node>
 </launch>
