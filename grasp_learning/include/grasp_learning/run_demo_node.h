@@ -19,7 +19,7 @@ namespace hiqp{
 				nh_ = ros::NodeHandle("~");
 				start_demo_client_ = nh.serviceClient<std_srvs::Empty>("demo_learning/start_demo");
 				reset_policy_search_node_client_ = nh.serviceClient<std_srvs::Empty>("reset_node");
-    			nh_.param<double>("max_rollouts", max_rollouts_, 100);
+    			nh_.param<int>("max_rollouts", max_rollouts_, 100);
 				current_rollout_ = 0;
 			};
 			~runDemoNode(){};
