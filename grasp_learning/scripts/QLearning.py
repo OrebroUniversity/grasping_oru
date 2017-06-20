@@ -58,7 +58,7 @@ class QLearning(object):
         self.train = True
         self.eval_episode = True
         self.NN_output = np.zeros(num_outputs)
-        self.all_outputs = []
+        # self.all_outputs = []
 
         self.prev_action = np.zeros(num_outputs)
         self.all_returns = []
@@ -71,8 +71,6 @@ class QLearning(object):
         self.all_states = []
 
         self.task_measure = []
-        # This list holds the natural policy gradients which is composed of the inverse of the fisher
-        # matrix mulitpled by the policy gradient. For more info check http://www.scholarpedia.org/article/Policy_gradient_methods
         self.prev_eval_mean_return = 0
 
 
@@ -92,7 +90,6 @@ class QLearning(object):
         self.update_targetNetwork()
         self.store_weights()
 
-
     def update_targetNetwork(self):
         parameters = self.QNetwork.get_trainable_variables()
         self.TargetQNetwork.set_new_parameters(parameters, 0.9)
@@ -104,7 +101,7 @@ class QLearning(object):
 
     def set_actions(self):
         possible_actions = [-0.5, 0.5]
-        # possible_actions = [-5,0,5]
+
         self.possible_actions = []
         for roll in product(possible_actions, repeat = self.num_actions):
             self.possible_actions.append(list(roll))
@@ -114,28 +111,19 @@ class QLearning(object):
         dir_path = self.relative_path+'data/trial_'+str(self.num_trial)
         create_directory(dir_path)
 
-        self.param_file = create_file(dir_path+'/params.txt')
-
         self.reward_file_name = create_file(dir_path+'/rewards.txt')
-        self.disc_reward_file_name = create_file(dir_path+'/discounted_rewards.txt')
 
         self.actions_file_name = create_file(dir_path+'/actions.txt')
-        self.eval_action_file_name = create_file(dir_path+'/eval_actions.txt')
         
-        self.explored_states_file_name = create_file(dir_path+'/explored_states.txt')
+        self.Q_valuse_file_name = create_file(dir_path+'/Qvalues.txt')
 
-        self.evaluated_states_file_name = create_file(dir_path+'/evaluated_states.txt')
+        self.converged_in_file_name = create_file(dir_path+'/converged.txt')
 
-        self.task_measure_file_name = create_file(dir_path+'/task_measure.txt')
+        self.states_file_name = create_file(dir_path+'/evaluated_states.txt')
 
         self.neural_network_param_file_name = create_file(dir_path+'/weights.txt')
 
-        self.loss_file_name = create_file(dir_path+'/losses.txt')
-
         self.neural_network_output_file_name = create_file(dir_path+'/output.txt')
-
-        self.eval_rewards_file_name = create_file(dir_path+'/eval_rewards.m')
-        self.tdyn_file_name = create_file(dir_path+'/tdyn.m')
 
     def store_weights(self):
 
@@ -145,12 +133,6 @@ class QLearning(object):
     def store_episode_data_to_file(self, episode_data):
         for key in episode_data:
             save_matrix_data_to_file(key, episode_data[key])
-
-    def store_batch_data_to_file(self, batch_data):
-        for key in batch_data:
-            save_vector_data_to_file(key, batch_data[key])
-
-        self.store_weights()
 
     def get_undiscounted_reward(self):
         self.task_measure.pop(0)
@@ -162,7 +144,7 @@ class QLearning(object):
         self.states[:] = []
         self.actions[:] = []
         self.eval_actions[:] = []
-        self.all_outputs[:] = []
+        # self.all_outputs[:] = []
 
         #Not all data are stored after an evaluation episode
     def reset_eval_episode(self, curr_eval_return):
@@ -175,7 +157,7 @@ class QLearning(object):
 
         self.all_returns[:]      = []
         self.all_actions[:]      = []
-        self.all_states[:]  = []
+        self.all_states[:]       = []
         if self.num_train_episode % self.batch_size==0:
             self.eval_episode = True
 
@@ -237,24 +219,35 @@ class QLearning(object):
 
         return states, actions, Qtarget
 
+    def get_total_rollouts(self):
+        return self.num_train_episode+self.num_eval_episode
+
     def get_episode_data(self):
         episode_data = {}
-
-        if self.eval_episode == True:
-            episode_data[self.eval_action_file_name] = vec_2_mat(self.eval_actions)
-            episode_data[self.evaluated_states_file_name] = self.states
+        if self.train == False:
+            episode_data[self.converged_in_file_name] = self.get_total_rollouts()
+        elif self.eval_episode == True:
+            episode_data[self.states_file_name] = self.states
         else:
-            episode_data[self.evaluated_states_file_name] = self.states
+            episode_data[self.states_file_name] = self.states
             episode_data[self.reward_file_name] = vec_2_mat(self.episode_reward)
-
-        episode_data[self.neural_network_output_file_name] = self.all_outputs
+            episode_data[self.actions_file_name] = vec_2_mat(self.get_max_policy(discretize_data(-1,1,50)))
+    
         return episode_data
 
     def converged_episode(self):
         #clean up output file
         self.num_eval_episode += 1
         print "Converged policy  "+str(self.num_eval_episode)+" finished!"
-        self.reset_eval_episode(self.prev_eval_mean_return)
+        if self.num_eval_episode == 1:
+            converged_episode_data = self.get_episode_data()
+            self.store_episode_data_to_file(converged_episode_data)
+
+        if self.num_eval_episode >5:
+            self.reset_node('')
+        else:
+            self.reset_eval_episode(self.prev_eval_mean_return)
+        
         return PolicySearchResponse(not self.train)
 
 
@@ -278,9 +271,9 @@ class QLearning(object):
         print "Final task error " + str(self.states[-1])
         self.check_convergence()
 
-        # eval_episode_data = self.get_episode_data()
+        eval_episode_data = self.get_episode_data()
 
-        # self.store_episode_data_to_file(eval_episode_data)
+        self.store_episode_data_to_file(eval_episode_data)
 
         self.reset_eval_episode(curr_eval_return)
 
@@ -321,11 +314,8 @@ class QLearning(object):
 
         states = discretize_data(-1,1,50)
 
-        actions = []
-        for state in states:
-            actions.append(self.possible_actions[self.QNetwork.get_best_action(np.reshape(state,(1,1)))])
+        actions = self.get_max_policy(states)
 
-        actions = [item for sublist in actions for item in sublist]
         # plt.cla()
         self.ax.clear()
         # ax = self.f.gca()
@@ -338,6 +328,14 @@ class QLearning(object):
         # plt.draw()
         # plt.show()
         # plot_policy(states,actions)
+
+    def get_max_policy(self, states):
+        actions = []
+        for state in states:
+            actions.append(self.possible_actions[self.QNetwork.get_best_action(np.reshape(state,(1,1)))])
+        actions = [item for sublist in actions for item in sublist]
+        return actions
+
 
     def update_policy(self):
 
@@ -352,25 +350,12 @@ class QLearning(object):
         # Calculate the mean of all returns for the batch. It is only done to see if the return between batches increases
         curr_batch_mean_return = np.mean([ret.sum() for ret in self.all_returns])
 
-        # print "mean of batch rewards is "+ str(curr_batch_mean_return)
-
         # As long as the policy has not converged or the episode is an evaluation episode then update the policy
 
-        # Load all batch data into a dictionary
-        unum = int (self.num_train_episode / self.batch_size)
-
-        # run i numbers of gradient descent updates
-        # setup run options for profiling
         error = self.QNetwork.train(states, Qtarget, actions, self.lr)        
-        #add summaries for this training run
 
-        # This dictionary holds all the batch data for one batch. 
-        batch_dic = {}
-        batch_dic[self.loss_file_name] = [error]
-        # batch_dic[self.loss_grads_file_name] = loss_grads
 
         # Function that stores the batch data in corresponding files
-        # self.store_batch_data_to_file(batch_dic)
         self.store_weights()
         self.reset_batch()
         self.reduce_exploration()
@@ -400,7 +385,7 @@ class QLearning(object):
         self.task_measure.append(req.task_measures)
         self.states.append(list(req.task_measures))
         Qvalues = self.QNetwork.predict(np.array([req.task_measures]))#   self.sess.run(self.QNetwork, feed_dict)
-        self.all_outputs.append(list(Qvalues.flatten()))
+        # self.all_outputs.append(list(Qvalues.flatten()))
         if self.train and not self.eval_episode:
             if np.random.rand(1) < self.epsilon:
                 idx = random.randint(0, self.num_outputs-1)
@@ -419,15 +404,18 @@ class QLearning(object):
 
     def reset_node(self, req):
         if self.num_trial<self.max_num_trials:
+            print "Resets the node, i.e. learning start over"
             self.num_trial+=1
             self.QNetwork.restore_graph()
             self.TargetQNetwork.restore_graph()
             self.reset_episode()
             self.reset_batch()
-            #self.set_bookkeeping_files()
+            self.set_bookkeeping_files()
             self.num_train_episode = 0
             self.num_eval_episode = 0
             self.train = True
+            self.eval_episode = True
+            self.prev_eval_mean_return = 0
             self.start_demo()
         else:
             print "Max number of trials reached"

@@ -51,7 +51,6 @@ class QNetwork(object):
         
         self.saver = tf.train.Saver()
         self.sess.run(tf.global_variables_initializer())
-
         if load_example_model:
             self.saver.restore(self.sess, self.relative_path+'models/'+self.model_name)
         else:
@@ -175,4 +174,4 @@ class QNetwork(object):
         return np.argmax(actions)
 
     def restore_graph(self):
-        
+        self.saver.restore(self.sess, self.relative_path+'models/'+self.model_name)
