@@ -9,13 +9,13 @@
      <param name="with_gazebo" type="bool" value="false"/>
      <param name="generalize_policy" type="bool" value="false"/>
      <param name="decay_rate" type="double" value="5"/>
-     <param name="exec_time" type="double" value="10"/>
-     <!-- <param name="task_dynamics" value="TDynPolicy"/> -->
-     <param name="task_dynamics" value="TDynLinear"/>
+     <param name="exec_time" type="double" value="2"/>
+     <param name="task_dynamics" value="TDynPolicy"/>
+     <!-- <param name="task_dynamics" value="TDynLinear"/> -->
 
-      <!-- <param name="task" value="gripperToHorizontalPlane"/> -->
+      <param name="task" value="gripperToHorizontalPlane"/>
       <!--param name="task" value="gripperToVerticalPlane"/-->
-      <param name="task" value="gripperToHorizontalAndVerticalPlane"/> 
+      <!-- <param name="task" value="gripperToHorizontalAndVerticalPlane"/>  -->
 
   </node>
 </launch>

@@ -75,16 +75,6 @@ namespace tasks
     std::vector<double> vec(e.data(), e.data() + e.size());
     srv_.request.task_measures = vec;
 
-//    srv_.request.joint_angles.push_back(0);  //yumi_joint_1_r
-
-    // srv_.request.joint_angles.push_back(jointpositions(9));  //yumi_joint_1_r
-    // srv_.request.joint_angles.push_back(jointpositions(10)); //yumi_joint_2_r
-    // srv_.request.joint_angles.push_back(jointpositions(12)); //yumi_joint_3_r
-    // srv_.request.joint_angles.push_back(jointpositions(13)); //yumi_joint_4_r
-    // srv_.request.joint_angles.push_back(jointpositions(14)); //yumi_joint_5_r
-    // srv_.request.joint_angles.push_back(jointpositions(15)); //yumi_joint_6_r
-    // srv_.request.joint_angles.push_back(jointpositions(11)); //yumi_joint_7_r
-
     std::vector<double> sample;
     if (client_NN_.call(srv_)){
       sample = srv_.response.task_dynamics;

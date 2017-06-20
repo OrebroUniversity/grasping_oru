@@ -1,6 +1,20 @@
 import tensorflow as tf
 import numpy as np
 import scipy.signal
+import matplotlib.pyplot as plt
+
+def plot_policy(states, actions):
+    plt.figure(dpi=200)
+    plt.bar(states, actions)
+    plt.show(block=False)
+
+
+def discreteze_output_data(output_data):
+    output_data[np.where(output_data<-0.01)]= -0.1
+    output_data[np.where(output_data>0.01)]= 0.1
+    output_data[np.where((output_data>=-0.01) & (output_data<=0.01))]= 0.1
+
+    return output_data
 
 # KL divergence with itself, holding first argument fixed
 def gauss_selfKL_firstfixed(mu, logstd):
@@ -9,6 +23,8 @@ def gauss_selfKL_firstfixed(mu, logstd):
 
     return gauss_KL(mu1, logstd1, mu2, logstd2)
 
+def discretize_data(start, end, N):
+    return np.linspace(start, end, N)
 # probability to take action x, given paramaterized guassian distribution
 def gauss_log_prob(mu, var, x):
     logvar = tf.log(var)

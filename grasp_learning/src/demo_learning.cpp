@@ -226,7 +226,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-6}, exec_time_);
+    {1e-10}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name});
  }
  else if(task_name_.compare("gripperToVerticalPlane")==0){
@@ -235,7 +235,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-6}, exec_time_);
+    {1e-10}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_vertical_.plane.name});
  }
  else if(task_name_.compare("gripperToHorizontalAndVerticalPlane")==0){
@@ -244,7 +244,7 @@ bool DemoLearning::doGraspAndLift() {
    hiqp_client_.waitForCompletion(
     {gripperToHorizontalAndVerticalPlane.name},
     {TaskDoneReaction::REMOVE},
-    {1e-6}, exec_time_);
+    {1e-10}, exec_time_);
    hiqp_client_.removePrimitives({eef_point.name, grasp_horizontal_.plane.name, grasp_vertical_.plane.name});
  }
 
