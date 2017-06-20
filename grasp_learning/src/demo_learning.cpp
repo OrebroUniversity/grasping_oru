@@ -185,7 +185,7 @@ bool DemoLearning::doGraspAndLift() {
   else{
    grasp_horizontal_.plane = hiqp_ros::createPrimitiveMsg(
     "table_plane_horizontal", "plane", "world", true, {0, 1, 0, 0.4},
-    {0, 0, 1,1});//0.89
+    {0, 0, 1,0.2});//0.89
 
    grasp_vertical_.plane = hiqp_ros::createPrimitiveMsg(
     "table_plane_vertical", "plane", "world", true, {0, 0, 1, 0.4},

@@ -45,6 +45,7 @@ class QLearning(object):
         self.batch_size = rospy.get_param('~batch_size', '5')
         self.gamma = rospy.get_param('~discount_factor', '0.99') #0.99 #TSV: testing a much more local approach
         self.relative_path = rospy.get_param('~relative_path', ' ')
+        self.max_num_trials = rospy.get_param('~max_num_trials', '1')
         self.min_dist_norm = rospy.get_param('~min_dist_norm', '0.04')
         self.epsilon = rospy.get_param('~epsilon', '0.1')
         self.num_actions = rospy.get_param('~num_actions', '1')
@@ -83,8 +84,8 @@ class QLearning(object):
 
         self.replay_buffer = ReplayBuffer(BUFFER_SIZE, RANDOM_SEED)
 
-        self.QNetwork = QNetwork(self.gamma, self.relative_path, self.model_name)
-        self.TargetQNetwork = QNetwork(self.gamma, self.relative_path, self.model_name)
+        self.QNetwork = QNetwork(self.gamma, self.relative_path, "Online_network")
+        self.TargetQNetwork = QNetwork(self.gamma, self.relative_path, "Target_network")
 
         self.QNetwork.create_tensorflow_graph(self.num_inputs, self.num_outputs, num_rewards, hidden_layers_sizes,load_example_model)
         self.TargetQNetwork.create_tensorflow_graph(self.num_inputs, self.num_outputs, num_rewards, hidden_layers_sizes,load_example_model)
@@ -378,7 +379,7 @@ class QLearning(object):
     # This function updates the policy according to the policy gradient. 
     def policy_search(self, req):
             
-        self.plot_policy()
+        #self.plot_policy()
         if self.train==False:
             self.converged_episode()
             return PolicySearchResponse(True)
@@ -415,6 +416,22 @@ class QLearning(object):
         # Store the output from the neural network which is the action with no noise added to it
         self.actions.append(idx)
         return  np.asarray(task_dynamics)
+
+    def reset_node(self, req):
+        if self.num_trial<self.max_num_trials:
+            self.num_trial+=1
+            self.QNetwork.restore_graph()
+            self.TargetQNetwork.restore_graph()
+            self.reset_episode()
+            self.reset_batch()
+            #self.set_bookkeeping_files()
+            self.num_train_episode = 0
+            self.num_eval_episode = 0
+            self.train = True
+            self.start_demo()
+        else:
+            print "Max number of trials reached"
+        return []
 
 
     def main(self):

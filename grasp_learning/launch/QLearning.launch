@@ -13,7 +13,7 @@
 		<param name="batch_size" value="15" />
 		<param name="discount_factor" value="0.99" />
 		<param name="relative_path" value="$(find grasp_learning)/stored_data/tested_data/" />
-		<param name="max_num_trials" value="1" />
+		<param name="max_num_trials" value="5" />
 		<param name="min_dist_norm" value="0.04" />
 		<param name="epsilon" value="1" />
 		<param name="num_actions" value="1" />
