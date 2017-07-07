@@ -4,6 +4,10 @@ project(task_definition_plugins)
 set(CMAKE_BUILD_TYPE RelWithDebinfo)
 set(CMAKE_CXX_STANDARD 11)
 
+set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+set(GUROBI_LIB_DIR "$ENV{GUROBI_HOME}/lib")
+set(GUROBI_LIBS gurobi_c++ gurobi65)
+
 add_definitions(-Wno-missing-braces)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -25,19 +29,23 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${GUROBI_INCLUDE_DIR}
+
 )
+
+link_directories(${GUROBI_LIB_DIR})
 
 add_library(task_definition_plugins src/tdef_avoid_collisions_sdf.cpp)
 add_dependencies(task_definition_plugins ${catkin_EXPORTED_TARGETS})
-target_link_libraries(task_definition_plugins ${catkin_LIBRARIES})
+target_link_libraries(task_definition_plugins ${catkin_LIBRARIES} ${GUROBI_LIBS})
 
 # Some helper programs to add the avoidance task. 
 
 add_executable(right_gripper_capsule src/right_gripper_capsule.cpp)
 add_dependencies(right_gripper_capsule ${catkin_EXPORTED_TARGETS})
-target_link_libraries(right_gripper_capsule ${catkin_LIBRARIES})
+target_link_libraries(right_gripper_capsule ${catkin_LIBRARIES} ${GUROBI_LIBS})
 
 add_executable(add_avoidance_cylinders src/add_avoidance_cylinders.cpp)
 add_dependencies(add_avoidance_cylinders ${catkin_EXPORTED_TARGETS})
-target_link_libraries(add_avoidance_cylinders ${catkin_LIBRARIES})
+target_link_libraries(add_avoidance_cylinders ${catkin_LIBRARIES} ${GUROBI_LIBS})
 
