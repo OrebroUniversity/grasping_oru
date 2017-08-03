@@ -11,7 +11,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>gazebo_ros</build_depend>
   <build_depend>grasp_planner</build_depend>
-  <build_depend>hiqp_demos</build_depend>
+  <!--build_depend>hiqp_demos</build_depend-->
   <build_depend>roscpp</build_depend>
   <build_depend>gazebo_msgs</build_depend>
 

@@ -6,7 +6,6 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_ros
   gazebo_msgs
   grasp_planner
-  hiqp_demos
 )
 
 find_package(gazebo REQUIRED)
@@ -14,7 +13,7 @@ list(APPEND CMAKE_CXX_FLAGS "${GAZEBO_CXX_FLAGS}")
 
 catkin_package(
   LIBRARIES contact
-  CATKIN_DEPENDS roscpp gazebo_msgs gazebo_ros grasp_planner hiqp_demos
+  CATKIN_DEPENDS roscpp gazebo_msgs gazebo_ros grasp_planner
 )
 
 include_directories(
