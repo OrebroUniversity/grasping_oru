@@ -11,6 +11,8 @@
      <param name="decay_rate" type="double" value="5"/>
      <param name="exec_time" type="double" value="2"/>
      <param name="task_dynamics" value="TDynPolicy"/>
+     <!-- <param name="task_dynamics" value="TDynLinearPolicy"/> -->
+
      <!-- <param name="task_dynamics" value="TDynLinear"/> -->
 
       <param name="task" value="gripperToHorizontalPlane"/>

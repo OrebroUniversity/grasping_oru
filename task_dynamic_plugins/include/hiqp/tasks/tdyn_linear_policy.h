@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef HIQP_TDYN_POLICY_H
-#define HIQP_TDYN_POLICY_H
+#ifndef HIQP_TDYN_LINEAR_POLICY_H
+#define HIQP_TDYN_LINEAR_POLICY_H
 
 #include <hiqp/robot_state.h>
 #include <hiqp/task_dynamics.h>
@@ -32,15 +32,15 @@ namespace tasks
 
   /*! \brief A general first-order task dynamics implementation that enforces an exponential decay of the task performance value.
    *  \author Marcus A Johansson */  
-  class TDynPolicy : public TaskDynamics {
+  class TDynLinearPolicy : public TaskDynamics {
   public:
 
-    inline TDynPolicy() : TaskDynamics() {}
+    inline TDynLinearPolicy() : TaskDynamics() {}
     
-    TDynPolicy(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
+    TDynLinearPolicy(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
                        std::shared_ptr<Visualizer> visualizer);
 
-    ~TDynPolicy() noexcept {}
+    ~TDynLinearPolicy() noexcept {}
 
     int init(const std::vector<std::string>& parameters,
              RobotStatePtr robot_state,
@@ -54,18 +54,17 @@ namespace tasks
     int monitor();
 
   private:
-    TDynPolicy(const TDynPolicy& other) = delete;
-    TDynPolicy(TDynPolicy&& other) = delete;
-    TDynPolicy& operator=(const TDynPolicy& other) = delete;
-    TDynPolicy& operator=(TDynPolicy&& other) noexcept = delete;
+    TDynLinearPolicy(const TDynLinearPolicy& other) = delete;
+    TDynLinearPolicy(TDynLinearPolicy&& other) = delete;
+    TDynLinearPolicy& operator=(const TDynLinearPolicy& other) = delete;
+    TDynLinearPolicy& operator=(TDynLinearPolicy&& other) noexcept = delete;
 
-    std::default_random_engine generator;
-    std::normal_distribution<double> dist;
     ros::Publisher starting_pub_;
     std_msgs::String msg_;
     ros::ServiceClient client_NN_;
     ros::Time t;
     ros::NodeHandle nh_;
+    double lambda_;
   };
 
 } // namespace tasks

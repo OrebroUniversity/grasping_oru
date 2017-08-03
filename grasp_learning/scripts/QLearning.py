@@ -400,6 +400,7 @@ class QLearning(object):
 
         # Store the output from the neural network which is the action with no noise added to it
         self.actions.append(idx)
+        print np.asarray(task_dynamics)
         return  np.asarray(task_dynamics)
 
     def reset_node(self, req):

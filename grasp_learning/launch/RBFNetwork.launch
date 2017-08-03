@@ -1,0 +1,5 @@
+<launch>
+
+	<node name="RBFNetworkNode" pkg="grasp_learning" type="RBFNetworkNode" output="screen"/>
+
+</launch>

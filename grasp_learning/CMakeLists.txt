@@ -40,6 +40,7 @@ add_service_files(
   FILES
   QueryNN.srv
   PolicySearch.srv
+  AddNoise.srv
 )
 
 
@@ -67,7 +68,6 @@ include_directories(include
 ## Declare a cpp executable
 add_executable(demo_learning
   src/demo_learning.cpp
-#  src/look_what_i_found.cpp
 )
 
 add_executable(grasp_recorder_node
@@ -78,8 +78,12 @@ add_executable(run_demo_node
   src/run_demo_node.cpp
 )
 
-add_executable(teleop_remapper_node
- src/teleop_remapper.cpp
+add_executable(demo_learn_manifold
+  src/demo_learn_manifold.cpp
+)
+
+add_executable(RBFNetworkNode
+  src/RBFNetworkNode.cpp src/RBFNetwork.cpp src/power.cpp
 )
 
 
@@ -92,4 +96,8 @@ target_link_libraries(grasp_recorder_node ${catkin_LIBRARIES})
 ## Specify libraries to link a library or executable target against
 target_link_libraries(run_demo_node ${catkin_LIBRARIES})
 
-target_link_libraries(teleop_remapper_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+## Specify libraries to link a library or executable target against
+target_link_libraries(demo_learn_manifold ${catkin_LIBRARIES})
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(RBFNetworkNode ${catkin_LIBRARIES})

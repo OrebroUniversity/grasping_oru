@@ -5,8 +5,8 @@
 	<node name="QLearning" pkg="grasp_learning" type="QLearning.py" output="screen">
 		<param name="load_model" value="0" />
 		<param name="model_name" value="model.ckpt" />
- 		<param name="num_inputs" value="2" />
-		<param name="num_outputs" value="3" />
+ 		<param name="num_inputs" value="1" />
+		<param name="num_outputs" value="1" />
 		<param name="num_rewards" value="1" />
 		<rosparam param="hidden_units">[20]</rosparam>
 		<param name="learning_rate" value="0.01"/>

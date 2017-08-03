@@ -49,7 +49,6 @@ namespace tasks
     }
 
       client_NN_ = nh_.serviceClient<grasp_learning::QueryNN>("query_NN",true);
-      joint_effort_pub_ = nh_.advertise<std_msgs::Float64MultiArray>("joint_effort", 1000);
 
 
     // lambda_ = std::stod( parameters.at(1) );

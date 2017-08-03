@@ -49,32 +49,32 @@ namespace demo_learning {
 
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
-      set_gazebo_physics_clt_.waitForExistence();
-      gazebo_msgs::SetPhysicsProperties properties;
-      properties.request.time_step = 0.001;
-      properties.request.max_update_rate = 1000;
-      properties.request.gravity.x = 0.0;
-      properties.request.gravity.y = 0.0;
-      properties.request.gravity.z = 0.0;
-      properties.request.ode_config.auto_disable_bodies = false;
-      properties.request.ode_config.sor_pgs_precon_iters = 0;
-      properties.request.ode_config.sor_pgs_iters = 50;
-      properties.request.ode_config.sor_pgs_w = 1.3;
-      properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
-      properties.request.ode_config.contact_surface_layer = 0.001;
-      properties.request.ode_config.contact_max_correcting_vel = 100.0;
-      properties.request.ode_config.cfm = 0.0;
-      properties.request.ode_config.erp = 0.2;
-      properties.request.ode_config.max_contacts = 20.0;
+    set_gazebo_physics_clt_.waitForExistence();
+    gazebo_msgs::SetPhysicsProperties properties;
+    properties.request.time_step = 0.001;
+    properties.request.max_update_rate = 1000;
+    properties.request.gravity.x = 0.0;
+    properties.request.gravity.y = 0.0;
+    properties.request.gravity.z = 0.0;
+    properties.request.ode_config.auto_disable_bodies = false;
+    properties.request.ode_config.sor_pgs_precon_iters = 0;
+    properties.request.ode_config.sor_pgs_iters = 50;
+    properties.request.ode_config.sor_pgs_w = 1.3;
+    properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
+    properties.request.ode_config.contact_surface_layer = 0.001;
+    properties.request.ode_config.contact_max_correcting_vel = 100.0;
+    properties.request.ode_config.cfm = 0.0;
+    properties.request.ode_config.erp = 0.2;
+    properties.request.ode_config.max_contacts = 20.0;
 
-      set_gazebo_physics_clt_.call(properties);
-      if (!properties.response.success) {
-        ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
-          properties.response.status_message.c_str());
-        ros::shutdown();
-      } else
-      ROS_INFO("Disabled gravity in Gazebo.");
-  
+    set_gazebo_physics_clt_.call(properties);
+    if (!properties.response.success) {
+      ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
+        properties.response.status_message.c_str());
+      ros::shutdown();
+    } else
+    ROS_INFO("Disabled gravity in Gazebo.");
+    
   // PRE-DEFINED JOINT CONFIGURATIONS
   // configs have to be within the safety margins of the joint limits
 
@@ -97,7 +97,7 @@ namespace demo_learning {
   std::normal_distribution<double> d2(0,0.1);
   dist.param(d2.param());
 
-      ROS_INFO("DEMO LEARNING READY.");
+  ROS_INFO("DEMO LEARNING READY.");
 
 }
 

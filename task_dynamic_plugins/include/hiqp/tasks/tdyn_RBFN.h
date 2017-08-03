@@ -14,14 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef HIQP_TDYN_RANDOM_H
-#define HIQP_TDYN_RANDOM_H
+#ifndef HIQP_TDYN_RBFN_H
+#define HIQP_TDYN_RBFN_H
 
 #include <hiqp/robot_state.h>
 #include <hiqp/task_dynamics.h>
 #include <ros/ros.h>
 #include "std_msgs/String.h"
+#include <math.h>
 #include <pluginlib/class_loader.h>
+#include <grasp_learning/PolicySearch.h>
+#include <grasp_learning/AddNoise.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <grasp_learning/RBFNetwork.h>
+#include <grasp_learning/power.h>
+#include <limits>
+#include <random>
+#include <hiqp/utilities.h>
+#include <pluginlib/class_list_macros.h>
 #include <kdl/treefksolverpos_recursive.hpp>
 #include <kdl/treejnttojacsolver.hpp>
 #include <kdl/chainfksolver.hpp>
@@ -44,17 +54,18 @@ namespace hiqp
       KDL::Vector ee_p_;
     };
 
+
   /*! \brief A general first-order task dynamics implementation that enforces an exponential decay of the task performance value.
    *  \author Marcus A Johansson */  
-    class TDynRandom : public TaskDynamics {
+    class TDynRBFN : public TaskDynamics {
     public:
 
-      inline TDynRandom() : TaskDynamics() {}
+      inline TDynRBFN() : TaskDynamics() {}
       
-      TDynRandom(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
+      TDynRBFN(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
        std::shared_ptr<Visualizer> visualizer);
 
-      ~TDynRandom() noexcept {}
+      ~TDynRBFN() noexcept {}
 
       int init(const std::vector<std::string>& parameters,
        RobotStatePtr robot_state,
@@ -65,7 +76,16 @@ namespace hiqp
        const Eigen::VectorXd& e,
        const Eigen::MatrixXd& J);
 
+      std::vector<double> sampleNoise();
+
+      bool policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res);
+
+      bool addParamNoise(grasp_learning::AddNoise::Request& req, grasp_learning::AddNoise::Response& res);
+
+
       int monitor();
+
+      double calculateReward();
 
       int pointForwardKinematics(
         std::vector<KinematicQuantities>& kin_q_list,
@@ -76,19 +96,28 @@ namespace hiqp
         RobotStatePtr const robot_state) const;
 
     private:
-      TDynRandom(const TDynRandom& other) = delete;
-      TDynRandom(TDynRandom&& other) = delete;
-      TDynRandom& operator=(const TDynRandom& other) = delete;
-      TDynRandom& operator=(TDynRandom&& other) noexcept = delete;
+      TDynRBFN(const TDynRBFN& other) = delete;
+      TDynRBFN(TDynRBFN&& other) = delete;
+      TDynRBFN& operator=(const TDynRBFN& other) = delete;
+      TDynRBFN& operator=(TDynRBFN&& other) noexcept = delete;
 
+      RBFNetwork network;
+      power PoWER;
+
+      std::vector<double> rollout_noise;
+      bool explore = true;
+      int kernels = 0;
+      double lambda_ = 0;
       std::default_random_engine generator;
       std::normal_distribution<double> dist;
       ros::Publisher starting_pub_;
       std_msgs::String msg_;
+      ros::ServiceClient client_NN_;
+      ros::Time t;
+      ros::NodeHandle nh_;
+
       std::shared_ptr<KDL::TreeFkSolverPos_recursive> fk_solver_pos_;
       std::shared_ptr<KDL::TreeJntToJacSolver> fk_solver_jac_;
-
-      ros::NodeHandle nh_;
 
     };
 
