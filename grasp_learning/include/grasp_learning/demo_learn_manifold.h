@@ -9,10 +9,14 @@
 #include <std_srvs/Empty.h>
 #include <tf2_msgs/TFMessage.h>
 #include <std_msgs/Empty.h>
+#include <std_msgs/String.h>
 #include <grasp_learning/StartRecording.h>
 #include <grasp_learning/FinishRecording.h>
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/AddNoise.h>
+#include <grasp_learning/PolicySearch.h>
+#include <grasp_learning/SetRBFN.h>
+#include <grasp_learning/GetNetworkWeights.h>
 
 #include <std_msgs/Float64MultiArray.h>
 
@@ -105,13 +109,10 @@ private:
   int num_kernel_rows_;
   double manifold_height_;
   double manifold_radius_;
-  double manifold_pos_x_;
-  double manifold_pos_y_;
-  double manifold_pos_z_;
+  std::vector<double> manifoldPos;
 
   int burn_in_trials_;
   int max_num_samples_;
-  std::vector<double> reward_vec_;
   unsigned int num_record_=0;
   // object
   Eigen::VectorXd t_prog_prev_;
@@ -123,6 +124,18 @@ private:
 
   /// Clients to other nodes
   ros::ServiceClient set_gazebo_physics_clt_;
+  ros::ServiceClient policy_search_clt_;
+  ros::ServiceClient add_noise_clt_;
+  ros::ServiceClient set_RBFN_clt_;
+  ros::ServiceClient get_network_weights_clt_;
+
+  ros::Subscriber gripper_pos;
+
+  grasp_learning::SetRBFN set_RBFN_srv_;
+  grasp_learning::PolicySearch policy_search_srv_;
+  grasp_learning::GetNetworkWeights get_network_weights_srv_;
+
+  std_srvs::Empty empty_srv_;
 
   /// Servers
   ros::ServiceServer start_demo_srv_;
@@ -130,6 +143,7 @@ private:
   ros::Publisher start_recording_;
   ros::Publisher finish_recording_;
   ros::Publisher run_new_episode_;
+
 
   grasp_learning::StartRecording start_msg_;
   grasp_learning::FinishRecording finish_msg_;
@@ -140,6 +154,11 @@ private:
   //** Manipulator joint configuration prior to reach-to-grasp */
   std::vector<double> sensing_config_;
 
+  std::vector<std::vector<double>> gripperPos;
+
+  std::vector<double> finalPos;
+
+  void gripperPosCallback(const std_msgs::Float64MultiArray::ConstPtr& msg);
   //**First deactivates the HQP control scheme (the controller will output zero
   // velocity commands afterwards) and then calls a ros::shutdown */
   void safeShutdown();
@@ -160,6 +179,17 @@ private:
 
   void addNoise();
 
+  void setRBFNetwork();
+
+  double calculateReward();
+
+  double dotProduct(std::vector<double> vec);
+
+  double pointToPointDist(std::vector<double> point1, std::vector<double> point2);
+
+  double pointToLineDist(std::string point, std::string line);
+
+  void resetMatrix(std::vector<std::vector<double>>& matrix);
 };
 
 }  // end namespace hqp controllers

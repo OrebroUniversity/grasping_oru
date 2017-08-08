@@ -33,17 +33,18 @@ add_message_files(
   FILES
   FinishRecording.msg
   StartRecording.msg
+  AddNoise.msg
   State.msg
 )
 
 add_service_files(
   FILES
   QueryNN.srv
+  CallRBFN.srv
+  SetRBFN.srv
   PolicySearch.srv
-  AddNoise.srv
+  GetNetworkWeights.srv
 )
-
-
 
 generate_messages(
    DEPENDENCIES
@@ -82,9 +83,14 @@ add_executable(demo_learn_manifold
   src/demo_learn_manifold.cpp
 )
 
-add_executable(RBFNetworkNode
-  src/RBFNetworkNode.cpp src/RBFNetwork.cpp src/power.cpp
+add_executable(RBFNetwork
+  src/RBFNetwork.cpp src/power.cpp
 )
+
+
+# add_executable(RBFNetworkNode
+#   src/RBFNetworkNode.cpp src/RBFNetwork.cpp src/power.cpp
+# )
 
 
 ## Specify libraries to link a library or executable target against
@@ -100,4 +106,7 @@ target_link_libraries(run_demo_node ${catkin_LIBRARIES})
 target_link_libraries(demo_learn_manifold ${catkin_LIBRARIES})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(RBFNetworkNode ${catkin_LIBRARIES})
+target_link_libraries(RBFNetwork ${catkin_LIBRARIES})
+
+## Specify libraries to link a library or executable target against
+# target_link_libraries(RBFNetworkNode ${catkin_LIBRARIES})

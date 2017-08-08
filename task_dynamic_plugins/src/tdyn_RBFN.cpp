@@ -13,10 +13,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include <hiqp/tasks/tdyn_RBFN.h>
+
+#include <limits>
+#include <random>
+
 #include <hiqp/utilities.h>
 
+#include <hiqp/tasks/tdyn_RBFN.h>
 #include <pluginlib/class_list_macros.h>
+
+#include <ros/ros.h>
 
 #define REWARD_THRESHOLD 0.9
 
@@ -29,7 +35,7 @@ namespace hiqp
       std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
       std::shared_ptr<Visualizer> visualizer)
     : TaskDynamics(geom_prim_map, visualizer) {
-      nh_ = ros::NodeHandle("~");
+
     }
 
 
@@ -39,33 +45,18 @@ namespace hiqp
      const Eigen::VectorXd& e_final) {
 
       int size = parameters.size();
-      if (size != 11) {
-        printHiqpWarning("TDynRBFN requires 11 parameters, got " 
+      if (size != 2) {
+        printHiqpWarning("TDynRBFN requires 2 parameters, got " 
           + std::to_string(size) + "! Initialization failed!");
 
         return -1;
       }
 
-      nh_.advertiseService("policy_Search",  &TDynRBFN::policySearch, this);
-      nh_.advertiseService("add_Noise",  &TDynRBFN::addParamNoise, this);
+      client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("network_output",true);
+
+      gripper_pos = nh_.advertise<std_msgs::Float64MultiArray>("demo_learn_manifold/gripper_pos", 1000);
 
       lambda_ = std::stod(parameters.at(1));
-
-      kernels = std::stod(parameters.at(2));
-      int num_rows = std::stod(parameters.at(3));
-      double radius = std::stod(parameters.at(4));
-      double height = std::stod(parameters.at(5));
-      double global_pos_x = std::stod(parameters.at(6));
-      double global_pos_y = std::stod(parameters.at(7));
-      double global_pos_z = std::stod(parameters.at(8));
-
-      std::vector<double> global_pos {global_pos_x, global_pos_y, global_pos_z};
-      network.buildRBFNetwork(kernels,num_rows,radius,height,global_pos);;
-
-      int intial_rollouts = std::stod(parameters.at(9));
-      int max_num_samples = std::stod(parameters.at(10));
-      // PoWER.setParams(kernels, intial_rollouts, max_num_samples);
-    // ROS_INFO("Initializing normal distrtibution with mean %lf and variance %lf",std::stod(parameters.at(1)),std::stod(parameters.at(2)));
 
       std::normal_distribution<double> d2(0,1);
       this->dist.param(d2.param());
@@ -76,105 +67,128 @@ namespace hiqp
       std::make_shared<KDL::TreeFkSolverPos_recursive>(robot_state->kdl_tree_);
       fk_solver_jac_ =
       std::make_shared<KDL::TreeJntToJacSolver>(robot_state->kdl_tree_);
+
       return 0;
     }
 
     int TDynRBFN::update(RobotStatePtr robot_state,
      const Eigen::VectorXd& e,
      const Eigen::MatrixXd& J) {
-      e_dot_star_.resize(e.size());
-     
-      // Calculating the task space dynamics
-      Eigen::VectorXd taskSpaceDyn;
-      taskSpaceDyn = -lambda_ * e;
-      e_dot_star_ = taskSpaceDyn;
-      ROS_INFO("ASD");
-      // Calculating the null space dynamics
+
+      const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
+
+      e_dot_star_.resize(2);
+      // Calculating the taskspace dynamics
+
+      // Calculating the nullspace dynamics
       std::shared_ptr<GeometricPrimitiveMap> gpm = this->getGeometricPrimitiveMap();
       std::shared_ptr<GeometricPoint> point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");
-      ROS_INFO("ASD2");
 
-      double nullSpaceDyn;
-
+      double nullSpaceDyn = 0;
       std::vector<KinematicQuantities> kin_q_list;
       KinematicQuantities kin_q;
       kin_q.ee_J_.resize(robot_state->getNumJoints());
       kin_q.frame_id_ = point->getFrameId();
       pointForwardKinematics(kin_q_list, point, robot_state);
-      Eigen::Vector3d gripperPoint;
-      gripperPoint(0) = kin_q_list.back().ee_p_[0];
-      gripperPoint(1) = kin_q_list.back().ee_p_[0];
-      gripperPoint(2) = kin_q_list.back().ee_p_[0];
-      ROS_INFO("ASD3");
 
-      nullSpaceDyn = network.networkOutput(gripperPoint);
-      ROS_INFO("ASD4");
+      grasp_learning::CallRBFN srv_;
+      std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+      srv_.request.pos = vec;
 
+      double RBFNOutput = 0;
+      if (client_NN_.call(srv_)){
+        RBFNOutput = srv_.response.result;
+      }
+      else{
+        // std::cout<<"Calling RBFN server failed"<<std::endl;
+      }
+
+      // std::cout<<"network output"<<RBFNOutput<<std::endl;
+
+      std_msgs::Float64MultiArray gripperPos;
+      gripperPos.data.resize(3);
+
+      gripperPos.data.clear();
+      gripperPos.data = vec;
+      gripper_pos.publish(gripperPos);
+
+      e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      e_dot_star_(1) = RBFNOutput;//0;//RBFNOutput;
+
+      // std::cout<<"RBFN output: "<<RBFNOutput<<std::endl;
       return 0;
     }
+
 
     int TDynRBFN::monitor() {
       return 0;
     }
 
+    int TDynRBFN::pointForwardKinematics(
+      std::vector<KinematicQuantities>& kin_q_list,
+      const std::shared_ptr<geometric_primitives::GeometricPoint>& point,
+      RobotStatePtr const robot_state) const {
 
+      kin_q_list.clear();
 
-    bool TDynRBFN::policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res){
-      double reward = calculateReward();
-      std::vector<double> affectedKernels = network.getActiveKernels();
-      std::vector<double> newParams = PoWER.policySearch(rollout_noise, reward, affectedKernels);
-      network.updateWeights(newParams);
-      if (reward > REWARD_THRESHOLD){
-        res.converged = true;
-        explore = false;
+      KDL::Vector coord = point->getPointKDL();
+      KinematicQuantities kin_q;
+      kin_q.ee_J_.resize(robot_state->getNumJoints());
+      kin_q.frame_id_ = point->getFrameId();
+
+      if (forwardKinematics(kin_q, robot_state) < 0) {
+        printHiqpWarning(
+          "TDefAvoidCollisionsSDF::primitiveForwardKinematics, primitive "
+          "forward kinematics for GeometricPoint primitive '" +
+          point->getName() + "' failed.");
+        return -2;
       }
-      else{
-        res.converged = false;
-        explore = true;
-      }
-      return true;
+
+    // shift the Jacobian reference point
+      kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M * coord);
+    // compute the ee position in the base frame
+      kin_q.ee_p_ = kin_q.ee_frame_.p + kin_q.ee_frame_.M * coord;
+      kin_q_list.push_back(kin_q);
+
+      // std::cout<<"["<<coord[0]<<", "<<coord[1]<<", "<<coord[2]<<"]"<<std::endl;
+      // std::cout<<"["<<kin_q.ee_p_[0]<<", "<<kin_q.ee_p_[1]<<", "<<kin_q.ee_p_[2]<<"]"<<std::endl;
+
+      return 0;
     }
 
-    double TDynRBFN::calculateReward(){
-      std::vector<double> weights = network.getRunningWeights();
-      double temp = 0;
-      for (auto w: weights){
-        temp += pow(w,2);
-      }
-      double reward = exp(-temp);
+    int TDynRBFN::forwardKinematics(
+      KinematicQuantities& kin_q, RobotStatePtr const robot_state) const {
 
-      ROS_INFO("The reward is %lf\n",reward);
-      return reward;
-
+      if (fk_solver_pos_->JntToCart(robot_state->kdl_jnt_array_vel_.q,
+        kin_q.ee_frame_, kin_q.frame_id_) < 0) {
+        printHiqpWarning(
+          "TDefAvoidCollisionsSDF::forwardKinematics, end-effector FK for link "
+          "'" +
+          kin_q.frame_id_ + "' failed.");
+      return -2;
     }
 
+    if (fk_solver_jac_->JntToJac(robot_state->kdl_jnt_array_vel_.q, kin_q.ee_J_,
+     kin_q.frame_id_) < 0) {
+      printHiqpWarning(
+        "TDefAvoidCollisionsSDF::forwardKinematics, Jacobian computation for "
+        "link '" +
+        kin_q.frame_id_ + "' failed.");
+    return -2;
+  }
+
+  // Not necesserily all joints between the end-effector and base are
+  // controlled, therefore the columns in the jacobian corresponding to these
+  // joints must be masked to zero to avoid unwanted contributions
+  for (unsigned int i = 0; i < robot_state->getNumJoints(); i++)
+    if (!robot_state->isQNrWritable(i))
+      kin_q.ee_J_.setColumn(i, KDL::Twist::Zero());
+
+    return 0;
+  }
 
 
-    std::vector<double> TDynRBFN::sampleNoise(){
-      rollout_noise.clear();
-      std::vector<double> noise;
-      double sample = 0;
-      for (int i =0;i<kernels;i++){
-        sample = this->dist(this->generator);
-        noise.push_back(sample);
-      }
-      return noise;
-    }
-
-    bool TDynRBFN::addParamNoise(grasp_learning::AddNoise::Request& req, grasp_learning::AddNoise::Response& res){
-
-      network.resetRunningWeights();
-      if (explore == true){
-        rollout_noise = sampleNoise();
-        network.addWeightNoise(rollout_noise);
-      }
-
-      res.sucess = true;
-      return true;
-    }
-
-
-  } // namespace tasks
+} // namespace tasks
 
 } // namespace hiqp
 

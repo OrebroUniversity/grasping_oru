@@ -19,7 +19,6 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES hiqp_avoid_collisions_sdf
   CATKIN_DEPENDS hiqp_core pluginlib std_msgs grasp_learning
 #  DEPENDS system_lib
 )

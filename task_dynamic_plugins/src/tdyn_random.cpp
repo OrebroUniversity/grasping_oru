@@ -81,7 +81,8 @@ namespace hiqp
         sample = this->dist(this->generator);
         random_e_[i] = sample;
       }
-      e_dot_star_ = -0.1*e; random_e_;
+      // e_dot_star_ = -0.1*e; 
+      e_dot_star_ = random_e_;
 
       std::shared_ptr<GeometricPrimitiveMap> gpm = this->getGeometricPrimitiveMap();
       std::shared_ptr<GeometricPoint> point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");

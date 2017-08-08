@@ -37,7 +37,7 @@ namespace demo_learning {
     set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
       "/gazebo/set_physics_properties");
 
-    client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
+    // client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
 
     start_msg_.str = ' ';
     finish_msg_.str = ' ';
@@ -112,19 +112,19 @@ void DemoLearning::safeReset() { hiqp_client_.resetHiQPController(); }
 
 void DemoLearning::updatePolicy(){
 
-  grasp_learning::PolicySearch srv_;
+ //  grasp_learning::PolicySearch srv_;
 
-  srv_.request.str = " ";  //yumi_joint_1_r
+ //  srv_.request.str = " ";  //yumi_joint_1_r
 
 
-  ROS_INFO("Calling update node");
-  if (client_Policy_Search_.call(srv_)){
-    ROS_INFO("Policy successfully updated");
-    converged_policy_ = srv_.response.converged;
-  }
-  else{
-   ROS_INFO("Could not update policy"); 
- }
+ //  ROS_INFO("Calling update node");
+ //  if (client_Policy_Search_.call(srv_)){
+ //    ROS_INFO("Policy successfully updated");
+ //    converged_policy_ = srv_.response.converged;
+ //  }
+ //  else{
+ //   ROS_INFO("Could not update policy"); 
+ // }
 }
 
 void DemoLearning::printVector(const std::vector<double>& vec){

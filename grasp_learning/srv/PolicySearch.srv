@@ -1,3 +1,1 @@
-string str
----
-bool converged
+float64 reward

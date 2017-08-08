@@ -21,17 +21,7 @@
 #include <hiqp/task_dynamics.h>
 #include <ros/ros.h>
 #include "std_msgs/String.h"
-#include <math.h>
 #include <pluginlib/class_loader.h>
-#include <grasp_learning/PolicySearch.h>
-#include <grasp_learning/AddNoise.h>
-#include <std_msgs/Float64MultiArray.h>
-#include <grasp_learning/RBFNetwork.h>
-#include <grasp_learning/power.h>
-#include <limits>
-#include <random>
-#include <hiqp/utilities.h>
-#include <pluginlib/class_list_macros.h>
 #include <kdl/treefksolverpos_recursive.hpp>
 #include <kdl/treejnttojacsolver.hpp>
 #include <kdl/chainfksolver.hpp>
@@ -41,6 +31,15 @@
 #include <iostream>
 #include <stdio.h>
 #include <chrono>
+#include <grasp_learning/PolicySearch.h>
+#include <grasp_learning/AddNoise.h>
+// #include <hiqp/tasks/RBFNetwork.h>
+// #include <hiqp/tasks/power.h>
+#include <grasp_learning/CallRBFN.h>
+#include "std_msgs/Float64MultiArray.h"
+#include "std_msgs/MultiArrayLayout.h"
+#include "std_msgs/MultiArrayDimension.h"
+
 
 namespace hiqp
 {
@@ -54,13 +53,13 @@ namespace hiqp
       KDL::Vector ee_p_;
     };
 
-
   /*! \brief A general first-order task dynamics implementation that enforces an exponential decay of the task performance value.
    *  \author Marcus A Johansson */  
     class TDynRBFN : public TaskDynamics {
     public:
 
-      inline TDynRBFN() : TaskDynamics() {}
+      inline TDynRBFN() : TaskDynamics() {
+      }
       
       TDynRBFN(std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
        std::shared_ptr<Visualizer> visualizer);
@@ -76,16 +75,7 @@ namespace hiqp
        const Eigen::VectorXd& e,
        const Eigen::MatrixXd& J);
 
-      std::vector<double> sampleNoise();
-
-      bool policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res);
-
-      bool addParamNoise(grasp_learning::AddNoise::Request& req, grasp_learning::AddNoise::Response& res);
-
-
       int monitor();
-
-      double calculateReward();
 
       int pointForwardKinematics(
         std::vector<KinematicQuantities>& kin_q_list,
@@ -101,24 +91,23 @@ namespace hiqp
       TDynRBFN& operator=(const TDynRBFN& other) = delete;
       TDynRBFN& operator=(TDynRBFN&& other) noexcept = delete;
 
-      RBFNetwork network;
-      power PoWER;
-
       std::vector<double> rollout_noise;
       bool explore = true;
       int kernels = 0;
       double lambda_ = 0;
-      std::default_random_engine generator;
-      std::normal_distribution<double> dist;
-      ros::Publisher starting_pub_;
-      std_msgs::String msg_;
+      std::vector<double> global_pos;
+
       ros::ServiceClient client_NN_;
-      ros::Time t;
+      ros::Publisher starting_pub_;
       ros::NodeHandle nh_;
 
+      ros::Publisher gripper_pos;
+
+      std::default_random_engine generator;
+      std::normal_distribution<double> dist;
+      std_msgs::String msg_;
       std::shared_ptr<KDL::TreeFkSolverPos_recursive> fk_solver_pos_;
       std::shared_ptr<KDL::TreeJntToJacSolver> fk_solver_jac_;
-
     };
 
 } // namespace tasks

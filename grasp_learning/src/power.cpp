@@ -29,7 +29,7 @@ std::vector<double> power::policySearch(const std::vector<double> currNoise,cons
 	rewards.insert(rewards.begin(),reward);
 	noises.conservativeResize(num_of_kernels, noises.cols()+1);
 	noises.col(noises.cols()-1).setZero();
-	for(auto i:affectedKernels){
+	for(int i = 0; i<num_of_kernels;i++){
 		noises(i,noises.cols()-1) = currNoise[i];
 	}
 
@@ -40,7 +40,7 @@ std::vector<double> power::policySearch(const std::vector<double> currNoise,cons
 
 	if (curr_int<=num_initial_rollouts){
 		ROS_INFO("Burn in trial %d/%d",(int)curr_int, num_initial_rollouts);
-		std::vector<double> res;
+		std::vector<double> res(num_of_kernels, 0.0);
 		return res;
 	}
 
