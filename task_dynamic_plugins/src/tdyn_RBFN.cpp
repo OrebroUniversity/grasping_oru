@@ -52,9 +52,9 @@ namespace hiqp
         return -1;
       }
 
-      client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("network_output",true);
+      client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("RBFNetwork/network_output",true);
 
-      gripper_pos = nh_.advertise<std_msgs::Float64MultiArray>("demo_learn_manifold/gripper_pos", 1000);
+      state_pub = nh_.advertise<grasp_learning::RobotState>("demo_learn_manifold/robot_state", 1000);
 
       lambda_ = std::stod(parameters.at(1));
 
@@ -92,10 +92,12 @@ namespace hiqp
       pointForwardKinematics(kin_q_list, point, robot_state);
 
       grasp_learning::CallRBFN srv_;
-      std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+      // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+      std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1]};
+
       srv_.request.pos = vec;
 
-      double RBFNOutput = 0;
+      std::vector<double> RBFNOutput;
       if (client_NN_.call(srv_)){
         RBFNOutput = srv_.response.result;
       }
@@ -105,15 +107,28 @@ namespace hiqp
 
       // std::cout<<"network output"<<RBFNOutput<<std::endl;
 
-      std_msgs::Float64MultiArray gripperPos;
-      gripperPos.data.resize(3);
+      KDL::JntArray jointarray = robot_state->kdl_jnt_array_vel_.qdot;
+      std::vector<double> qdot;
+      for(int i=9;i<=15;i++){
+        qdot.push_back(jointarray(i));
+      }
 
-      gripperPos.data.clear();
-      gripperPos.data = vec;
-      gripper_pos.publish(gripperPos);
+      double sampling = robot_state->sampling_time_;
+      grasp_learning::RobotState stateMsg;
 
-      e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
-      e_dot_star_(1) = RBFNOutput;//0;//RBFNOutput;
+      stateMsg.gripperPos = vec;
+      stateMsg.jointVel = qdot;
+      stateMsg.samplingTime = sampling;
+      state_pub.publish(stateMsg);
+
+
+      e_dot_star_(1) = RBFNOutput[0];//0;//RBFNOutput;
+      if(RBFNOutput.size()>1){
+        e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      }
+      else{
+        e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      }
 
       // std::cout<<"RBFN output: "<<RBFNOutput<<std::endl;
       return 0;

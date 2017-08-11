@@ -4,6 +4,8 @@
   <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
 
+  <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx" />
+
   <!-- launch the grasp_learning node -->
   <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
@@ -18,12 +20,14 @@
    <!-- <param name="task" value="gripperToHorizontalPlane"/> -->
    <!--param name="task" value="gripperToVerticalPlane"/-->
    <!-- <param name="task" value="gripperToHorizontalAndVerticalPlane"/>  -->
-   <param name="num_kernels" value="5"/>
+   <param name="num_kernels" value="20"/>
    <param name="num_kernel_rows" value="1"/>
    <param name="manifold_height" value="0.1"/>
    <param name="manifold_radius" value="0.06"/>
    <rosparam param="manifold_pos"> [0.4, 0, 1]</rosparam>
    <rosparam param="final_pos"> [0.46, 0, 1.05]</rosparam>
+   <param name="variance" value="0.5"/>
+   <param name="numPolicies" value="2"/>
 
    <param name="burn_in_trials_" value="8"/>
    <param name="max_num_samples" value="8"/>

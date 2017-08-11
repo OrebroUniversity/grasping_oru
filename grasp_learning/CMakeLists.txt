@@ -35,6 +35,7 @@ add_message_files(
   StartRecording.msg
   AddNoise.msg
   State.msg
+  RobotState.msg
 )
 
 add_service_files(

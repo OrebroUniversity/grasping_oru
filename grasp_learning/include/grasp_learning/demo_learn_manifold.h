@@ -12,6 +12,7 @@
 #include <std_msgs/String.h>
 #include <grasp_learning/StartRecording.h>
 #include <grasp_learning/FinishRecording.h>
+#include <grasp_learning/RobotState.h>
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/AddNoise.h>
 #include <grasp_learning/PolicySearch.h>
@@ -99,7 +100,7 @@ private:
   bool generalize_policy_; // Indicate wheter we want to check how well our learned policy generalizes
   bool record_ = false;
   bool converged_policy_ = false;
-  bool initialize = true;
+  double numPolicies = 0;
 
   std::string task_name_;
   std::string task_dynamics_;
@@ -110,7 +111,8 @@ private:
   double manifold_height_;
   double manifold_radius_;
   std::vector<double> manifoldPos;
-
+  double variance;
+  
   int burn_in_trials_;
   int max_num_samples_;
   unsigned int num_record_=0;
@@ -155,10 +157,12 @@ private:
   std::vector<double> sensing_config_;
 
   std::vector<std::vector<double>> gripperPos;
+  std::vector<std::vector<double>> jointVel;
+  std::vector<double> samplingTime;
 
   std::vector<double> finalPos;
 
-  void gripperPosCallback(const std_msgs::Float64MultiArray::ConstPtr& msg);
+  void robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg);
   //**First deactivates the HQP control scheme (the controller will output zero
   // velocity commands afterwards) and then calls a ros::shutdown */
   void safeShutdown();
@@ -190,6 +194,8 @@ private:
   double pointToLineDist(std::string point, std::string line);
 
   void resetMatrix(std::vector<std::vector<double>>& matrix);
+
+  double calcJointTrajectoryLength();
 };
 
 }  // end namespace hqp controllers

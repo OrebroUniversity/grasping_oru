@@ -3,3 +3,5 @@ int64 numRows
 float64 radius
 float64 height
 float64[] globalPos
+float64 variance
+float64 numPolicies

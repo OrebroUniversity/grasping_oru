@@ -23,6 +23,9 @@ namespace demo_learning {
     nh_.param<double>("manifold_radius", manifold_radius_, 5);
     nh_.getParam("manifold_pos", manifoldPos);
     nh_.getParam("final_pos", finalPos);
+    nh_.param<double>("variance", variance, 1);
+    nh_.param<double>("numPolicies", numPolicies, 1);
+
 
     nh_.param<int>("burn_in_trials",  burn_in_trials_, 8);
     nh_.param<int>("max_num_samples", max_num_samples_, 8);
@@ -35,15 +38,15 @@ namespace demo_learning {
     start_demo_srv_ =
     nh_.advertiseService("start_demo", &DemoLearnManifold::startDemo, this);
 
-    gripper_pos = nh_.subscribe("gripper_pos", 1000, &DemoLearnManifold::gripperPosCallback, this);
+    gripper_pos = nh_.subscribe("robot_state", 1000, &DemoLearnManifold::robotStateCallback, this);
     
     set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
       "/gazebo/set_physics_properties");
 
-    policy_search_clt_ = n_.serviceClient<grasp_learning::PolicySearch>("/policy_search");
-    add_noise_clt_ = n_.serviceClient<std_srvs::Empty>("/add_weight_noise");
-    set_RBFN_clt_ = n_.serviceClient<grasp_learning::SetRBFN>("/build_RBFNetwork");
-    get_network_weights_clt_ = n_.serviceClient<grasp_learning::GetNetworkWeights>("/get_running_weights");
+    policy_search_clt_ = n_.serviceClient<grasp_learning::PolicySearch>("/RBFNetwork/policy_search");
+    add_noise_clt_ = n_.serviceClient<std_srvs::Empty>("/RBFNetwork/add_weight_noise");
+    set_RBFN_clt_ = n_.serviceClient<grasp_learning::SetRBFN>("/RBFNetwork/build_RBFNetwork");
+    get_network_weights_clt_ = n_.serviceClient<grasp_learning::GetNetworkWeights>("/RBFNetwork/get_running_weights");
 
     start_msg_.str = ' ';
     finish_msg_.str = ' ';
@@ -113,8 +116,10 @@ void DemoLearnManifold::safeShutdown() {
 
 void DemoLearnManifold::safeReset() { hiqp_client_.resetHiQPController(); }
 
-void DemoLearnManifold::gripperPosCallback(const std_msgs::Float64MultiArray::ConstPtr& msg){
-  gripperPos.push_back(msg->data);
+void DemoLearnManifold::robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg){
+  gripperPos.push_back(msg->gripperPos);
+  jointVel.push_back(msg->jointVel);
+  samplingTime.push_back(msg->samplingTime);
 }
 
 void DemoLearnManifold::updatePolicy(){
@@ -133,10 +138,24 @@ double DemoLearnManifold::calculateReward(){
   get_network_weights_srv_.request.str = ' ';
   get_network_weights_clt_.call(get_network_weights_srv_);
   std::vector<double> weights {get_network_weights_srv_.response.weights};
-  result = dotProduct(weights);
-  result += 10*pointToPointDist(gripperPos.back(), finalPos);
-  ROS_INFO("Reward is %lf", exp(-result));
+  result = 0.5*dotProduct(weights);
+  result += 20*pointToPointDist(gripperPos.back(), finalPos);
+  result += 0.1*calcJointTrajectoryLength();
+  ROS_INFO("Trajectory length is %lf", 0.1*calcJointTrajectoryLength());
+  ROS_INFO("Sum of squared weights are %lf", 0.5*dotProduct(weights));
+  ROS_INFO("Residual of the points %lf", 20*pointToPointDist(gripperPos.back(), finalPos));
+  ROS_INFO("Reward is %lf\n\n\n\n\n", exp(-result));
   return exp(-result);
+}
+
+double DemoLearnManifold::calcJointTrajectoryLength(){
+  double trajectory = 0;
+  for(int i =0;i<samplingTime.size();i++){
+    for(int j = 0;j<jointVel[0].size();j++){
+      trajectory += samplingTime[i]*abs(jointVel[i][j]);
+    }
+  }
+  return trajectory;
 }
 
 double DemoLearnManifold::dotProduct(std::vector<double> vec){
@@ -154,7 +173,7 @@ double DemoLearnManifold::pointToPointDist(std::vector<double> point1, std::vect
     diff = point1[i]-point2[i];
     diff_square += diff*diff;
   }
-  return std::sqrt(diff_square);
+  return diff_square;
 }
 
 // double DemoLearnManifold::pointToLineDist(std::string point, std::string line){
@@ -177,8 +196,10 @@ void DemoLearnManifold::setRBFNetwork(){
   set_RBFN_srv_.request.numRows = num_kernel_rows_;
   set_RBFN_srv_.request.radius = manifold_radius_;
   set_RBFN_srv_.request.height = manifold_height_;
-  set_RBFN_srv_.request.globalPos = manifoldPos;
-  
+  std::vector<double> vec {manifoldPos[0],manifoldPos[1]};
+  set_RBFN_srv_.request.globalPos = vec;
+  set_RBFN_srv_.request.variance = variance;
+  set_RBFN_srv_.request.numPolicies = numPolicies;
   ROS_INFO("Calling buld RBFN service");
 
   if (set_RBFN_clt_.call(set_RBFN_srv_)){
@@ -223,6 +244,13 @@ bool DemoLearnManifold::doGraspAndLift() {
   hiqp_msgs::Task gripperToGraspPlane;
   hiqp_msgs::Task gripperAxisToTargetAxis;
   hiqp_msgs::Task gripperAxisAlignedToTargetAxis;
+  hiqp_msgs::Task jointLimitTasks1;
+  hiqp_msgs::Task jointLimitTasks2;
+  hiqp_msgs::Task jointLimitTasks3;
+  hiqp_msgs::Task jointLimitTasks4;
+  hiqp_msgs::Task jointLimitTasks5;
+  hiqp_msgs::Task jointLimitTasks6;
+  hiqp_msgs::Task jointLimitTasks7;
 
   hiqp_msgs::Primitive eef_point;
   hiqp_msgs::Primitive final_point;
@@ -264,14 +292,42 @@ bool DemoLearnManifold::doGraspAndLift() {
 
   // Define tasks
 
+  jointLimitTasks1 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_1_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks2 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_2_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks3 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_3_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks4 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_4_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks5 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_5_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks6 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_6_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
+  jointLimitTasks7 = hiqp_ros::createTaskMsg("task_jntlimits", 1, true, false, true,
+    {"TDefJntLimits","yumi_link_7_r","-0.01", "0.01"},
+    {"TDynJntLimits", "0.01", "1.0"});
+
   gripperToGraspPlane = hiqp_ros::createTaskMsg(
-    "gripper_ee_point_on_grasp_plane", 1, true, false, true,
+    "gripper_ee_point_on_grasp_plane", 2, true, false, true,
     {"TDefGeomProj", "point", "plane",
     eef_point.name + " = " + grasp_plane.name},
     {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
   gripperAxisToTargetAxis = hiqp_ros::createTaskMsg(
-    "gripper_approach_axis_coplanar_grasp_target_axis", 1, true, false, true,
+    "gripper_approach_axis_coplanar_grasp_target_axis", 2, true, false, true,
     {"TDefGeomProj", "line", "line",
     gripper_approach_axis.name + " = " + grasp_target_axis.name},
     {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
@@ -283,7 +339,7 @@ bool DemoLearnManifold::doGraspAndLift() {
   //   {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
   gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
-    "gripper_vertical_axis_parallel_grasp_target_axis", 1, true, false, true,
+    "gripper_vertical_axis_parallel_grasp_target_axis", 2, true, false, true,
     {"TDefGeomAlign", "line", "line",
     gripper_vertical_axis.name + " = " + grasp_target_axis.name, "0"},
     {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
@@ -304,51 +360,51 @@ bool DemoLearnManifold::doGraspAndLift() {
 
   using hiqp_ros::TaskDoneReaction;
 
-  // if(initialize){
+  hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, manifold, final_point});
 
-    // hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, final_point});
-    // hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperAxisAlignedToTargetAxis});
+  // All tasks except joint limit tasks
 
-    hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, manifold, final_point});
-    hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperTomanifold, gripperAxisAlignedToTargetAxis});
-
-
-  //   initialize = false;
-  // }
-  // else{
-
-    // hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, final_point});
-    // hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperAxisAlignedToTargetAxis});
-
-    // hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, manifold, final_point});
-  //   hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperTomanifold, gripperAxisAlignedToTargetAxis});
-
-  // }
-
-
-  // hiqp_client_.activateTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
-  //    gripperAxisAlignedToTargetAxis.name});
-  // hiqp_client_.waitForCompletion(
-  //   {gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
-  //     gripperAxisAlignedToTargetAxis.name},
-  //     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-  //     {1e-10,1e-10,1e-10}, exec_time_);
+  hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperTomanifold, gripperAxisAlignedToTargetAxis});
 
   hiqp_client_.activateTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
     gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name});
+
   hiqp_client_.waitForCompletion(
     {gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
       gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name},
       {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
       {1e-10,1e-10,1e-10,1e-10}, exec_time_);
 
-  // hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
-  // grasp_target_axis.name, grasp_plane.name, final_point.name});
-
-  hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
-  grasp_target_axis.name, grasp_plane.name, final_point.name, manifold.name});
   hiqp_client_.removeTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
     gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name});
+
+  // All tasks including joint limit tasks
+
+  // hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperTomanifold, gripperAxisAlignedToTargetAxis, jointLimitTasks1, 
+  //  jointLimitTasks2, jointLimitTasks3, jointLimitTasks4, jointLimitTasks5, jointLimitTasks6, jointLimitTasks7});
+
+  // hiqp_client_.activateTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
+  //   gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name, jointLimitTasks1.name,
+  //   jointLimitTasks2.name, jointLimitTasks3.name, jointLimitTasks4.name, jointLimitTasks5.name,
+  //   jointLimitTasks6.name, jointLimitTasks7.name});
+
+  // hiqp_client_.waitForCompletion(
+  //   {gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
+  //     gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name},
+  //     {TaskDoneReaction::NONE, TaskDoneReaction::NONE, TaskDoneReaction::NONE, TaskDoneReaction::NONE},
+  //      {1e-10,1e-10,1e-10,1e-10}, exec_time_);
+  
+  // hiqp_client_.removeTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
+  //   gripperTomanifold.name, gripperAxisAlignedToTargetAxis.name, jointLimitTasks1.name,
+  //   jointLimitTasks2.name, jointLimitTasks3.name, jointLimitTasks4.name, jointLimitTasks5.name,
+  //   jointLimitTasks6.name, jointLimitTasks7.name});
+
+
+  // Remove all primitives which are the same for all tasks 
+
+  hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
+    grasp_target_axis.name, grasp_plane.name, final_point.name, manifold.name});
+
 
   finish_recording_.publish(finish_msg_);
 
@@ -377,7 +433,8 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req,
 
   // Empty vector that contains gripper position
   resetMatrix(gripperPos);
-
+  resetMatrix(jointVel);
+  samplingTime.clear();
   // GRASP APPROACH
   ROS_INFO("Trying grasp approach.");
 

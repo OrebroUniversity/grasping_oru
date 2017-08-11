@@ -33,6 +33,8 @@
 #include <chrono>
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/AddNoise.h>
+#include <grasp_learning/RobotState.h>
+
 // #include <hiqp/tasks/RBFNetwork.h>
 // #include <hiqp/tasks/power.h>
 #include <grasp_learning/CallRBFN.h>
@@ -101,7 +103,7 @@ namespace hiqp
       ros::Publisher starting_pub_;
       ros::NodeHandle nh_;
 
-      ros::Publisher gripper_pos;
+      ros::Publisher state_pub;
 
       std::default_random_engine generator;
       std::normal_distribution<double> dist;
