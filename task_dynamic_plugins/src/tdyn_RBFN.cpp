@@ -54,7 +54,9 @@ namespace hiqp
 
       client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("RBFNetwork/network_output",true);
 
-      state_pub = nh_.advertise<grasp_learning::RobotState>("demo_learn_manifold/robot_state", 1000);
+      add_noise_clt_ = nh_.serviceClient<std_srvs::Empty>("/RBFNetwork/add_weight_noise");
+
+      state_pub = nh_.advertise<grasp_learning::RobotState>("demo_learn_manifold/robot_state", 2000);
 
       lambda_ = std::stod(parameters.at(1));
 
@@ -68,6 +70,7 @@ namespace hiqp
       fk_solver_jac_ =
       std::make_shared<KDL::TreeJntToJacSolver>(robot_state->kdl_tree_);
 
+      vec.resize(3);
       return 0;
     }
 
@@ -75,29 +78,47 @@ namespace hiqp
      const Eigen::VectorXd& e,
      const Eigen::MatrixXd& J) {
 
-      const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
-
       e_dot_star_.resize(2);
       // Calculating the taskspace dynamics
 
       // Calculating the nullspace dynamics
-      std::shared_ptr<GeometricPrimitiveMap> gpm = this->getGeometricPrimitiveMap();
-      std::shared_ptr<GeometricPoint> point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");
+      gpm = this->getGeometricPrimitiveMap();
+      point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");
 
-      double nullSpaceDyn = 0;
-      std::vector<KinematicQuantities> kin_q_list;
-      KinematicQuantities kin_q;
+      kin_q_list;
       kin_q.ee_J_.resize(robot_state->getNumJoints());
       kin_q.frame_id_ = point->getFrameId();
       pointForwardKinematics(kin_q_list, point, robot_state);
 
-      grasp_learning::CallRBFN srv_;
+      jointarray = robot_state->kdl_jnt_array_vel_.qdot;
+      qdot.clear();
+      for(int i=9;i<=15;i++){
+        qdot.push_back(jointarray(i));
+      }
+
+      sampling = robot_state->sampling_time_;
+      // grasp_learning::RobotState stateMsg;
+
       // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
-      std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1]};
+      for(int i =0;i<3;i++){
+        vec[i]=kin_q_list.back().ee_p_[i];
+      }
+
+      stateMsg.gripperPos = vec;
+      stateMsg.jointVel = qdot;
+      stateMsg.samplingTime = sampling;
+      state_pub.publish(stateMsg);
+
+
+      // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+
+
+      if (!add_noise_clt_.call(empty_srv_)){
+        ROS_INFO("Failed to add noise");
+      }
 
       srv_.request.pos = vec;
 
-      std::vector<double> RBFNOutput;
       if (client_NN_.call(srv_)){
         RBFNOutput = srv_.response.result;
       }
@@ -107,22 +128,13 @@ namespace hiqp
 
       // std::cout<<"network output"<<RBFNOutput<<std::endl;
 
-      KDL::JntArray jointarray = robot_state->kdl_jnt_array_vel_.qdot;
-      std::vector<double> qdot;
-      for(int i=9;i<=15;i++){
-        qdot.push_back(jointarray(i));
-      }
+      
+      // ROS_INFO("num iteration %lf",++iter);
+      // for(int i =0;i<RBFNOutput.size();i++){
+      //   std::cout<<i<<": "<<RBFNOutput[i];
+      // }
+      // std::cout<<std::endl;
 
-      double sampling = robot_state->sampling_time_;
-      grasp_learning::RobotState stateMsg;
-
-      stateMsg.gripperPos = vec;
-      stateMsg.jointVel = qdot;
-      stateMsg.samplingTime = sampling;
-      state_pub.publish(stateMsg);
-
-
-      e_dot_star_(1) = RBFNOutput[0];//0;//RBFNOutput;
       if(RBFNOutput.size()>1){
         e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
       }
@@ -130,7 +142,8 @@ namespace hiqp
         e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
       }
 
-      // std::cout<<"RBFN output: "<<RBFNOutput<<std::endl;
+      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
+
       return 0;
     }
 

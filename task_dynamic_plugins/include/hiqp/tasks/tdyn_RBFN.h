@@ -34,6 +34,7 @@
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/AddNoise.h>
 #include <grasp_learning/RobotState.h>
+#include <std_srvs/Empty.h>
 
 // #include <hiqp/tasks/RBFNetwork.h>
 // #include <hiqp/tasks/power.h>
@@ -41,6 +42,7 @@
 #include "std_msgs/Float64MultiArray.h"
 #include "std_msgs/MultiArrayLayout.h"
 #include "std_msgs/MultiArrayDimension.h"
+#include <mutex>
 
 
 namespace hiqp
@@ -100,6 +102,8 @@ namespace hiqp
       std::vector<double> global_pos;
 
       ros::ServiceClient client_NN_;
+      ros::ServiceClient add_noise_clt_;
+
       ros::Publisher starting_pub_;
       ros::NodeHandle nh_;
 
@@ -110,6 +114,24 @@ namespace hiqp
       std_msgs::String msg_;
       std::shared_ptr<KDL::TreeFkSolverPos_recursive> fk_solver_pos_;
       std::shared_ptr<KDL::TreeJntToJacSolver> fk_solver_jac_;
+
+      double iter = 0;
+
+      grasp_learning::CallRBFN srv_;
+      grasp_learning::RobotState stateMsg;
+      std::vector<double> vec;
+      std::vector<double> RBFNOutput;
+      double sampling = 0;
+
+      KDL::JntArray jointarray;
+
+      std::shared_ptr<GeometricPrimitiveMap> gpm; 
+      std::shared_ptr<GeometricPoint> point;
+      std::vector<KinematicQuantities> kin_q_list;
+      KinematicQuantities kin_q;
+      std::vector<double> qdot;
+      std_srvs::Empty empty_srv_;
+
     };
 
 } // namespace tasks

@@ -7,16 +7,19 @@
 #include "ros/ros.h"
 #include <math.h>
 #include <grasp_learning/power.h>
+#include <grasp_learning/MultiVariateGaussian.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Empty.h>
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/SetRBFN.h>
 #include <grasp_learning/CallRBFN.h>
 #include <grasp_learning/GetNetworkWeights.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <fstream>
 
 #define PI 3.14159265358979323846
 #define ACTIVATION_THRESHOLD 0.1
-
+#define COVERGANCE_THRESHOLD 0.8
 namespace demo_learning {
 	namespace RBFNetwork {
 
@@ -30,6 +33,7 @@ namespace demo_learning {
 			Eigen::VectorXd residual(Eigen::VectorXd);
 			double kernelActivation(Eigen::VectorXd);
 			Eigen::VectorXd getMean();
+			double getVar();
 		private:
 	// Eigen::Vector3d mean;
 	// Eigen::Matrix3d covar;
@@ -46,25 +50,25 @@ namespace demo_learning {
 		public:
 			RBFNetwork();
 			~RBFNetwork(){};
-	// void buildRBFNetwork(int numKernels, int numRows, double radius, double height, std::vector<double> globalPos);
-	// double networkOutput(Eigen::Vector3d);
+
 			std::vector<double> getActiveKernels();
-	// std::vector<double> getKernelWeights();
 			Eigen::MatrixXd getKernelWeights();
-
-
-	// void printKernelWeights();
-	// void addWeightNoise(std::vector<double> noise);
-	// void updateWeights(std::vector<double> newWeights);
 			void updateWeights(Eigen::MatrixXd);
 
 			void resetRunningWeights();
 			int getNumKernels();
 			void printAllKernelMean();
 			void printKernelMean(int kernel);
-	// std::vector<double> sampleNoise();
 			Eigen::MatrixXd sampleNoise();
+			double calculateVariance(double dx, double dy);
+			void updateNoiseVariance();
 
+			bool policyConverged();
+
+			double meanOfVector(const std::vector<double>& vec);
+			void setNoiseVariance(const double variance);
+
+			void resetRollout();
 
 			void printVector(std::vector<double> vec);
 			bool printAllKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
@@ -75,11 +79,13 @@ namespace demo_learning {
 			bool policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res);
 			bool getNetworkWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res);
 			bool getRunningWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res);
-
+			bool visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 
 		private:
 			
 			ros::NodeHandle nh;
+			ros::NodeHandle nh_;
+
 			ros::ServiceServer print_kernel_means_srv_;
 			ros::ServiceServer add_weight_noise_srv_;
 			ros::ServiceServer print_kernel_weights_srv_;
@@ -88,23 +94,41 @@ namespace demo_learning {
 			ros::ServiceServer policy_search_srv_;
 			ros::ServiceServer get_network_weights_srv_;
 			ros::ServiceServer get_running_weights_srv_;
+			ros::ServiceServer vis_kernel_mean_srv_;
 
+			ros::Publisher marker_pub;
 
 
 			std::default_random_engine generator;
 			std::normal_distribution<double> dist;
 
-			int numKernels = 0;
 			std::vector<GaussianKernel> Network;
 			Eigen::MatrixXd rollout_noise;
-	// std::vector<double> rollout_noise;
 			Eigen::MatrixXd weights;
-	// std::vector<double> weights;
 			std::vector<double> activeKernels;
-	// std::vector<double> runningWeights;
 			Eigen::MatrixXd runningWeights;
-			int numPolicies = 0;
+			Eigen::MatrixXd kernelOutput;
+			std::vector<double> global_pos;
+			double manifold_height = 0;
 			power PoWER;
+			MultiVariateGaussian multiVarGauss;
+
+			int numKernels = 0;
+
+			int numPolicies = 0;
+			double intialNoiceVar = 0;
+			bool useCorrNoise;
+			int numRows;
+			int numDim;
+
+			int burnInTrials;
+			int maxNumSamples;
+
+			std::string kernelOutputFileName;
+			std::string rewardsOutputFileName;
+			std::string relativePath;
+
+			bool coverged = false;
 		};
 
 	}

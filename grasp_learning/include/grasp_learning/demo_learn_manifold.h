@@ -21,6 +21,8 @@
 
 #include <std_msgs/Float64MultiArray.h>
 
+#include <grasp_learning/fileHandler.h>
+
 #include <Eigen/Core>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/mutex.hpp>
@@ -74,6 +76,10 @@ public:
 
 private:
 
+  fileHandler fileHandler_;
+  std::string rewardFileName;
+  std::string relativePath;
+
   std::default_random_engine generator;
   std::normal_distribution<double> dist;
 
@@ -86,7 +92,7 @@ private:
   std::vector<double> action_vec_;
   unsigned int n_jnts;
   std::vector<std::string> link_frame_names;
-
+  std::vector<double> PCofObject;
   ros::NodeHandle nh_;
   ros::NodeHandle n_;
 
@@ -100,22 +106,13 @@ private:
   bool generalize_policy_; // Indicate wheter we want to check how well our learned policy generalizes
   bool record_ = false;
   bool converged_policy_ = false;
-  double numPolicies = 0;
-
-  std::string task_name_;
-  std::string task_dynamics_;
   double decay_rate_;
   double exec_time_;
-  int num_kernels_;
-  int num_kernel_rows_;
   double manifold_height_;
   double manifold_radius_;
   std::vector<double> manifoldPos;
-  double variance;
-  
-  int burn_in_trials_;
-  int max_num_samples_;
-  unsigned int num_record_=0;
+
+  bool init=true;
   // object
   Eigen::VectorXd t_prog_prev_;
 
@@ -130,7 +127,7 @@ private:
   ros::ServiceClient add_noise_clt_;
   ros::ServiceClient set_RBFN_clt_;
   ros::ServiceClient get_network_weights_clt_;
-
+  ros::ServiceClient vis_kernel_mean_clt_;
   ros::Subscriber gripper_pos;
 
   grasp_learning::SetRBFN set_RBFN_srv_;
@@ -181,21 +178,37 @@ private:
 
   void printVector(const std::vector<double>& vec);
 
+  double sumVector(const std::vector<double>& vec);
+
   void addNoise();
 
   void setRBFNetwork();
 
   double calculateReward();
 
+  std::vector<double> calculateVectorReward();
+
+  std::vector<double> normalizeVector(const std::vector<double>& v);
+
+  double calcJointMovementOneTimeStep(unsigned int i);
+
+  double calcJointVelocityOneTimeStep(unsigned int i);
+
   double dotProduct(std::vector<double> vec);
 
   double pointToPointDist(std::vector<double> point1, std::vector<double> point2);
 
-  double pointToLineDist(std::string point, std::string line);
+  double pointToLineDist(std::vector<double> point, std::vector<double> line);
+
+  double vectorLength(const std::vector<double>& vec);
 
   void resetMatrix(std::vector<std::vector<double>>& matrix);
 
   double calcJointTrajectoryLength();
+
+  double calcJointVel();
+
+  void visualizeKernels();
 };
 
 }  // end namespace hqp controllers

@@ -92,31 +92,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        leg1_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        leg2_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        leg3_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        leg4_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        table_top_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
         world:
           Alpha: 1
           Show Axes: false
@@ -196,11 +171,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        yumi_top_camera_base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -208,13 +178,13 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /yumi/hqp_vel_controller/task_geometries
+      Enabled: true
+      Marker Topic: /yumi/hiqp_joint_velocity_controller/visualization_marker
       Name: Tasks
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/TF
       Enabled: false
       Frame Timeout: 15
@@ -261,7 +231,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /yumi/hiqp_joint_velocity_controller/visualization_marker
+      Marker Topic: /RBFNetwork/kernel_markers
       Name: MarkerArray
       Namespaces:
         {}
@@ -291,24 +261,24 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.41304994
+      Distance: 1.57440484
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.239241004
-        Y: -0.0866900012
-        Z: 0.0690456033
+        X: 0.223844349
+        Y: -0.0135702807
+        Z: 0.0915783867
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.499798
+      Pitch: 0.469798177
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.177221999
+      Yaw: 0.0122225378
     Saved: ~
 Window Geometry:
   Displays:

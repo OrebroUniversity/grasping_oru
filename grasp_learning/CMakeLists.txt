@@ -81,11 +81,11 @@ add_executable(run_demo_node
 )
 
 add_executable(demo_learn_manifold
-  src/demo_learn_manifold.cpp
+  src/demo_learn_manifold.cpp src/fileHandler.cpp
 )
 
 add_executable(RBFNetwork
-  src/RBFNetwork.cpp src/power.cpp
+  src/RBFNetwork.cpp src/power.cpp src/MultiVariateGaussian.cpp
 )
 
 

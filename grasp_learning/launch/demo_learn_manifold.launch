@@ -4,32 +4,42 @@
   <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
 
-  <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx" />
+  <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
+   
+   <param name="num_kernels" value="10"/>
+   <param name="num_kernel_rows" value="1"/>
 
-  <!-- launch the grasp_learning node -->
-  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
+   <!-- <param name="variance" value="0.0001"/> -->
+   <!-- <param name="variance" value="0.001"/> -->
+   <param name="variance" value="0.01"/>
+
+   <param name="num_policies" value="1"/>
+   <param name="num_dim" value="2"/>
+   <param name="use_corr_noise" type="bool" value="false"/>
+   <param name="burn_in_trials" value="8"/>
+   <param name="max_num_samples" value="5"/>
+   <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
+
+  </node>
+
+ <!-- launch the grasp_learning node -->
+ <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
    <param name="generalize_policy" type="bool" value="false"/>
-   <param name="decay_rate" type="double" value="5"/>
+   <param name="decay_rate" type="double" value="4"/>
    <param name="exec_time" type="double" value="2"/>
-   <param name="task_dynamics" value="TDynPolicy"/>
-   <!-- <param name="task_dynamics" value="TDynLinearPolicy"/> -->
 
-   <!-- <param name="task_dynamics" value="TDynLinear"/> -->
-
-   <!-- <param name="task" value="gripperToHorizontalPlane"/> -->
-   <!--param name="task" value="gripperToVerticalPlane"/-->
-   <!-- <param name="task" value="gripperToHorizontalAndVerticalPlane"/>  -->
-   <param name="num_kernels" value="20"/>
-   <param name="num_kernel_rows" value="1"/>
    <param name="manifold_height" value="0.1"/>
    <param name="manifold_radius" value="0.06"/>
-   <rosparam param="manifold_pos"> [0.4, 0, 1]</rosparam>
-   <rosparam param="final_pos"> [0.46, 0, 1.05]</rosparam>
-   <param name="variance" value="0.5"/>
-   <param name="numPolicies" value="2"/>
+   <rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam>
+   
+   <!-- <rosparam param="final_pos"> [0.29, 0, 0.2]</rosparam> --> <!-- Upper  -->
+   <!-- <rosparam param="final_pos"> [0.41, 0, 0.2]</rosparam> --> <!-- Bottom -->  
+   <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> <!-- Upper left corner -->
+   <!-- <rosparam param="final_pos"> [0.394, -0.0598, 0.2]</rosparam> --> <!-- Bottom left corner -->
 
-   <param name="burn_in_trials_" value="8"/>
-   <param name="max_num_samples" value="8"/>
+   <rosparam param="PC_of_object"> [1, 0, 0, 0, 0, 0.2]</rosparam> 
+
+
  </node>
 </launch>
