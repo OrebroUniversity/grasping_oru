@@ -134,7 +134,7 @@ std::vector<double> DemoLearnManifold::calculateVectorReward(){
 
   double Rtraj = 0.1;
   double Rvel = 0.0001;
-  double Rpos = 200;
+  double Rpos = 400;
   double res = 0;
   res = -Rpos*pointToLineDist(gripperPos.back(), PCofObject);
   result.push_back(exp(res));
@@ -231,7 +231,7 @@ std::vector<double> DemoLearnManifold::normalizeVector(const std::vector<double>
   }
   std::vector<double> result;
   for(int i = 0;i<v.size();i++){
-    result.push_back(v[i]/v.size());
+    result.push_back(v[i]/norm);
   }
   return result;
 }
@@ -358,7 +358,7 @@ void DemoLearnManifold::visualizeKernels(){
 
 bool DemoLearnManifold::doGraspAndLift() {
 
-  // addNoise();
+  addNoise();
 
   hiqp_msgs::Task gripperBelowUpperPlane;
   hiqp_msgs::Task gripperAboveLowerPlane;

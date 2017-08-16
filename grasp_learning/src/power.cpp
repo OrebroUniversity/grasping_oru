@@ -11,10 +11,10 @@ void power::setParams(int kernels, int initialRollouts, int samples, int numPoli
 	num_initial_rollouts = initialRollouts;
 	max_num_samples = samples;
 	num_policies = numPolicies;
-	// noises.resize(numPolicies);
-	// for(int i =0;i<numPolicies;i++){
-	// 	noises.push_back(Eigen::MatrixXd::Zero(num_of_kernels, 0));
-	// }
+	noises.resize(numPolicies);
+	for(int i =0;i<numPolicies;i++){
+		noises.push_back(Eigen::MatrixXd::Zero(num_of_kernels, 0));
+	}
 }
 
 bool power::operator()(const std::pair<double, int>& firstElem, const std::pair<double, int>& secondElem){
@@ -36,13 +36,13 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 	rewards.push_back(reward);
 	kernelActivations.push_back(kernelActivation);
 
-	// for(int i = 0; i < num_policies; i++){
-	// 	noises[i].conservativeResize(num_of_kernels, noises[i].cols()+1);
-	// 	noises[i].col(noises[i].cols()-1).setZero();
-	// 	noises[i].col(noises[i].cols()-1) = currNoise.col(i);
-	// }
-	noises.push_back(currNoise);
-	
+	for(int i = 0; i < num_policies; i++){
+		noises[i].conservativeResize(num_of_kernels, noises[i].cols()+1);
+		noises[i].col(noises[i].cols()-1).setZero();
+		noises[i].col(noises[i].cols()-1) = currNoise.col(i);
+	}
+	// noises.push_back(currNoise);
+
 	std::sort(imp_sampler.begin(),imp_sampler.end(),power());
 	print_imp_sampler(imp_sampler);
 
@@ -67,20 +67,21 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 
 	for (int elem=0; elem<num_imp_sampler_noise;elem++){
 		idx = imp_sampler[elem].second;
-		// Eigen::MatrixXd C = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
+		Eigen::MatrixXd C = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 		for(unsigned int t = 0;t<rewards[idx].size();t++){
-			W = kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose();
-			A += W*rewards[idx][t];
-			B += W*noises[idx].col(t)*rewards[idx][t];
-			// C += kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose()*rewards[idx][t];
+			// W = kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose();
+			// A += W*rewards[idx][t];
+			// B += W*noises[idx].col(t)*rewards[idx][t];
+			C += kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose()*rewards[idx][t];
 		}
-		// A += C;
-		// B += C*noises[0].col(idx);
+		A += C;
+		B += C*noises[0].col(idx);
 	}
 
+	std::cout<<A<<std::endl;
 
 	for(int i=0;i<num_of_kernels;i++){
-		if(A(i,i)<1e-3){
+		if(A(i,i)<1e-2){
 			B(i,0)=0;
 		}
 	}

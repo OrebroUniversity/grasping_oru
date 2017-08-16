@@ -113,9 +113,9 @@ namespace hiqp
       // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
 
 
-      if (!add_noise_clt_.call(empty_srv_)){
-        ROS_INFO("Failed to add noise");
-      }
+      // if (!add_noise_clt_.call(empty_srv_)){
+      //   ROS_INFO("Failed to add noise");
+      // }
 
       srv_.request.pos = vec;
 
