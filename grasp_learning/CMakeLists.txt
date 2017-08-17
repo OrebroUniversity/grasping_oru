@@ -85,7 +85,7 @@ add_executable(demo_learn_manifold
 )
 
 add_executable(RBFNetwork
-  src/RBFNetwork.cpp src/power.cpp src/MultiVariateGaussian.cpp
+  src/RBFNetwork.cpp src/power.cpp src/MultiVariateGaussian.cpp src/fileHandler.cpp
 )
 
 

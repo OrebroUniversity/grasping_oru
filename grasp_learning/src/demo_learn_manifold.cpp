@@ -12,7 +12,6 @@ namespace demo_learning {
 
   // get params
     nh_.param<bool>("with_gazebo", with_gazebo_, false);
-    nh_.param<bool>("generalize_policy", generalize_policy_, false);
     nh_.param<double>("decay_rate", decay_rate_, 1);
     nh_.param<double>("exec_time", exec_time_, 10);
     nh_.param<double>("manifold_height", manifold_height_, 5);
@@ -20,7 +19,7 @@ namespace demo_learning {
     nh_.getParam("manifold_pos", manifoldPos);
     nh_.getParam("final_pos", finalPos);
     nh_.getParam("PC_of_object", PCofObject);
-
+    nh_.param<std::string>("relative_path", relativePath, "asd");
 
     if (with_gazebo_) ROS_INFO("Grasping experiments running in Gazebo.");
 
@@ -81,18 +80,49 @@ namespace demo_learning {
      0.42,  -1.48, -1.21, 0.75, 0.80,  0.45, 1.21};
 
   // DEFAULT GRASP
+  grasp_.obj_frame_ = "world";         // object frame
+  grasp_.e_frame_ = "gripper_r_base";  // sizeeffector frame
+  grasp_.e_.setZero();  // sizeeffector point expressed in the sizeeffector frame
+  grasp_.isSphereGrasp = false;
+  grasp_.isDefaultGrasp = true;
 
-  grasp_upper_.obj_frame_ = "world";         // object frame
-  grasp_upper_.e_frame_ = "gripper_r_base";  // sizeeffector frame
-  grasp_upper_.e_.setZero();  // sizeeffector point expressed in the sizeeffector frame
-  grasp_upper_.isSphereGrasp = false;
-  grasp_upper_.isDefaultGrasp = true;
+  rewardFile = relativePath + "reward/rewards.txt";
 
-  grasp_lower_.obj_frame_ = "world";         // object frame
-  grasp_lower_.e_frame_ = "gripper_r_base";  // sizeeffector frame
-  grasp_lower_.e_.setZero();  // sizeeffector point expressed in the sizeeffector frame
-  grasp_lower_.isSphereGrasp = false;
-  grasp_lower_.isDefaultGrasp = true;
+  
+  finalRewardFile = relativePath + "reward/final_rewards.txt";
+  
+  pointToLineDistFile = relativePath + "robot/point_to_line_dist.txt";
+  
+  jointVelFile = relativePath + "robot/joint_velocity_sum.txt";
+  jointVelMessageFile = relativePath + "robot/joint_vel.txt";
+  jointVelAccFile = relativePath + "robot/joint_vel_acc.txt";
+
+  jointTrajLengthFile = relativePath + "robot/joint_trajectory_sum.txt";
+  jointTrajAccFile = relativePath + "robot/joint_trajectory_acc.txt";
+
+
+  gripperPosFile = relativePath + "robot/gripper_position.txt";
+  
+  samplingTimeFile = relativePath + "robot/sampling_time.txt";
+
+
+  fileHandler_.createFile(rewardFile);
+  fileHandler_.createFile(finalRewardFile);
+
+  fileHandler_.createFile(pointToLineDistFile);
+
+  fileHandler_.createFile(jointVelFile);
+  fileHandler_.createFile(jointVelMessageFile);
+  fileHandler_.createFile(jointVelAccFile);
+
+
+  fileHandler_.createFile(jointTrajLengthFile);
+  fileHandler_.createFile(jointTrajAccFile);
+  
+  fileHandler_.createFile(gripperPosFile);
+  
+  fileHandler_.createFile(samplingTimeFile);
+
 
   setRBFNetwork();
   ROS_INFO("DEMO LEARNING READY.");
@@ -105,6 +135,20 @@ void DemoLearnManifold::safeShutdown() {
                 // job
 }
 
+    template<typename T>
+void DemoLearnManifold::saveDataToFile(std::string file, T data, bool append){
+  bool success;
+  if (append){
+    success = fileHandler_.appendToFile(file, data);
+  }
+  else{
+    success = fileHandler_.writeToFile(file, data);
+  }
+  if (!success){
+    ROS_INFO("Could not store data in file %s",file.c_str());
+  }
+}
+
 void DemoLearnManifold::safeReset() { hiqp_client_.resetHiQPController(); }
 
 void DemoLearnManifold::robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg){
@@ -114,11 +158,8 @@ void DemoLearnManifold::robotStateCallback(const grasp_learning::RobotState::Con
 }
 
 void DemoLearnManifold::updatePolicy(){
-  std::vector<double> rewards = calculateVectorReward();
+  calculateReward();
 
-  policy_search_srv_.request.reward = calculateReward();
-
-  policy_search_srv_.request.rewards = rewards;
   ROS_INFO("Calling policy search service");
   if (policy_search_clt_.call(policy_search_srv_)){
     ROS_INFO("Successfully updated policy");
@@ -128,71 +169,100 @@ void DemoLearnManifold::updatePolicy(){
   }
 }
 
-std::vector<double> DemoLearnManifold::calculateVectorReward(){
+void DemoLearnManifold::calculateReward(){
 
   std::vector<double> result;
 
-  double Rtraj = 0.1;
-  double Rvel = 0.0001;
-  double Rpos = 400;
+  double Rtraj = 0.5;
+  double Rvel = 0.0005;
+  double Rpos = 700;
   double res = 0;
-  res = -Rpos*pointToLineDist(gripperPos.back(), PCofObject);
+  double Rgrasp = 1;
+  double Rcollision = -1;
+  std::vector<double> jointVel_ = calcJointVel();
+  std::vector<double> jointTraj = calcJointTraj();
+  std::vector<double> pointToLine;
+
+  pointToLine.push_back(pointToLineDist(gripperPos.back(), PCofObject));
+
+  res = -Rpos*pointToLine.back();
+
+  // if(isCollision()){
+  //   res += Rcollision;
+  // }
+  // if(successfulGrasp()){
+  //   res += Rgrasp;
+  // }
   result.push_back(exp(res));
+  res = -Rpos*pointToLine.back();
+
+  std::vector<double> cumSumVel = accumulateVector(jointVel_);
+  std::vector<double> cumSumTraj = accumulateVector(jointTraj);
 
   for(unsigned int i=gripperPos.size()-1;i-->0;){
-    res -= Rtraj*calcJointMovementOneTimeStep(i);
-    res -= Rvel*calcJointVelocityOneTimeStep(i);
-    result.push_back(exp(res));
+    pointToLine.push_back(pointToLineDist(gripperPos[i], PCofObject));
+    res -= Rtraj*jointTraj[i];
+    res -= Rvel*jointVel_[i];
+
+    result.push_back(result.back()+exp(res));
   }
 
 
-  std::reverse(result.begin(),result.end());
 
-  return normalizeVector(result);//result;
+  // ROS_INFO("\n\n");
+  // ROS_INFO("Trajectory length is %lf", Rtraj*totalJointTraj);
+  // ROS_INFO("Sum of all joint velociteis %lf", Rvel*totalJointVel);
+  // ROS_INFO("Residual between point and line %lf", Rpos*pointToLineDist(gripperPos.back(), PCofObject));
+  // ROS_INFO("Reward is %lf", reward);
+  // ROS_INFO("\n\n");
+
+  std::reverse(result.begin(),result.end());
+  std::reverse(pointToLine.begin(),pointToLine.end());
+
+  saveDataToFile(rewardFile, convertToEigenVector(result).transpose(), true);
+  saveDataToFile(finalRewardFile, result[0], true);
+
+  saveDataToFile(pointToLineDistFile, convertToEigenVector(pointToLine).transpose(), true);
+  
+  saveDataToFile(jointVelFile, convertToEigenVector(jointVel_).transpose(), true);
+  saveDataToFile(jointVelMessageFile, convertToEigenMatrix(jointVel).transpose(), true);
+  saveDataToFile(jointVelAccFile, convertToEigenVector(cumSumVel).transpose(), true);
+
+  saveDataToFile(jointTrajLengthFile, convertToEigenVector(jointTraj).transpose(), true);
+  saveDataToFile(jointTrajAccFile, convertToEigenVector(cumSumTraj).transpose(), true);
+
+  saveDataToFile(gripperPosFile, convertToEigenMatrix(gripperPos).transpose(), true);
+
+  saveDataToFile(samplingTimeFile, convertToEigenVector(samplingTime).transpose(), true);
+
+  policy_search_srv_.request.rewards = normalizeVector(result);
+  policy_search_srv_.request.reward = result[0];
 }
 
 
-double DemoLearnManifold::calculateReward(){
-  double result = 0;
+bool DemoLearnManifold::successfulGrasp(){
+  double success = -1;
+  ROS_INFO("Was the grasp successfull (1) or not (0)?");
+  std::cin >> success;
+  while(success!=0 || success!= 1){
+    ROS_INFO("Invalid input");
+    ROS_INFO("Enter 1 for successful grap and 0 otherwise");
+    std::cin >> success;
+  }
+  return (success==1 ? true:false);
+}
 
-  double Rtraj = 0.1;
-  double Rvel = 0.0001;
-  double Rpos = 200;
-  double Rpos2 = 1.5;
+bool DemoLearnManifold::isCollision(){
+  double collision = -1;
+  ROS_INFO("Did the manipulator collide with the object (1) or not (0)?");
+  std::cin >> collision;
+  while(collision!=0 || collision!= 1){
+    ROS_INFO("Invalid input");
+    ROS_INFO("Enter 1 if collision and 0 otherwise");
+    std::cin >> collision;
+  }
+  return (collision==1 ? true:false);
 
-  // result = Rpos*pointToPointDist(gripperPos.back(), finalPos);
-  // result += Rvel2*calcJointVelocityOneTimeStep(samplingTime.size()-1);
-
-  result = -Rpos*pointToLineDist(gripperPos.back(), PCofObject);
-  result -= Rtraj*calcJointTrajectoryLength();
-  result -= Rvel*calcJointVel();
-  
-  // double success = 0;
-  // ROS_INFO("Was the grasp successfull (1) or not (0)?");
-  // std::cin >> success;
-  // std::cout << "The value you entered is " << success<<std::endl;
-  // result += success;
-  // double collision = 0;
-  // ROS_INFO("Did the manipulator collide with the object (1) or not (0)?");
-  // std::cin >> collision;
-  // std::cout << "The value you entered is " << success<<std::endl;
-  // result -= collision;
-
-  ROS_INFO("\n\n");
-
-  ROS_INFO("Trajectory length is %lf", Rtraj*calcJointTrajectoryLength());
-  ROS_INFO("Sum of all joint velociteis %lf", Rvel*calcJointVel());
-  ROS_INFO("Residual between point and line %lf", Rpos*pointToLineDist(gripperPos.back(), PCofObject));
-
-  // ROS_INFO("Sum of squared weights are %lf", 0.5*dotProduct(weights));
-  // std::cout<<"Final joint velocity "<<calcJointVelocityOneTimeStep(samplingTime.size()-10)<<std::endl;
-  // ROS_INFO("Residual of the points %lf", Rpos*pointToPointDist(gripperPos.back(), finalPos));
-
-  ROS_INFO("Reward is %lf", exp(result));
-
-  ROS_INFO("\n\n");
-
-  return exp(result);
 }
 
 double DemoLearnManifold::pointToLineDist(std::vector<double> point, std::vector<double> line){
@@ -225,16 +295,42 @@ double DemoLearnManifold::vectorLength(const std::vector<double>& vec){
 
 
 std::vector<double> DemoLearnManifold::normalizeVector(const std::vector<double>& v){
-  double norm = 0;
-  for(int i = 0;i<v.size();i++){
-    norm += v[i];
-  }
+
+  double norm = sumVector(v);
+
   std::vector<double> result;
   for(int i = 0;i<v.size();i++){
     result.push_back(v[i]/norm);
   }
   return result;
 }
+
+std::vector<double> DemoLearnManifold::calcJointVel(){
+  std::vector<double> vel;
+  double temp = 0.0;
+  for(int i =0;i<samplingTime.size();i++){
+    for(int j = 0;j<jointVel[0].size();j++){
+      temp += fabs(jointVel[i][j]);
+    }
+    vel.push_back(temp);
+    temp = 0.0;
+  }
+  return vel;
+}
+
+std::vector<double> DemoLearnManifold::calcJointTraj(){
+  std::vector<double> trajectory;
+  double temp = 0;
+  for(int i =0;i<samplingTime.size();i++){
+    for(int j = 0;j<jointVel[0].size();j++){
+      temp += samplingTime[i]*fabs(jointVel[i][j]);
+    }
+    trajectory.push_back(temp);
+    temp = 0;
+  }
+  return trajectory;
+}
+
 
 double DemoLearnManifold::calcJointVelocityOneTimeStep(unsigned int i){
   double vel = 0;
@@ -254,35 +350,6 @@ double DemoLearnManifold::calcJointMovementOneTimeStep(unsigned int i){
   return trajectory;
 }
 
-double DemoLearnManifold::calcJointVel(){
-  double vel = 0;
-  for(int i =0;i<samplingTime.size();i++){
-    for(int j = 0;j<jointVel[0].size();j++){
-      vel += abs(jointVel[i][j]);
-    }
-  }
-  return vel;
-}
-
-
-double DemoLearnManifold::calcJointTrajectoryLength(){
-  double trajectory = 0;
-  for(int i =0;i<samplingTime.size();i++){
-    for(int j = 0;j<jointVel[0].size();j++){
-      trajectory += samplingTime[i]*abs(jointVel[i][j]);
-    }
-  }
-  return trajectory;
-}
-
-double DemoLearnManifold::dotProduct(std::vector<double> vec){
-  double res = 0;
-  for(auto& iter: vec){
-    res += iter*iter;
-  }
-  return res;
-}
-
 double DemoLearnManifold::pointToPointDist(std::vector<double> point1, std::vector<double> point2){
   double diff_square = 0;
   double diff = 0;
@@ -293,6 +360,55 @@ double DemoLearnManifold::pointToPointDist(std::vector<double> point1, std::vect
   return diff_square;
 }
 
+  template<typename T>
+Eigen::Map<Eigen::VectorXd> DemoLearnManifold::convertToEigenVector(std::vector<T> vec){
+  T* ptr = &vec[0];
+  Eigen::Map<Eigen::VectorXd> eigenVec(ptr, vec.size());
+  return eigenVec;
+}
+
+  template<typename T>
+Eigen::MatrixXd DemoLearnManifold::convertToEigenMatrix(std::vector<std::vector<T>> data)
+{
+    Eigen::MatrixXd eMatrix(data.size(), data[0].size());
+    for (int i = 0; i < data.size(); ++i)
+        eMatrix.row(i) = Eigen::VectorXd::Map(&data[i][0], data[0].size());
+    return eMatrix;
+}
+
+
+template<typename T>
+std::vector<T> DemoLearnManifold::accumulateVector(std::vector<T> vec){
+  std::vector<T> result(vec.size());
+  std::reverse(vec.begin(),vec.end());
+  std::partial_sum (vec.begin(), vec.end(), result.begin());
+  std::reverse(result.begin(),result.end());
+  // result.push_back(vec.back());
+  // typename std::vector<T>::const_iterator iter = --vec.end();
+  // for(; iter!=vec.begin(); iter--){
+  //   result.push_back(result.back()+*iter);
+  // }
+  // std::reverse(result.begin(),result.end());
+  return  result;
+}
+
+double DemoLearnManifold::sumVector(const std::vector<double>& vec){
+  return std::accumulate(vec.begin(), vec.end(), 0.0);
+}
+
+
+void DemoLearnManifold::printVector(const std::vector<double>& vec){
+  for (auto& a: vec){
+    std::cout<<a<<" ";
+  }
+  std::cout<<std::endl;
+} 
+
+
+void DemoLearnManifold::resetMatrix(std::vector<std::vector<double>>& matrix){
+  std::vector<std::vector<double>> newMatrix;
+  matrix = newMatrix;
+}
 
 void DemoLearnManifold::addNoise(){
   ROS_INFO("Calling add noise service");
@@ -321,13 +437,6 @@ void DemoLearnManifold::setRBFNetwork(){
 
 }
 
-
-void DemoLearnManifold::printVector(const std::vector<double>& vec){
-  for (auto& a: vec){
-    std::cout<<a<<" ";
-  }
-  std::cout<<std::endl;
-} 
 
 
 std::vector<double> DemoLearnManifold::generateStartPosition(std::vector<double> curr_sensing_vec){
@@ -385,8 +494,8 @@ bool DemoLearnManifold::doGraspAndLift() {
 
   // Define the primitives
   eef_point = hiqp_ros::createPrimitiveMsg(
-    "point_eef", "point", grasp_lower_.e_frame_, true, {1, 0, 0, 1},
-    {grasp_lower_.e_(0), grasp_lower_.e_(1), grasp_lower_.e_(2)+0.1});
+    "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
+    {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2)+0.1});
 
   final_point = hiqp_ros::createPrimitiveMsg(
     "final_point", "point", "world", true, {0, 0, 1, 1},
@@ -398,11 +507,11 @@ bool DemoLearnManifold::doGraspAndLift() {
       manifold_radius_,manifold_height_});
 
   gripper_approach_axis = hiqp_ros::createPrimitiveMsg(
-    "gripper_approach_axis", "line", grasp_lower_.e_frame_, true, {0, 0, 1, 1},
+    "gripper_approach_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
     {0, 0, 1, 0, 0, 0.1});
 
   gripper_vertical_axis = hiqp_ros::createPrimitiveMsg(
-    "gripper_vertical_axis", "line", grasp_lower_.e_frame_, true, {0, 0, 1, 1},
+    "gripper_vertical_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
     {0, -1, 0, 0, 0, 0.1});
 
   grasp_target_axis = hiqp_ros::createPrimitiveMsg(
@@ -490,11 +599,6 @@ bool DemoLearnManifold::doGraspAndLift() {
 
 
   return true;
-}
-
-void DemoLearnManifold::resetMatrix(std::vector<std::vector<double>>& matrix){
-  std::vector<std::vector<double>> newMatrix;
-  matrix = newMatrix;
 }
 
 bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req,

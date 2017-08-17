@@ -63,36 +63,42 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 	Eigen::MatrixXd num = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 	Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 	Eigen::MatrixXd B = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
-	Eigen::MatrixXd W = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
+
+	// Eigen::MatrixXd W = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 
 	for (int elem=0; elem<num_imp_sampler_noise;elem++){
 		idx = imp_sampler[elem].second;
 		Eigen::MatrixXd C = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 		for(unsigned int t = 0;t<rewards[idx].size();t++){
 			// W = kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose();
-			// A += W*rewards[idx][t];
-			// B += W*noises[idx].col(t)*rewards[idx][t];
+			// 	std::cout<<W<<std::endl;
+			// }
 			C += kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose()*rewards[idx][t];
 		}
 		A += C;
 		B += C*noises[0].col(idx);
 	}
 
+	Eigen::MatrixXd min_matrix = Eigen::MatrixXd::Identity(num_of_kernels, num_of_kernels);
+
+	double min = 1e-10;
+
 	std::cout<<A<<std::endl;
+	std::cout<<(A+min*min_matrix).inverse()<<std::endl;
+	std::cout<<B<<std::endl;
+
 
 	for(int i=0;i<num_of_kernels;i++){
 		if(A(i,i)<1e-2){
 			B(i,0)=0;
 		}
 	}
+	std::cout<<B<<std::endl;
 
 
 	Eigen::MatrixXd new_weights = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 
-	Eigen::MatrixXd min_matrix = Eigen::MatrixXd::Identity(num_of_kernels, num_of_kernels);
-	// double min = std::numeric_limits<double>::denorm_min();
 
-	double min = 0.00001;
 
 	// std::cout<<B<<std::endl;
 	// std::cout<<std::endl<<std::endl;

@@ -8,6 +8,8 @@
 #include <math.h>
 #include <grasp_learning/power.h>
 #include <grasp_learning/MultiVariateGaussian.h>
+#include <grasp_learning/fileHandler.h>
+
 #include <std_srvs/Empty.h>
 #include <std_msgs/Empty.h>
 #include <grasp_learning/PolicySearch.h>
@@ -18,7 +20,7 @@
 #include <fstream>
 
 #define PI 3.14159265358979323846
-#define ACTIVATION_THRESHOLD 0.1
+#define ACTIVATION_THRESHOLD 0.2
 #define COVERGANCE_THRESHOLD 0.8
 namespace demo_learning {
 	namespace RBFNetwork {
@@ -33,7 +35,7 @@ namespace demo_learning {
 			Eigen::VectorXd residual(Eigen::VectorXd);
 			double kernelActivation(Eigen::VectorXd);
 			Eigen::VectorXd getMean();
-			double getVar();
+			Eigen::MatrixXd getCovar();
 		private:
 	// Eigen::Vector3d mean;
 	// Eigen::Matrix3d covar;
@@ -51,7 +53,6 @@ namespace demo_learning {
 			RBFNetwork();
 			~RBFNetwork(){};
 
-			std::vector<double> getActiveKernels();
 			Eigen::MatrixXd getKernelWeights();
 			void updateWeights(Eigen::MatrixXd);
 
@@ -69,6 +70,11 @@ namespace demo_learning {
 			void setNoiseVariance(const double variance);
 
 			void resetRollout();
+
+			template<typename T>
+			void saveDataToFile(std::string filename, T, bool);
+			
+			void saveKernelsToFile();
 
 			void printVector(std::vector<double> vec);
 			bool printAllKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
@@ -105,13 +111,15 @@ namespace demo_learning {
 			std::vector<GaussianKernel> Network;
 			Eigen::MatrixXd rollout_noise;
 			Eigen::MatrixXd weights;
-			std::vector<double> activeKernels;
 			Eigen::MatrixXd runningWeights;
 			Eigen::MatrixXd kernelOutput;
+			std::vector<double> networkOutput_;
+
 			std::vector<double> global_pos;
 			double manifold_height = 0;
 			power PoWER;
 			MultiVariateGaussian multiVarGauss;
+			fileHandler fileHandler_;
 
 			int numKernels = 0;
 
@@ -124,9 +132,15 @@ namespace demo_learning {
 			int burnInTrials;
 			int maxNumSamples;
 
-			std::string kernelOutputFileName;
-			std::string rewardsOutputFileName;
 			std::string relativePath;
+			std::string kernelOutputFile;
+			std::string rewardsOutputFile;
+			std::string networkOutputFile;
+			std::string runningWeightsFile;
+			std::string networkWeightsFile;
+			std::string noiseFile;
+			std::string krenelMeanFile;
+			std::string krenelCovarFile;	
 
 			bool coverged = false;
 		};

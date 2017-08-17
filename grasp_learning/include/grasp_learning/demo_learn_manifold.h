@@ -4,12 +4,18 @@
 #include <rosbag/bag.h>
 
 #include <controller_manager_msgs/SwitchController.h>
-#include <hiqp_ros/hiqp_client.h>
 #include <sensor_msgs/JointState.h>
 #include <std_srvs/Empty.h>
 #include <tf2_msgs/TFMessage.h>
 #include <std_msgs/Empty.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Float64MultiArray.h>
+
+#include <gazebo_msgs/SetPhysicsProperties.h>
+
+#include <hiqp_ros/hiqp_client.h>
+#include <yumi_hw/YumiGrasp.h>
+
 #include <grasp_learning/StartRecording.h>
 #include <grasp_learning/FinishRecording.h>
 #include <grasp_learning/RobotState.h>
@@ -18,14 +24,14 @@
 #include <grasp_learning/PolicySearch.h>
 #include <grasp_learning/SetRBFN.h>
 #include <grasp_learning/GetNetworkWeights.h>
-
-#include <std_msgs/Float64MultiArray.h>
-
 #include <grasp_learning/fileHandler.h>
+
+
 
 #include <Eigen/Core>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/assign/std/vector.hpp>
 #include <vector>
 #include <cmath>        // std::abs
 #include <fstream>
@@ -33,12 +39,11 @@
 #include <random>
 #include <algorithm>
 #include <functional>
-#include <gazebo_msgs/SetPhysicsProperties.h>
 #include <math.h>
 #include <time.h>
-#include <boost/assign/std/vector.hpp>
 #include <limits>
-#include <yumi_hw/YumiGrasp.h>
+#include <numeric>
+#include <iterator>
 
 namespace demo_learning {
 
@@ -77,8 +82,24 @@ public:
 private:
 
   fileHandler fileHandler_;
-  std::string rewardFileName;
+  
   std::string relativePath;
+  
+  std::string rewardFile;
+  std::string finalRewardFile;
+  
+  std::string pointToLineDistFile;
+  
+  std::string jointVelFile;
+  std::string jointVelMessageFile;
+  std::string jointVelAccFile;
+
+  std::string jointTrajLengthFile;
+  std::string jointTrajAccFile;
+
+  std::string gripperPosFile;
+  
+  std::string samplingTimeFile;
 
   std::default_random_engine generator;
   std::normal_distribution<double> dist;
@@ -86,26 +107,14 @@ private:
 
   std::vector<ros::Subscriber> subs_;
 
-  std::vector< sensor_msgs::JointState > joint_state_vec_;
-  std::vector< hiqp_msgs::TaskMeasures > task_dynamics_vec_;
-  std::vector< std_msgs::Float64MultiArray > joint_effort_vec_;
-  std::vector<double> action_vec_;
   unsigned int n_jnts;
-  std::vector<std::string> link_frame_names;
   std::vector<double> PCofObject;
   ros::NodeHandle nh_;
   ros::NodeHandle n_;
 
-
-  ros::ServiceClient client_Policy_Search_;
-  ros::ServiceClient client_Add_Noise_;
-
   hiqp_ros::HiQPClient hiqp_client_;
 
   bool with_gazebo_;  ///<indicate whether the node is run in simulation
-  bool generalize_policy_; // Indicate wheter we want to check how well our learned policy generalizes
-  bool record_ = false;
-  bool converged_policy_ = false;
   double decay_rate_;
   double exec_time_;
   double manifold_height_;
@@ -114,12 +123,8 @@ private:
 
   bool init=true;
   // object
-  Eigen::VectorXd t_prog_prev_;
 
-  GraspInterval grasp_upper_;
-  GraspInterval grasp_lower_;
-  GraspInterval grasp_horizontal_;
-  GraspInterval grasp_vertical_;
+  GraspInterval grasp_;
 
   /// Clients to other nodes
   ros::ServiceClient set_gazebo_physics_clt_;
@@ -148,8 +153,6 @@ private:
   grasp_learning::FinishRecording finish_msg_;
   //Empty message published by finished_grasping_
   std_msgs::Empty empty_msg_;
-  //** Manipulator joint configuration while moving the forklift */
-  std::vector<double> transfer_config_;
   //** Manipulator joint configuration prior to reach-to-grasp */
   std::vector<double> sensing_config_;
 
@@ -158,6 +161,7 @@ private:
   std::vector<double> samplingTime;
 
   std::vector<double> finalPos;
+
 
   void robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg);
   //**First deactivates the HQP control scheme (the controller will output zero
@@ -184,17 +188,13 @@ private:
 
   void setRBFNetwork();
 
-  double calculateReward();
+  void calculateReward();
 
-  std::vector<double> calculateVectorReward();
+  bool successfulGrasp();
+
+  bool isCollision();
 
   std::vector<double> normalizeVector(const std::vector<double>& v);
-
-  double calcJointMovementOneTimeStep(unsigned int i);
-
-  double calcJointVelocityOneTimeStep(unsigned int i);
-
-  double dotProduct(std::vector<double> vec);
 
   double pointToPointDist(std::vector<double> point1, std::vector<double> point2);
 
@@ -204,11 +204,27 @@ private:
 
   void resetMatrix(std::vector<std::vector<double>>& matrix);
 
-  double calcJointTrajectoryLength();
+  std::vector<double> calcJointTraj();
 
-  double calcJointVel();
+  std::vector<double> calcJointVel();
+
+  double calcJointMovementOneTimeStep(unsigned int i);
+
+  double calcJointVelocityOneTimeStep(unsigned int i);
+
+  template<typename T>
+  Eigen::Map<Eigen::VectorXd> convertToEigenVector(std::vector<T> vec);
+
+  template<typename T>
+  Eigen::MatrixXd convertToEigenMatrix(std::vector<std::vector<T>> data);
 
   void visualizeKernels();
+
+  template<typename T>
+  void saveDataToFile(std::string filename, T, bool);
+
+  template<typename T>
+  std::vector<T> accumulateVector(std::vector<T> vec);
 };
 
 }  // end namespace hqp controllers

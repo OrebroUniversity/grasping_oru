@@ -8,8 +8,6 @@ namespace demo_learning {
 		}
 
 		Eigen::VectorXd GaussianKernel::residual(Eigen::VectorXd x){
-			// ROS_INFO_DELAYED_THROTTLE(0.5, "kernel mean [%lf, %lf]",mean(0), mean(1));
-
 			return x-mean;
 		}
 
@@ -24,8 +22,8 @@ namespace demo_learning {
 			return mean;
 		}
 
-		double GaussianKernel::getVar(){
-			return covar(0,0);
+		Eigen::MatrixXd GaussianKernel::getCovar(){
+			return covar;
 		}
 
 		RBFNetwork::RBFNetwork(){
@@ -57,9 +55,25 @@ namespace demo_learning {
 			nh_.param<int>("max_num_samples", maxNumSamples, 5);
 			nh_.param<std::string>("relative_path", relativePath, "asd");
 
-			kernelOutputFileName = relativePath + "kernels.txt";
+			kernelOutputFile = relativePath + "RBFN/kernel_activation.txt";
+			rewardsOutputFile = relativePath + "reward/normalized_rewards.txt";
+			networkOutputFile = relativePath + "RBFN/output.txt";
+			runningWeightsFile = relativePath + "RBFN/running_weights.txt";
+			networkWeightsFile = relativePath + "RBFN/network_weights.txt";
+			noiseFile = relativePath + "RBFN/noise.txt";
+			krenelMeanFile = relativePath + "RBFN/kernel_mean.txt";
+			krenelCovarFile = relativePath + "RBFN/kernel_covar.txt";
 
-			rewardsOutputFileName = relativePath + "rewards.txt";
+
+			fileHandler_.createFile(kernelOutputFile);
+			fileHandler_.createFile(rewardsOutputFile);
+			fileHandler_.createFile(networkOutputFile);
+			fileHandler_.createFile(runningWeightsFile);
+			fileHandler_.createFile(networkWeightsFile);
+			fileHandler_.createFile(noiseFile);
+			fileHandler_.createFile(krenelMeanFile);
+			fileHandler_.createFile(krenelCovarFile);
+
 
 
 			PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies);
@@ -114,6 +128,13 @@ namespace demo_learning {
 			return true;
 		}
 
+		void RBFNetwork::saveKernelsToFile(){
+			for (int i = 0; i < numKernels; i++){
+				saveDataToFile(krenelMeanFile, Network[i].getMean(), true);
+				saveDataToFile(krenelCovarFile, Network[i].getCovar(), true);
+			}
+		}
+
 		void RBFNetwork::setNoiseVariance(const double variance){
 			if (useCorrNoise){
 				multiVarGauss.setCovarAsDiffernceMatrix(numKernels, variance);
@@ -153,6 +174,7 @@ namespace demo_learning {
 			for (int j = 0; j < numPolicies; j++) {
 				result[j] /= dnom;
 			}
+			networkOutput_.push_back(result[0]);
 			res.result = result;
 
 			return true;
@@ -167,10 +189,6 @@ namespace demo_learning {
 		bool RBFNetwork::printKernelWeights(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
 			std::cout<<runningWeights<<std::endl;
 			return true;
-		}
-
-		std::vector<double> RBFNetwork::getActiveKernels(){
-			return activeKernels;
 		}
 
 		bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
@@ -204,11 +222,7 @@ namespace demo_learning {
 		}
 
 		Eigen::MatrixXd RBFNetwork::sampleNoise(){
-			// Eigen::MatrixXd noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
-			// for (int j = 0; j < numPolicies; j++) {
-			// 	noise.col(j) = multiVarGauss.sample(1);
-			// }
-			return multiVarGauss.sample(1);//noise;
+			return multiVarGauss.sample(1);
 		}
 
 		void RBFNetwork::updateNoiseVariance(){
@@ -239,10 +253,12 @@ namespace demo_learning {
 		}
 
 		void RBFNetwork::resetRollout(){
+			updateNoiseVariance();
+			coverged = (policyConverged() ? true:false);
 			kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
 			// rollout_noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
 			rollout_noise = Eigen::MatrixXd::Zero(numKernels, 0);
-
+			networkOutput_.clear();
 		}
 
 		bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res){
@@ -252,27 +268,37 @@ namespace demo_learning {
 
 			Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput);
 			updateWeights(updatedWeights);
-			std::ofstream file(kernelOutputFileName);
-			if (file.is_open())
-			{
-				file << kernelOutput << '\n';
-			}
+			std::cout<<updatedWeights.transpose()<<std::endl;
 
 			double* ptr = &req.rewards[0];
 			Eigen::Map<Eigen::VectorXd> rewards(ptr, req.rewards.size());
 
-			std::ofstream file2(rewardsOutputFileName);
-			if (file2.is_open())
-			{
-				file2 << rewards << '\n';
-			}
+			double* ptr2 = &networkOutput_[0];
+			Eigen::Map<Eigen::VectorXd> outputs(ptr, networkOutput_.size());
 
-			std::cout<<updatedWeights.transpose()<<std::endl;
-			coverged = (policyConverged() ? true:false);
+			saveDataToFile(kernelOutputFile, kernelOutput, false);
+			saveDataToFile(rewardsOutputFile, rewards.transpose(), true);
+			saveDataToFile(networkOutputFile, outputs.transpose(), true);
+			saveDataToFile(networkWeightsFile, weights, true);
+			saveDataToFile(runningWeightsFile, runningWeights, true);
+			saveDataToFile(noiseFile, rollout_noise, true);
 
-			updateNoiseVariance();
 			resetRollout();
 			return true;
+		}
+
+		template<typename T>
+		void RBFNetwork::saveDataToFile(std::string file, T data, bool append){
+			bool success;
+			if (append){
+				success = fileHandler_.appendToFile(file, data);
+			}
+			else{
+				success = fileHandler_.writeToFile(file, data);
+			}
+			if (!success){
+				ROS_INFO("Could not store data in file %s",file.c_str());
+			}
 		}
 
 		bool RBFNetwork::getNetworkWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res){
@@ -308,7 +334,7 @@ namespace demo_learning {
 		bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
 			visualization_msgs::MarkerArray marker_array;
 
-			double var = Network[0].getVar();
+			Eigen::MatrixXd covar = Network[0].getCovar();
 			for(int i =0;i<numKernels;i++){
 				Eigen::VectorXd mean = Network[i].getMean();
 
@@ -351,8 +377,8 @@ namespace demo_learning {
 				marker_var.pose.orientation.y = 0.0;
 				marker_var.pose.orientation.z = 0.0;
 				marker_var.pose.orientation.w = 1.0;
-				marker_var.scale.x = var*2;
-				marker_var.scale.y = var*2;
+				marker_var.scale.x = covar(0,0)*2;
+				marker_var.scale.y = covar(1,1)*2;
 				marker_var.scale.z = 0;
 				marker_var.color.a = 0.5;
 				marker_var.color.r = 1.0;
