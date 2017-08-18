@@ -89,7 +89,7 @@ namespace demo_learning {
 
 
 
-			PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies);
+			PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies, relativePath);
 			setNoiseVariance(intialNoiceVar);
 
 			ROS_INFO("Set up all services");
@@ -195,9 +195,9 @@ namespace demo_learning {
 					result[j] /= dnom;
 				}
 			}
-			else{
-				ROS_INFO("Zero total activation");
-			}
+			// else{
+			// 	ROS_INFO("Zero total activation");
+			// }
 
 			networkOutput_.push_back(result[0]);
 			res.result = result;

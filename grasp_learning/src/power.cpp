@@ -4,9 +4,10 @@ power::power(int kernels, int initialRollouts, int samples){
 	num_of_kernels = kernels;
 	num_initial_rollouts = initialRollouts;
 	max_num_samples = samples;
+
 }
 
-void power::setParams(int kernels, int initialRollouts, int samples, int numPolicies){
+void power::setParams(int kernels, int initialRollouts, int samples, int numPolicies, std::string relativePath){
 	num_of_kernels = kernels;
 	num_initial_rollouts = initialRollouts;
 	max_num_samples = samples;
@@ -15,6 +16,14 @@ void power::setParams(int kernels, int initialRollouts, int samples, int numPoli
 	for(int i =0;i<numPolicies;i++){
 		noises.push_back(Eigen::MatrixXd::Zero(num_of_kernels, 0));
 	}
+
+	matrixNum = relativePath + "power/matrix_num.txt";
+	matrixNumRed = relativePath + "power/matrix_num_reduced.txt";
+	matrixDnom = relativePath + "power/matrix_dnom.txt";
+
+	fileHandler_.createFile(matrixNum);
+	fileHandler_.createFile(matrixNumRed);
+	fileHandler_.createFile(matrixDnom);
 }
 
 bool power::operator()(const std::pair<double, int>& firstElem, const std::pair<double, int>& secondElem){
@@ -62,7 +71,7 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 
 	Eigen::MatrixXd num = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 	Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
-	Eigen::MatrixXd B = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
+	Eigen::MatrixXd B = Eigen::MatrixXd::Zero(num_of_kernels, 1);
 
 	// Eigen::MatrixXd W = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 
@@ -75,6 +84,7 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 			// }
 			C += kernelActivations[idx].col(t)*kernelActivations[idx].col(t).transpose()*rewards[idx][t];
 		}
+		C = (C.array() < 1e-5).select(0, C);
 		A += C;
 		B += C*noises[0].col(idx);
 	}
@@ -83,17 +93,23 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 
 	double min = 1e-10;
 
-	std::cout<<A<<std::endl;
-	std::cout<<(A+min*min_matrix).inverse()<<std::endl;
-	std::cout<<B<<std::endl;
+	Eigen::MatrixXd invMat = (A+min*min_matrix).inverse();
 
+	// std::cout<<A<<std::endl<<std::endl;
+	// std::cout<<invMat<<std::endl<<std::endl;
+	// std::cout<<B.transpose()<<std::endl<<std::endl;;
+
+	fileHandler_.appendToFile(matrixNum, B.transpose());
 
 	for(int i=0;i<num_of_kernels;i++){
 		if(A(i,i)<1e-2){
 			B(i,0)=0;
 		}
 	}
-	std::cout<<B<<std::endl;
+	// std::cout<<B.transpose()<<std::endl<<std::endl;;
+
+	fileHandler_.appendToFile(matrixNumRed, B.transpose());
+	fileHandler_.appendToFile(matrixDnom, invMat);
 
 
 	Eigen::MatrixXd new_weights = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);

@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 #include "ros/ros.h"
 #include <numeric>
+#include <grasp_learning/fileHandler.h>
 
 class power
 {
@@ -24,7 +25,7 @@ public:
 	void print_imp_sampler(std::vector<std::pair<double,int> > imp_sampler);
 	void clear_data();
 	// void setParams(int, int, int);
-	void setParams(int, int, int, int);
+	void setParams(int, int, int, int, std::string);
 
 	std::vector<double> getHighestRewards();
 
@@ -43,4 +44,8 @@ private:
 	std::vector<std::pair<double,int> > imp_sampler;
 	// Eigen::MatrixXd noises;
 	std::vector<Eigen::MatrixXd> noises;
+	fileHandler fileHandler_;
+	std::string matrixNum;
+	std::string matrixNumRed;
+	std::string matrixDnom;
 };
