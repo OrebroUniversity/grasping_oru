@@ -20,7 +20,7 @@
 #include <fstream>
 
 #define PI 3.14159265358979323846
-#define ACTIVATION_THRESHOLD 0.2
+#define ACTIVATION_THRESHOLD 0.3
 #define COVERGANCE_THRESHOLD 0.8
 namespace demo_learning {
 	namespace RBFNetwork {
@@ -30,17 +30,21 @@ namespace demo_learning {
 		{
 		public:
 			GaussianKernel();
-			GaussianKernel(Eigen::VectorXd, Eigen::MatrixXd);
+			// GaussianKernel(Eigen::VectorXd, Eigen::MatrixXd);
+			GaussianKernel(Eigen::VectorXd, double);
 			~GaussianKernel(){};
-			Eigen::VectorXd residual(Eigen::VectorXd);
+			// Eigen::VectorXd residual(Eigen::VectorXd);
+			double residual(Eigen::VectorXd);
 			double kernelActivation(Eigen::VectorXd);
 			Eigen::VectorXd getMean();
 			Eigen::MatrixXd getCovar();
+			double getVar();
 		private:
 	// Eigen::Vector3d mean;
 	// Eigen::Matrix3d covar;
 			Eigen::VectorXd mean;
 			Eigen::MatrixXd covar;
+			double var;
 
 		};
 // }
@@ -133,6 +137,8 @@ namespace demo_learning {
 			int maxNumSamples;
 
 			std::string relativePath;
+			std::string kernelTotalActivationPerTimeFile;
+			std::string kernelWiseTotalActivationFile;
 			std::string kernelOutputFile;
 			std::string rewardsOutputFile;
 			std::string networkOutputFile;

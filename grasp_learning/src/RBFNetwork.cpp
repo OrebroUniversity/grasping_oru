@@ -2,21 +2,24 @@
 namespace demo_learning {
 	namespace RBFNetwork {
 
-		GaussianKernel::GaussianKernel(Eigen::VectorXd mean, Eigen::MatrixXd covar){
+		GaussianKernel::GaussianKernel(Eigen::VectorXd mean, double var){
 			this->mean = mean;
-			this->covar = covar;
+			this->var = var;
 		}
 
-		Eigen::VectorXd GaussianKernel::residual(Eigen::VectorXd x){
-			return x-mean;
+		double GaussianKernel::residual(Eigen::VectorXd x){
+			return (x-mean).squaredNorm();
 		}
-
 
 		double GaussianKernel::kernelActivation(Eigen::VectorXd x){
-			Eigen::VectorXd residual = this->residual(x);
-			double activation = exp(-0.5*residual.transpose()*covar.inverse()*residual);
+			double residual = this->residual(x);
+			double beta = 1.0/(2.0*var*var);
+			double activation = exp(-beta*residual);
+			// std::cout<<residual<<"         "<<activation<<std::endl;
+
 			return activation;
 		}
+
 
 		Eigen::VectorXd GaussianKernel::getMean(){
 			return mean;
@@ -25,6 +28,11 @@ namespace demo_learning {
 		Eigen::MatrixXd GaussianKernel::getCovar(){
 			return covar;
 		}
+
+		double GaussianKernel::getVar(){
+			return var;
+		}
+
 
 		RBFNetwork::RBFNetwork(){
 
@@ -55,6 +63,8 @@ namespace demo_learning {
 			nh_.param<int>("max_num_samples", maxNumSamples, 5);
 			nh_.param<std::string>("relative_path", relativePath, "asd");
 
+			kernelTotalActivationPerTimeFile = relativePath + "RBFN/kernel_total_activation_per_timestep.txt";
+			kernelWiseTotalActivationFile = relativePath + "RBFN/kernel_wise_total_activation.txt";
 			kernelOutputFile = relativePath + "RBFN/kernel_activation.txt";
 			rewardsOutputFile = relativePath + "reward/normalized_rewards.txt";
 			networkOutputFile = relativePath + "RBFN/output.txt";
@@ -65,6 +75,9 @@ namespace demo_learning {
 			krenelCovarFile = relativePath + "RBFN/kernel_covar.txt";
 
 
+
+			fileHandler_.createFile(kernelTotalActivationPerTimeFile);
+			fileHandler_.createFile(kernelWiseTotalActivationFile);
 			fileHandler_.createFile(kernelOutputFile);
 			fileHandler_.createFile(rewardsOutputFile);
 			fileHandler_.createFile(networkOutputFile);
@@ -95,27 +108,30 @@ namespace demo_learning {
 			Eigen::MatrixXd covar = Eigen::MatrixXd::Zero(numDim,numDim);
 			double dx = req.radius*(cos(0*column_spacing)-cos(1*column_spacing));
 			double dy = req.radius*(sin(0*column_spacing)-sin(1*column_spacing));
-			double var = calculateVariance(dx, dy)/100;
-			for(int i =0;i<numDim;i++){
-				covar(i,i)=var;
-			}
+			double var = calculateVariance(dx, dy);
+
+			// for(int i =0;i<numDim;i++){
+			// 	covar(i,i)=var;
+			// }
 
 			if (numDim<3){
 				for (int column=0;column<numKernels;column++){
 					mean(0)= req.globalPos[0]+req.radius*cos(column*column_spacing);
 					mean(1)= req.globalPos[1]+req.radius*sin(column*column_spacing);
-					GaussianKernel kernel(mean, covar);
+					// GaussianKernel kernel(mean, covar);
+					GaussianKernel kernel(mean, var);
 					Network.push_back(kernel);
 				}
 
 			}
 			else{
 				for (int row = 1;row<=numRows;row++){
-					mean(2) = req.globalPos[2]+row_spacing*row;
+					mean(2) = req.globalPos[2]+req.height/2;
 					for (int column=0;column<numKernels;column++){
 						mean(0)= req.globalPos[0]+req.radius*cos(column*column_spacing);
 						mean(1)= req.globalPos[1]+req.radius*sin(column*column_spacing);
-						GaussianKernel kernel(mean, covar);
+						// GaussianKernel kernel(mean, covar);
+						GaussianKernel kernel(mean, var);
 						Network.push_back(kernel);
 					}
 				}
@@ -125,13 +141,14 @@ namespace demo_learning {
 			runningWeights = weights;
 			ROS_INFO("%d kernels were created", numKernels);
 			rollout_noise = Eigen::MatrixXd::Zero(numKernels,0);
+			saveKernelsToFile();
 			return true;
 		}
 
 		void RBFNetwork::saveKernelsToFile(){
 			for (int i = 0; i < numKernels; i++){
-				saveDataToFile(krenelMeanFile, Network[i].getMean(), true);
-				saveDataToFile(krenelCovarFile, Network[i].getCovar(), true);
+				saveDataToFile(krenelMeanFile, Network[i].getMean().transpose(), true);
+				saveDataToFile(krenelCovarFile, Network[i].getVar(), true);
 			}
 		}
 
@@ -151,29 +168,37 @@ namespace demo_learning {
 		}
 
 		bool RBFNetwork::networkOutput(grasp_learning::CallRBFN::Request& req, grasp_learning::CallRBFN::Response& res){
-			Eigen::VectorXd x(req.pos.size()-1);
+			Eigen::VectorXd x(numDim);
 			int num_col = kernelOutput.cols();
 			kernelOutput.conservativeResize(numKernels, num_col+1);
-			for(int i =0;i<2;i++){
+			for(int i =0;i<numDim;i++){
 				x(i) = req.pos[i];
 			}
 
-			std::vector<double> result(numPolicies);
+			std::vector<double> result(numPolicies,0.0);
 			double dnom = 0;	
 			for (int i = 0; i < numKernels; i++){
 				double activation = Network[i].kernelActivation(x);
+				if(activation < ACTIVATION_THRESHOLD){
+					activation = 0;
+				}
 				kernelOutput(i,num_col) = activation;
+
 				dnom += activation;
 				for (int j = 0; j < numPolicies; j++) {
 					result[j] += runningWeights(i,j)*activation;
 				}
 			}
-
-			kernelOutput.col(num_col) /= dnom;
-
-			for (int j = 0; j < numPolicies; j++) {
-				result[j] /= dnom;
+			if(dnom != 0){
+				kernelOutput.col(num_col) /= dnom;
+				for (int j = 0; j < numPolicies; j++) {
+					result[j] /= dnom;
+				}
 			}
+			else{
+				ROS_INFO("Zero total activation");
+			}
+
 			networkOutput_.push_back(result[0]);
 			res.result = result;
 
@@ -192,7 +217,7 @@ namespace demo_learning {
 		}
 
 		bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
-			resetRunningWeights();
+			resetRollout();
 			int num_cols = rollout_noise.cols();
 			rollout_noise.conservativeResize(numKernels, num_cols+1);
 
@@ -254,6 +279,7 @@ namespace demo_learning {
 
 		void RBFNetwork::resetRollout(){
 			updateNoiseVariance();
+			resetRunningWeights();
 			coverged = (policyConverged() ? true:false);
 			kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
 			// rollout_noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
@@ -263,27 +289,29 @@ namespace demo_learning {
 
 		bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res){
 			// Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.reward, kernelOutput*kernelOutput.transpose());
+			if(!coverged){
+				kernelOutput = (kernelOutput.array() < ACTIVATION_THRESHOLD).select(0, kernelOutput);
 
-			kernelOutput = (kernelOutput.array() < ACTIVATION_THRESHOLD).select(0, kernelOutput);
-
-			Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput);
-			updateWeights(updatedWeights);
-			std::cout<<updatedWeights.transpose()<<std::endl;
-
+				Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput);
+				updateWeights(updatedWeights);
+				std::cout<<updatedWeights.transpose()<<std::endl;
+			}
 			double* ptr = &req.rewards[0];
 			Eigen::Map<Eigen::VectorXd> rewards(ptr, req.rewards.size());
 
 			double* ptr2 = &networkOutput_[0];
-			Eigen::Map<Eigen::VectorXd> outputs(ptr, networkOutput_.size());
+			Eigen::Map<Eigen::VectorXd> outputs(ptr2, networkOutput_.size());
 
+
+			saveDataToFile(kernelTotalActivationPerTimeFile, kernelOutput.colwise().sum(), true);
+			saveDataToFile(kernelWiseTotalActivationFile, kernelOutput.rowwise().sum().transpose(), true);
 			saveDataToFile(kernelOutputFile, kernelOutput, false);
 			saveDataToFile(rewardsOutputFile, rewards.transpose(), true);
 			saveDataToFile(networkOutputFile, outputs.transpose(), true);
-			saveDataToFile(networkWeightsFile, weights, true);
-			saveDataToFile(runningWeightsFile, runningWeights, true);
-			saveDataToFile(noiseFile, rollout_noise, true);
+			saveDataToFile(networkWeightsFile, weights.transpose(), true);
+			saveDataToFile(runningWeightsFile, runningWeights.transpose(), true);
+			saveDataToFile(noiseFile, rollout_noise.transpose(), true);
 
-			resetRollout();
 			return true;
 		}
 
@@ -326,15 +354,17 @@ namespace demo_learning {
 
 		void RBFNetwork::printVector(std::vector<double> vec){
 			for(auto& iter: vec){
-				std::cout<<iter<<std::endl;
+				std::cout<<iter<<" ";
 			}
+			std::cout<<std::endl;
 		}
 
 
 		bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
 			visualization_msgs::MarkerArray marker_array;
 
-			Eigen::MatrixXd covar = Network[0].getCovar();
+			// Eigen::MatrixXd covar = Network[0].getCovar();
+			double var = Network[0].getVar();
 			for(int i =0;i<numKernels;i++){
 				Eigen::VectorXd mean = Network[i].getMean();
 
@@ -377,8 +407,8 @@ namespace demo_learning {
 				marker_var.pose.orientation.y = 0.0;
 				marker_var.pose.orientation.z = 0.0;
 				marker_var.pose.orientation.w = 1.0;
-				marker_var.scale.x = covar(0,0)*2;
-				marker_var.scale.y = covar(1,1)*2;
+				marker_var.scale.x = var/2.0;
+				marker_var.scale.y = var/2.0;
 				marker_var.scale.z = 0;
 				marker_var.color.a = 0.5;
 				marker_var.color.r = 1.0;

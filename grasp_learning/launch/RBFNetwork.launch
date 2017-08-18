@@ -8,7 +8,7 @@
 		<!-- <param name="variance" value="0.0005"/> -->
 
 		<param name="num_policies" value="1"/>
-		<param name="num_dim" value="2"/>
+		<param name="num_dim" value="3"/>
 		<param name="use_corr_noise" type="bool" value="true"/>
 		<param name="burn_in_trials" value="1"/>
 		<param name="max_num_samples" value="2"/>
