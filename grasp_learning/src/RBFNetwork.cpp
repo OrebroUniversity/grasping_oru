@@ -108,7 +108,7 @@ namespace demo_learning {
 			Eigen::MatrixXd covar = Eigen::MatrixXd::Zero(numDim,numDim);
 			double dx = req.radius*(cos(0*column_spacing)-cos(1*column_spacing));
 			double dy = req.radius*(sin(0*column_spacing)-sin(1*column_spacing));
-			double var = calculateVariance(dx, dy);
+			double var = 2*calculateVariance(dx, dy);
 
 			// for(int i =0;i<numDim;i++){
 			// 	covar(i,i)=var;

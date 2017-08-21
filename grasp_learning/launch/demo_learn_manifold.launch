@@ -6,7 +6,7 @@
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
    
-   <param name="num_kernels" value="7"/>
+   <param name="num_kernels" value="10"/>
    <param name="num_kernel_rows" value="1"/>
 
    <!-- <param name="variance" value="0.0001"/> -->

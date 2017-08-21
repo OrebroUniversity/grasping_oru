@@ -296,11 +296,12 @@ double DemoLearnManifold::vectorLength(const std::vector<double>& vec){
 
 std::vector<double> DemoLearnManifold::normalizeVector(const std::vector<double>& v){
 
-  double norm = sumVector(v);
-
+  // double norm = sumVector(v);
+  double length = v.size();
   std::vector<double> result;
   for(int i = 0;i<v.size();i++){
-    result.push_back(v[i]/norm);
+    // result.push_back(v[i]/norm);
+    result.push_back(v[i]/length);
   }
   return result;
 }

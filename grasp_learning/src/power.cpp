@@ -195,8 +195,9 @@ double power::varianceSearch(){
 		double curr_reward=0;
 		for (int elem=0; elem<num_imp_sampler_noise;elem++){
 			curr_reward = imp_sampler[elem].first;
-			beta += curr_reward*curr_reward;
+			beta += curr_reward;
 		}
+		beta*=10;
 		if (beta<1){
 			beta=1;
 		}
