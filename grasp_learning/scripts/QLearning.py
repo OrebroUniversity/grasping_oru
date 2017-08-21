@@ -378,7 +378,7 @@ class QLearning(object):
     # This function updates the policy according to the policy gradient. 
     def policy_search(self, req):
             
-        self.plot_policy()
+        #self.plot_policy()
         if self.train==False:
             self.converged_episode()
             return PolicySearchResponse(True)
