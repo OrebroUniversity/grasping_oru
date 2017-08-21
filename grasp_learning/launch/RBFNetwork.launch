@@ -1,0 +1,17 @@
+<launch>
+
+	<node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen">
+		<param name="num_kernels" value="10"/>
+		<param name="num_kernel_rows" value="1"/>
+
+		<param name="variance" value="0.0001"/>
+		<!-- <param name="variance" value="0.0005"/> -->
+
+		<param name="num_policies" value="1"/>
+		<param name="num_dim" value="3"/>
+		<param name="use_corr_noise" type="bool" value="true"/>
+		<param name="burn_in_trials" value="1"/>
+		<param name="max_num_samples" value="2"/>
+		<param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
+	</node>
+</launch>

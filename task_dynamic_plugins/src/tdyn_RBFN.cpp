@@ -19,92 +19,144 @@
 
 #include <hiqp/utilities.h>
 
-#include <hiqp/tasks/tdyn_random.h>
+#include <hiqp/tasks/tdyn_RBFN.h>
 #include <pluginlib/class_list_macros.h>
 
 #include <ros/ros.h>
+
+#define REWARD_THRESHOLD 0.9
 
 namespace hiqp
 {
   namespace tasks
   {
 
-    TDynRandom::TDynRandom(
+    TDynRBFN::TDynRBFN(
       std::shared_ptr<GeometricPrimitiveMap> geom_prim_map,
       std::shared_ptr<Visualizer> visualizer)
-    : TaskDynamics(geom_prim_map, visualizer) {}
+    : TaskDynamics(geom_prim_map, visualizer) {
+
+    }
 
 
-    int TDynRandom::init(const std::vector<std::string>& parameters,
+    int TDynRBFN::init(const std::vector<std::string>& parameters,
      RobotStatePtr robot_state,
      const Eigen::VectorXd& e_initial,
      const Eigen::VectorXd& e_final) {
 
       int size = parameters.size();
-      if (size != 3) {
-        printHiqpWarning("TDynRandom requires 3 parameters, got " 
+      if (size != 2) {
+        printHiqpWarning("TDynRBFN requires 2 parameters, got " 
           + std::to_string(size) + "! Initialization failed!");
 
         return -1;
       }
 
-      starting_pub_ =
-      nh_.advertise<std_msgs::String>("random_dyn_start", 1);
-      msg_.data = "updating";
+      client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("RBFNetwork/network_output",true);
 
+      add_noise_clt_ = nh_.serviceClient<std_srvs::Empty>("/RBFNetwork/add_weight_noise");
 
-    // lambda_ = std::stod( parameters.at(1) );
-    // ROS_INFO("Initializing normal distrtibution with mean %lf and variance %lf",std::stod(parameters.at(1)),std::stod(parameters.at(2)));
-      std::normal_distribution<double> d2(std::stod(parameters.at(1)),std::stod(parameters.at(2)));
+      state_pub = nh_.advertise<grasp_learning::RobotState>("demo_learn_manifold/robot_state", 2000);
+
+      lambda_ = std::stod(parameters.at(1));
+
+      std::normal_distribution<double> d2(0,1);
       this->dist.param(d2.param());
       e_dot_star_.resize(e_initial.rows());
       performance_measures_.resize(e_initial.rows());
+
       fk_solver_pos_ =
       std::make_shared<KDL::TreeFkSolverPos_recursive>(robot_state->kdl_tree_);
       fk_solver_jac_ =
       std::make_shared<KDL::TreeJntToJacSolver>(robot_state->kdl_tree_);
 
+      vec.resize(3);
       return 0;
     }
 
-    int TDynRandom::update(RobotStatePtr robot_state,
+    int TDynRBFN::update(RobotStatePtr robot_state,
      const Eigen::VectorXd& e,
      const Eigen::MatrixXd& J) {
 
-      const KDL::JntArray jointpositions = robot_state->kdl_jnt_array_vel_.value();
+      e_dot_star_.resize(2);
+      // Calculating the taskspace dynamics
 
-      Eigen::VectorXd random_e_;
-      random_e_.resize(e.size());
-      double sample = 0;
-      starting_pub_.publish(msg_);
-      for(unsigned int i=0;i<random_e_.size();i++){
-        sample = this->dist(this->generator);
-        random_e_[i] = sample;
-      }
-      // e_dot_star_ = -0.1*e; 
-      e_dot_star_ = random_e_;
+      // Calculating the nullspace dynamics
+      gpm = this->getGeometricPrimitiveMap();
+      point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");
 
-      std::shared_ptr<GeometricPrimitiveMap> gpm = this->getGeometricPrimitiveMap();
-      std::shared_ptr<GeometricPoint> point = gpm->getGeometricPrimitive<GeometricPoint>("point_eef");
-
-      std::vector<KinematicQuantities> kin_q_list;
-      KinematicQuantities kin_q;
+      kin_q_list;
       kin_q.ee_J_.resize(robot_state->getNumJoints());
       kin_q.frame_id_ = point->getFrameId();
       pointForwardKinematics(kin_q_list, point, robot_state);
 
+      jointarray = robot_state->kdl_jnt_array_vel_.qdot;
+      qdot.clear();
+      for(int i=9;i<=15;i++){
+        qdot.push_back(jointarray(i));
+      }
+
+      sampling = robot_state->sampling_time_;
+      // grasp_learning::RobotState stateMsg;
+
+      // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+      for(int i =0;i<3;i++){
+        vec[i]=kin_q_list.back().ee_p_[i];
+      }
+
+      stateMsg.gripperPos = vec;
+      stateMsg.jointVel = qdot;
+      stateMsg.samplingTime = sampling;
+      state_pub.publish(stateMsg);
+
+
+      // std::vector<double> vec {kin_q_list.back().ee_p_[0],kin_q_list.back().ee_p_[1],kin_q_list.back().ee_p_[2]};
+
+
+      // if (!add_noise_clt_.call(empty_srv_)){
+      //   ROS_INFO("Failed to add noise");
+      // }
+
+      srv_.request.pos = vec;
+
+      if (client_NN_.call(srv_)){
+        RBFNOutput = srv_.response.result;
+      }
+      else{
+        // std::cout<<"Calling RBFN server failed"<<std::endl;
+      }
+
+      // std::cout<<"network output"<<RBFNOutput<<std::endl;
+
+      
+      // ROS_INFO("num iteration %lf",++iter);
+      // for(int i =0;i<RBFNOutput.size();i++){
+      //   std::cout<<i<<": "<<RBFNOutput[i];
+      // }
+      // std::cout<<std::endl;
+
+      if(RBFNOutput.size()>1){
+        e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      }
+      else{
+        e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      }
+
+      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
 
       return 0;
     }
 
-    int TDynRandom::monitor() {
+
+    int TDynRBFN::monitor() {
       return 0;
     }
 
-    int TDynRandom::pointForwardKinematics(
+    int TDynRBFN::pointForwardKinematics(
       std::vector<KinematicQuantities>& kin_q_list,
       const std::shared_ptr<geometric_primitives::GeometricPoint>& point,
       RobotStatePtr const robot_state) const {
+
       kin_q_list.clear();
 
       KDL::Vector coord = point->getPointKDL();
@@ -124,20 +176,15 @@ namespace hiqp
       kin_q.ee_J_.changeRefPoint(kin_q.ee_frame_.M * coord);
     // compute the ee position in the base frame
       kin_q.ee_p_ = kin_q.ee_frame_.p + kin_q.ee_frame_.M * coord;
-
       kin_q_list.push_back(kin_q);
-    // DEBUG =========================================
-        // std::cerr<<"Point coordinates: ["<<coord[0]<<" ,"<<coord[1]<<" ,"<<coord[2]<<"]"<<std::endl;
 
-      // std::cerr<<"frame id: "<<kin_q.frame_id_<<std::endl;
-      // std::cerr<<"After ref change - J:  "<<std::endl<<kin_q.ee_J_.data<<std::endl;
-  // std::cerr<<"After ref change - ee: "<<kin_q.ee_p_[0]<<" ,"<<kin_q.ee_p_[1]<<" ,"<<kin_q.ee_p_[2]<<"]"<<std::endl;
-    // DEBUG END =========================================
+      // std::cout<<"["<<coord[0]<<", "<<coord[1]<<", "<<coord[2]<<"]"<<std::endl;
+      // std::cout<<"["<<kin_q.ee_p_[0]<<", "<<kin_q.ee_p_[1]<<", "<<kin_q.ee_p_[2]<<"]"<<std::endl;
 
       return 0;
     }
 
-    int TDynRandom::forwardKinematics(
+    int TDynRBFN::forwardKinematics(
       KinematicQuantities& kin_q, RobotStatePtr const robot_state) const {
 
       if (fk_solver_pos_->JntToCart(robot_state->kdl_jnt_array_vel_.q,
@@ -149,7 +196,6 @@ namespace hiqp
       return -2;
     }
 
-  // std::cout<<"ee_pose: "<<std::endl<<kin_q.ee_pose_<<std::endl;
     if (fk_solver_jac_->JntToJac(robot_state->kdl_jnt_array_vel_.q, kin_q.ee_J_,
      kin_q.frame_id_) < 0) {
       printHiqpWarning(
@@ -158,8 +204,6 @@ namespace hiqp
         kin_q.frame_id_ + "' failed.");
     return -2;
   }
-
-  // std::cout<<"ee_J: "<<std::endl<<kin_q.ee_J_<<std::endl;
 
   // Not necesserily all joints between the end-effector and base are
   // controlled, therefore the columns in the jacobian corresponding to these
@@ -176,5 +220,5 @@ namespace hiqp
 
 } // namespace hiqp
 
-PLUGINLIB_EXPORT_CLASS(hiqp::tasks::TDynRandom,
+PLUGINLIB_EXPORT_CLASS(hiqp::tasks::TDynRBFN,
  hiqp::TaskDynamics)

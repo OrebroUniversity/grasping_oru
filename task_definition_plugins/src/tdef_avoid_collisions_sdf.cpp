@@ -602,11 +602,11 @@ int TDefAvoidCollisionsSDF::pointForwardKinematics(
   kin_q_list.push_back(kin_q);
 
   // DEBUG =========================================
-  // std::cerr<<"Point coordinates: "<<coord<<std::endl;
-  // std::cerr<<"frame id: "<<kin_q.frame_id_<<std::endl;
+  std::cerr<<"Point coordinates: "<<coord<<std::endl;
+  std::cerr<<"frame id: "<<kin_q.frame_id_<<std::endl;
   // std::cerr<<"After ref change - J:
   // "<<std::endl<<kin_q.ee_J_.data<<std::endl;
-  // std::cerr<<"After ref change - ee: "<<kin_q.ee_pose_.p<<std::endl;
+  std::cerr<<"After ref change - ee: "<<kin_q.ee_p_<<std::endl;
   // DEBUG END =========================================
 
   return 0;

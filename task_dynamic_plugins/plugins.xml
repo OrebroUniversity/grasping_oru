@@ -12,9 +12,22 @@
     </description>
   </class>
 
+  <class type="hiqp::tasks::TDynLinearPolicy" base_class_type="hiqp::TaskDynamics">
+    <description>
+      A plugin for task dynamics - linear policy dynamics.
+    </description>
+  </class>
+
+
   <class type="hiqp::tasks::TDynConstant" base_class_type="hiqp::TaskDynamics">
     <description>
       A plugin for task dynamics - constant dynamics.
+    </description>
+  </class>
+
+  <class type="hiqp::tasks::TDynRBFN" base_class_type="hiqp::TaskDynamics">
+    <description>
+      A plugin for task dynamics - radial basis function network dynamics for null space dunamics and linear dynamics for task space dynamics.
     </description>
   </class>
 

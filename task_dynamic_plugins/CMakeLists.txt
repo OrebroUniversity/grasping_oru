@@ -19,7 +19,6 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES hiqp_avoid_collisions_sdf
   CATKIN_DEPENDS hiqp_core pluginlib std_msgs grasp_learning
 #  DEPENDS system_lib
 )
@@ -30,10 +29,7 @@ include_directories(
 )
 
 
-# add_library(tdyn_policy src/tdyn_policy.cpp)
-# add_dependencies(tdyn_policy ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(tdyn_policy ${catkin_LIBRARIES})
 
-add_library(task_dynamic_plugins src/tdyn_random.cpp src/tdyn_policy.cpp src/tdyn_constant.cpp)
+add_library(task_dynamic_plugins src/tdyn_random.cpp src/tdyn_policy.cpp src/tdyn_linear_policy.cpp src/tdyn_constant.cpp src/tdyn_RBFN.cpp)
 add_dependencies(task_dynamic_plugins ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_dynamic_plugins ${catkin_LIBRARIES})

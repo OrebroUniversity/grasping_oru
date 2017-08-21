@@ -37,7 +37,7 @@ namespace demo_learning {
     set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
       "/gazebo/set_physics_properties");
 
-    client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
+    // client_Policy_Search_ = n_.serviceClient<grasp_learning::PolicySearch>("policy_Search");
 
     start_msg_.str = ' ';
     finish_msg_.str = ' ';
@@ -49,32 +49,32 @@ namespace demo_learning {
 
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
-      set_gazebo_physics_clt_.waitForExistence();
-      gazebo_msgs::SetPhysicsProperties properties;
-      properties.request.time_step = 0.001;
-      properties.request.max_update_rate = 1000;
-      properties.request.gravity.x = 0.0;
-      properties.request.gravity.y = 0.0;
-      properties.request.gravity.z = 0.0;
-      properties.request.ode_config.auto_disable_bodies = false;
-      properties.request.ode_config.sor_pgs_precon_iters = 0;
-      properties.request.ode_config.sor_pgs_iters = 50;
-      properties.request.ode_config.sor_pgs_w = 1.3;
-      properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
-      properties.request.ode_config.contact_surface_layer = 0.001;
-      properties.request.ode_config.contact_max_correcting_vel = 100.0;
-      properties.request.ode_config.cfm = 0.0;
-      properties.request.ode_config.erp = 0.2;
-      properties.request.ode_config.max_contacts = 20.0;
+    set_gazebo_physics_clt_.waitForExistence();
+    gazebo_msgs::SetPhysicsProperties properties;
+    properties.request.time_step = 0.001;
+    properties.request.max_update_rate = 1000;
+    properties.request.gravity.x = 0.0;
+    properties.request.gravity.y = 0.0;
+    properties.request.gravity.z = 0.0;
+    properties.request.ode_config.auto_disable_bodies = false;
+    properties.request.ode_config.sor_pgs_precon_iters = 0;
+    properties.request.ode_config.sor_pgs_iters = 50;
+    properties.request.ode_config.sor_pgs_w = 1.3;
+    properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
+    properties.request.ode_config.contact_surface_layer = 0.001;
+    properties.request.ode_config.contact_max_correcting_vel = 100.0;
+    properties.request.ode_config.cfm = 0.0;
+    properties.request.ode_config.erp = 0.2;
+    properties.request.ode_config.max_contacts = 20.0;
 
-      set_gazebo_physics_clt_.call(properties);
-      if (!properties.response.success) {
-        ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
-          properties.response.status_message.c_str());
-        ros::shutdown();
-      } else
-      ROS_INFO("Disabled gravity in Gazebo.");
-  
+    set_gazebo_physics_clt_.call(properties);
+    if (!properties.response.success) {
+      ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
+        properties.response.status_message.c_str());
+      ros::shutdown();
+    } else
+    ROS_INFO("Disabled gravity in Gazebo.");
+    
   // PRE-DEFINED JOINT CONFIGURATIONS
   // configs have to be within the safety margins of the joint limits
 
@@ -97,7 +97,7 @@ namespace demo_learning {
   std::normal_distribution<double> d2(0,0.1);
   dist.param(d2.param());
 
-      ROS_INFO("DEMO LEARNING READY.");
+  ROS_INFO("DEMO LEARNING READY.");
 
 }
 
@@ -112,19 +112,19 @@ void DemoLearning::safeReset() { hiqp_client_.resetHiQPController(); }
 
 void DemoLearning::updatePolicy(){
 
-  grasp_learning::PolicySearch srv_;
+ //  grasp_learning::PolicySearch srv_;
 
-  srv_.request.str = " ";  //yumi_joint_1_r
+ //  srv_.request.str = " ";  //yumi_joint_1_r
 
 
-  ROS_INFO("Calling update node");
-  if (client_Policy_Search_.call(srv_)){
-    ROS_INFO("Policy successfully updated");
-    converged_policy_ = srv_.response.converged;
-  }
-  else{
-   ROS_INFO("Could not update policy"); 
- }
+ //  ROS_INFO("Calling update node");
+ //  if (client_Policy_Search_.call(srv_)){
+ //    ROS_INFO("Policy successfully updated");
+ //    converged_policy_ = srv_.response.converged;
+ //  }
+ //  else{
+ //   ROS_INFO("Could not update policy"); 
+ // }
 }
 
 void DemoLearning::printVector(const std::vector<double>& vec){
