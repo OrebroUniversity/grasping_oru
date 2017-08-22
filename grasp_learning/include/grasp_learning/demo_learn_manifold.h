@@ -136,6 +136,9 @@ private:
   ros::ServiceClient vis_kernel_mean_clt_;
   ros::Subscriber gripper_pos;
 
+  ros::ServiceClient close_gripper_clt_;
+  ros::ServiceClient open_gripper_clt_;
+
   grasp_learning::SetRBFN set_RBFN_srv_;
   grasp_learning::PolicySearch policy_search_srv_;
   grasp_learning::GetNetworkWeights get_network_weights_srv_;

@@ -45,34 +45,42 @@ namespace demo_learning {
     finish_recording_ = n_.advertise<grasp_learning::FinishRecording>("/finish_recording",1);
     run_new_episode_ = n_.advertise<std_msgs::Empty>("/run_new_episode",1);
 
+    if (!with_gazebo_) {
+      close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
+      open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
 
+      close_gripper_clt_.waitForExistence();
+      open_gripper_clt_.waitForExistence();
+    }
+    else{
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
-    set_gazebo_physics_clt_.waitForExistence();
-    gazebo_msgs::SetPhysicsProperties properties;
-    properties.request.time_step = 0.001;
-    properties.request.max_update_rate = 1000;
-    properties.request.gravity.x = 0.0;
-    properties.request.gravity.y = 0.0;
-    properties.request.gravity.z = 0.0;
-    properties.request.ode_config.auto_disable_bodies = false;
-    properties.request.ode_config.sor_pgs_precon_iters = 0;
-    properties.request.ode_config.sor_pgs_iters = 50;
-    properties.request.ode_config.sor_pgs_w = 1.3;
-    properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
-    properties.request.ode_config.contact_surface_layer = 0.001;
-    properties.request.ode_config.contact_max_correcting_vel = 100.0;
-    properties.request.ode_config.cfm = 0.0;
-    properties.request.ode_config.erp = 0.2;
-    properties.request.ode_config.max_contacts = 20.0;
+      set_gazebo_physics_clt_.waitForExistence();
+      gazebo_msgs::SetPhysicsProperties properties;
+      properties.request.time_step = 0.001;
+      properties.request.max_update_rate = 1000;
+      properties.request.gravity.x = 0.0;
+      properties.request.gravity.y = 0.0;
+      properties.request.gravity.z = 0.0;
+      properties.request.ode_config.auto_disable_bodies = false;
+      properties.request.ode_config.sor_pgs_precon_iters = 0;
+      properties.request.ode_config.sor_pgs_iters = 50;
+      properties.request.ode_config.sor_pgs_w = 1.3;
+      properties.request.ode_config.sor_pgs_rms_error_tol = 0.0;
+      properties.request.ode_config.contact_surface_layer = 0.001;
+      properties.request.ode_config.contact_max_correcting_vel = 100.0;
+      properties.request.ode_config.cfm = 0.0;
+      properties.request.ode_config.erp = 0.2;
+      properties.request.ode_config.max_contacts = 20.0;
 
-    set_gazebo_physics_clt_.call(properties);
-    if (!properties.response.success) {
-      ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
-        properties.response.status_message.c_str());
-      ros::shutdown();
-    } else{
-      ROS_INFO("Disabled gravity in Gazebo.");
+      set_gazebo_physics_clt_.call(properties);
+      if (!properties.response.success) {
+        ROS_ERROR("Couldn't set Gazebo physics properties, status message: %s!",
+          properties.response.status_message.c_str());
+        ros::shutdown();
+      } else{
+        ROS_INFO("Disabled gravity in Gazebo.");
+      }
     }
   // PRE-DEFINED JOINT CONFIGURATIONS
   // configs have to be within the safety margins of the joint limits
@@ -85,7 +93,7 @@ namespace demo_learning {
   grasp_.e_frame_ = "gripper_r_base";  // sizeeffector frame
   grasp_.e_.setZero();  // sizeeffector point expressed in the sizeeffector frame
   grasp_.isSphereGrasp = false;
-  grasp_.isDefaultGrasp = true;
+  grasp_.isDefaultGrasp = false;
 
   rewardFile = relativePath + "reward/rewards.txt";
 
@@ -372,10 +380,10 @@ Eigen::Map<Eigen::VectorXd> DemoLearnManifold::convertToEigenVector(std::vector<
   template<typename T>
 Eigen::MatrixXd DemoLearnManifold::convertToEigenMatrix(std::vector<std::vector<T>> data)
 {
-    Eigen::MatrixXd eMatrix(data.size(), data[0].size());
-    for (int i = 0; i < data.size(); ++i)
-        eMatrix.row(i) = Eigen::VectorXd::Map(&data[i][0], data[0].size());
-    return eMatrix;
+  Eigen::MatrixXd eMatrix(data.size(), data[0].size());
+  for (int i = 0; i < data.size(); ++i)
+    eMatrix.row(i) = Eigen::VectorXd::Map(&data[i][0], data[0].size());
+  return eMatrix;
 }
 
 
@@ -468,6 +476,13 @@ void DemoLearnManifold::visualizeKernels(){
 
 
 bool DemoLearnManifold::doGraspAndLift() {
+
+  if (!with_gazebo_) {
+    if (grasp_.isDefaultGrasp) {
+      ROS_WARN("Grasp is default grasp!");
+      return false;
+    }
+  }
 
   addNoise();
 
@@ -599,6 +614,26 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req,
   ROS_INFO("Starting demo");
   hiqp_client_.resetHiQPController();
 
+  if (!with_gazebo_) {
+    yumi_hw::YumiGrasp gr;
+    gr.request.gripper_id = 1;
+
+    if (!open_gripper_clt_.call(gr)) {
+      ROS_ERROR("could not open gripper");
+      ROS_BREAK();
+    }
+
+    sleep(1);
+
+    gr.request.gripper_id = 2;
+    if (!open_gripper_clt_.call(gr)) {
+      ROS_ERROR("could not open gripper");
+      ROS_BREAK();
+    }
+    // some time for the sdf to build up a bit
+    sleep(2);
+  }
+
 
   // MANIPULATOR SENSING CONFIGURATION
   visualizeKernels();
@@ -615,6 +650,40 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req,
     ROS_ERROR("Could not set the grasp pose!");
     safeShutdown();
     return false;
+  }
+
+  if (!with_gazebo_) {
+    yumi_hw::YumiGrasp gr;
+    gr.request.gripper_id = (grasp_.e_frame_ == "gripper_l_base") ? 1 : 2;
+
+    if (!close_gripper_clt_.call(gr)) {
+      ROS_ERROR("could not close gripper");
+      ROS_BREAK();
+    }
+
+    sleep(1);
+
+  } else {
+    sleep(1);
+  }
+
+  if (!with_gazebo_) {
+    yumi_hw::YumiGrasp gr;
+    gr.request.gripper_id = 1;
+
+    if (!open_gripper_clt_.call(gr)) {
+      ROS_ERROR("could not open gripper");
+      ROS_BREAK();
+    }
+
+    sleep(1);
+    gr.request.gripper_id = 2;
+    if (!open_gripper_clt_.call(gr)) {
+      ROS_ERROR("could not open gripper");
+      ROS_BREAK();
+    }
+  } else {
+    sleep(1);
   }
 
 

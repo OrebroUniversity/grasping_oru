@@ -22,6 +22,7 @@
 #define PI 3.14159265358979323846
 #define ACTIVATION_THRESHOLD 0.2
 #define COVERGANCE_THRESHOLD 0.18
+
 namespace demo_learning {
 	namespace RBFNetwork {
 
