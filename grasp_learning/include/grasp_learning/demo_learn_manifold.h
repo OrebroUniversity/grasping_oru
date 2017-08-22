@@ -119,6 +119,7 @@ private:
   double exec_time_;
   double manifold_height_;
   double manifold_radius_;
+  double object_radius_;
   std::vector<double> manifoldPos;
 
   bool init=true;

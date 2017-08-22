@@ -106,8 +106,9 @@ namespace demo_learning {
 			double row_spacing = req.height/(numRows+1.0);
 			Eigen::VectorXd mean(numDim);
 			Eigen::MatrixXd covar = Eigen::MatrixXd::Zero(numDim,numDim);
-			double dx = req.radius*(cos(0*column_spacing)-cos(1*column_spacing));
-			double dy = req.radius*(sin(0*column_spacing)-sin(1*column_spacing));
+			double r = req.radius;
+			double dx = r*(cos(0*column_spacing)-cos(1*column_spacing));
+			double dy = r*(sin(0*column_spacing)-sin(1*column_spacing));
 			double var = 2*calculateVariance(dx, dy);
 
 			// for(int i =0;i<numDim;i++){
@@ -116,8 +117,8 @@ namespace demo_learning {
 
 			if (numDim<3){
 				for (int column=0;column<numKernels;column++){
-					mean(0)= req.globalPos[0]+req.radius*cos(column*column_spacing);
-					mean(1)= req.globalPos[1]+req.radius*sin(column*column_spacing);
+					mean(0)= req.globalPos[0]+r*cos(column*column_spacing);
+					mean(1)= req.globalPos[1]+r*sin(column*column_spacing);
 					// GaussianKernel kernel(mean, covar);
 					GaussianKernel kernel(mean, var);
 					Network.push_back(kernel);
@@ -128,8 +129,8 @@ namespace demo_learning {
 				for (int row = 1;row<=numRows;row++){
 					mean(2) = req.globalPos[2]+req.height/2;
 					for (int column=0;column<numKernels;column++){
-						mean(0)= req.globalPos[0]+req.radius*cos(column*column_spacing);
-						mean(1)= req.globalPos[1]+req.radius*sin(column*column_spacing);
+						mean(0)= req.globalPos[0]+r*cos(column*column_spacing);
+						mean(1)= req.globalPos[1]+r*sin(column*column_spacing);
 						// GaussianKernel kernel(mean, covar);
 						GaussianKernel kernel(mean, var);
 						Network.push_back(kernel);
@@ -140,7 +141,7 @@ namespace demo_learning {
 			weights = Eigen::MatrixXd::Zero(numKernels, numPolicies);
 			runningWeights = weights;
 			ROS_INFO("%d kernels were created", numKernels);
-			rollout_noise = Eigen::MatrixXd::Zero(numKernels,0);
+			rollout_noise = Eigen::MatrixXd::Zero(numKernels,numPolicies);
 			saveKernelsToFile();
 			return true;
 		}
@@ -218,12 +219,14 @@ namespace demo_learning {
 
 		bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
 			resetRollout();
-			int num_cols = rollout_noise.cols();
-			rollout_noise.conservativeResize(numKernels, num_cols+1);
+			// int num_cols = rollout_noise.cols();
+			// rollout_noise.conservativeResize(numKernels, num_cols+1);
 
 			if (!coverged){
-				rollout_noise.col(num_cols) = sampleNoise();
-				runningWeights += rollout_noise.col(num_cols);
+				for (int i = 0;i<numPolicies;i++){
+					rollout_noise.col(i) = sampleNoise();
+					runningWeights.col(i) += rollout_noise.col(i);
+				}
 			}
 			else{
 				ROS_INFO("Policy has converged after %d rollouts", (int)PoWER.getNumRollouts());
@@ -283,7 +286,7 @@ namespace demo_learning {
 			coverged = (policyConverged() ? true:false);
 			kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
 			// rollout_noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
-			rollout_noise = Eigen::MatrixXd::Zero(numKernels, 0);
+			rollout_noise.setZero();// = Eigen::MatrixXd::Zero(numKernels, 0);
 			networkOutput_.clear();
 		}
 

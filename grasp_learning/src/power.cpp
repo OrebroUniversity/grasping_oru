@@ -71,7 +71,7 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 
 	Eigen::MatrixXd num = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 	Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
-	Eigen::MatrixXd B = Eigen::MatrixXd::Zero(num_of_kernels, 1);
+	Eigen::MatrixXd B = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 
 	// Eigen::MatrixXd W = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 
@@ -86,7 +86,9 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 		}
 		C = (C.array() < 1e-5).select(0, C);
 		A += C;
-		B += C*noises[0].col(idx);
+		for(int i =0;i<num_policies;i++){
+			B.col(i) += C*noises[i].col(idx);
+		}
 	}
 
 	Eigen::MatrixXd min_matrix = Eigen::MatrixXd::Identity(num_of_kernels, num_of_kernels);
@@ -121,7 +123,9 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 	// std::cout<<(A+min*min_matrix).inverse()<<std::endl;
 	// std::cout<<std::endl<<std::endl;
 
-	new_weights = (A+min*min_matrix).inverse()*B;
+	for(int i =0;i<num_policies;i++){
+		new_weights.col(i) = (A+min*min_matrix).inverse()*B.col(i);
+	}
 
 	return new_weights;
 }

@@ -6,7 +6,7 @@
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
    
-   <param name="num_kernels" value="10"/>
+   <param name="num_kernels" value="15"/>
    <param name="num_kernel_rows" value="1"/>
 
    <!-- <param name="variance" value="0.0001"/> -->
@@ -32,7 +32,7 @@
    <param name="manifold_height" value="0.1"/>
    <param name="manifold_radius" value="0.06"/>
    <rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam>
-   
+   <param name="object_radius" value="0.03"/>
    <!-- <rosparam param="final_pos"> [0.29, 0, 0.2]</rosparam> --> <!-- Upper  -->
    <!-- <rosparam param="final_pos"> [0.41, 0, 0.2]</rosparam> --> <!-- Bottom -->  
    <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> <!-- Upper left corner -->
