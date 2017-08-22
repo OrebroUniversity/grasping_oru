@@ -9,6 +9,7 @@ grasp_learning/stored_data/tested_data/data/*.m
 grasp_learning/stored_data/tested_data/models/checkpoint*
 grasp_learning/stored_data/tested_data/vgraphs/*
 grasp_learning/stored_data/tested_data/graphs/*
+grasp_learning/stored_data/tested_data/test_data/*
 grasp_learning/stored_data/data/*
 grasp_learning/bin/*
 obstacle_avoidance_gazebo/bags
