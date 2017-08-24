@@ -15,14 +15,14 @@
    <param name="num_kernel_rows" value="1"/>
 
    <!-- <param name="variance" value="0.0001"/> -->
-   <param name="variance" value="10"/>
+   <param name="variance" value="5"/>
    <!-- <param name="variance" value="0.01"/> -->
 
    <param name="num_policies" value="3"/>
    <param name="num_dim" value="3"/>
    <param name="use_corr_noise" type="bool" value="false"/>
-   <param name="burn_in_trials" value="8"/>
-   <param name="max_num_samples" value="5"/>
+   <param name="burn_in_trials" value="15"/>
+   <param name="max_num_samples" value="10"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
    <!-- <param name="spacing_policy" type="str" value="manifold"/> -->

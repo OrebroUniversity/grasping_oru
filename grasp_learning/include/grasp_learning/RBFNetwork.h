@@ -70,7 +70,7 @@ namespace demo_learning {
 			void resetRollout();
 
 			bool createFiles(std::string relPath);
-			
+
 			template<typename T>
 			void saveDataToFile(std::string filename, T, bool);
 			
@@ -154,7 +154,7 @@ namespace demo_learning {
 			std::string noiseFile;
 			std::string krenelMeanFile;
 			std::string krenelCovarFile;	
-
+			std::string numKernelFile;
 			std::string spacingPolicy_;
 
 			bool coverged = false;

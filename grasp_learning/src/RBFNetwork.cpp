@@ -104,6 +104,7 @@ namespace demo_learning {
 			noiseFile = RBFN_folder + "noise.txt";
 			krenelMeanFile = RBFN_folder + "kernel_mean.txt";
 			krenelCovarFile = RBFN_folder + "kernel_covar.txt";
+			numKernelFile = RBFN_folder + "number_of_kernels.txt";
 
 			fileHandler_.createFile(kernelTotalActivationPerTimeFile);
 			fileHandler_.createFile(kernelWiseTotalActivationFile);
@@ -114,6 +115,7 @@ namespace demo_learning {
 			fileHandler_.createFile(noiseFile);
 			fileHandler_.createFile(krenelMeanFile);
 			fileHandler_.createFile(krenelCovarFile);
+			fileHandler_.createFile(numKernelFile);			
 		}
 
 
@@ -204,6 +206,8 @@ namespace demo_learning {
 				saveDataToFile(krenelMeanFile, Network[i].getMean().transpose(), true);
 				saveDataToFile(krenelCovarFile, Network[i].getVar(), true);
 			}
+			saveDataToFile(numKernelFile, numKernels, false);
+
 		}
 
 		void RBFNetwork::setNoiseVariance(const double variance){
@@ -360,7 +364,6 @@ namespace demo_learning {
 			double* ptr2 = &networkOutput_[0];
 			Eigen::Map<Eigen::VectorXd> outputs(ptr2, networkOutput_.size());
 
-			saveDataToFile(rewardsOutputFile, rewards.transpose(), true);
 			saveDataToFile(networkOutputFile, outputs.transpose(), true);
 			saveDataToFile(networkWeightsFile, weights.transpose(), true);
 			saveDataToFile(runningWeightsFile, runningWeights.transpose(), true);

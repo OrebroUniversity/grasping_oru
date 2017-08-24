@@ -867,7 +867,7 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req, std_srvs::Empty
   if (!init){
     if(!collision_){
       ROS_INFO("Updating policy");
-      // updatePolicy();
+      updatePolicy();
       numRollouts_++;
     }
   }
