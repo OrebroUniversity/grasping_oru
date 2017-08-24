@@ -45,8 +45,8 @@ namespace hiqp
      const Eigen::VectorXd& e_final) {
 
       int size = parameters.size();
-      if (size != 2) {
-        printHiqpWarning("TDynRBFN requires 2 parameters, got " 
+      if (size != 3) {
+        printHiqpWarning("TDynRBFN requires 3 parameters, got " 
           + std::to_string(size) + "! Initialization failed!");
 
         return -1;
@@ -60,8 +60,8 @@ namespace hiqp
 
       lambda_ = std::stod(parameters.at(1));
 
-      std::normal_distribution<double> d2(0,1);
-      this->dist.param(d2.param());
+      frame_tasks_ = std::stod(parameters.at(2));
+
       e_dot_star_.resize(e_initial.rows());
       performance_measures_.resize(e_initial.rows());
 
@@ -78,7 +78,6 @@ namespace hiqp
      const Eigen::VectorXd& e,
      const Eigen::MatrixXd& J) {
 
-      e_dot_star_.resize(2);
       // Calculating the taskspace dynamics
 
       // Calculating the nullspace dynamics
@@ -135,15 +134,47 @@ namespace hiqp
       // }
       // std::cout<<std::endl;
 
-      if(RBFNOutput.size()>1){
-        e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      if(frame_tasks_){
+
+
+        e_dot_star_.resize(1);
+        frame_ = gpm->getGeometricPrimitive<GeometricFrame>("point_frame");
+        frame_pos_(0) = vec[0]+sampling*RBFNOutput[0];
+        frame_pos_(1) = vec[1]+sampling*RBFNOutput[1];
+        frame_pos_(2) = vec[2]+sampling*RBFNOutput[2];
+        // std::cout<<sampling<<" "<<RBFNOutput[0]<<" "<<RBFNOutput[1]<<" "<<RBFNOutput[2]<<std::endl;
+        frame_->setCenterOffsetKDL(frame_pos_);
+
+        // angle1 = sampling*RBFNOutput[3];
+        // angle2 = sampling*RBFNOutput[4];
+        // angle3 = sampling*RBFNOutput[5];
+
+        // Eigen::Vector3d euler = frame_->getQuaternionEigen().toRotationMatrix().eulerAngles(0, 1, 2);
+
+        // m = Eigen::AngleAxisd(angle1+euler(0), Eigen::Vector3d::UnitX()) *
+        // Eigen::AngleAxisd(angle2+euler(1), Eigen::Vector3d::UnitY()) *
+        // Eigen::AngleAxisd(angle3+euler(2), Eigen::Vector3d::UnitZ());
+        // std::cout<<m<<std::endl;
+        // q_ = Eigen::Quaternion<double>(m);
+        // frame_->addAngleOffsetQuaternionEigen(q_);
+
+        e_dot_star_(0) = -lambda_ * e(0);
+        // e_dot_star_(1) = -lambda_ * e(1);
+        // e_dot_star_(2) = -lambda_ * e(2);
       }
+
       else{
-        e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+        e_dot_star_.resize(2);
+
+        if(RBFNOutput.size()>1){
+          e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+        }
+        else{
+          e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+        }
+
+        e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
       }
-
-      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
-
       return 0;
     }
 

@@ -6,7 +6,8 @@
 #include <algorithm>    // std::copy
 #include <fstream>
 #include <Eigen/Dense>
-
+#include <boost/filesystem.hpp>
+#include <iostream>
 class fileHandler
 {
 public:
@@ -37,6 +38,30 @@ public:
 			return false;
 		}
 
+	}
+
+	bool createFolder(std::string dir_path){
+		boost::filesystem::path dir(dir_path);
+		if(!boost::filesystem::exists(dir_path)){
+			if(!boost::filesystem::create_directory(dir)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	bool createFolders(std::vector<std::string> dir_paths){
+
+		for(auto& dir_path:dir_paths){
+			if(!boost::filesystem::exists(dir_path)){
+				boost::filesystem::path dir(dir_path);
+				if(!boost::filesystem::create_directory(dir)) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	bool createFile(std::string);

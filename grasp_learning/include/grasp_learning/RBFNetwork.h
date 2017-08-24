@@ -31,26 +31,19 @@ namespace demo_learning {
 		{
 		public:
 			GaussianKernel();
-			// GaussianKernel(Eigen::VectorXd, Eigen::MatrixXd);
 			GaussianKernel(Eigen::VectorXd, double);
 			~GaussianKernel(){};
-			// Eigen::VectorXd residual(Eigen::VectorXd);
 			double residual(Eigen::VectorXd);
 			double kernelActivation(Eigen::VectorXd);
 			Eigen::VectorXd getMean();
 			Eigen::MatrixXd getCovar();
 			double getVar();
 		private:
-	// Eigen::Vector3d mean;
-	// Eigen::Matrix3d covar;
 			Eigen::VectorXd mean;
 			Eigen::MatrixXd covar;
 			double var;
 
 		};
-// }
-
-// namespace RBFNetwork{
 
 		class RBFNetwork
 		{
@@ -66,7 +59,7 @@ namespace demo_learning {
 			void printAllKernelMean();
 			void printKernelMean(int kernel);
 			Eigen::MatrixXd sampleNoise();
-			double calculateVariance(double dx, double dy);
+			double calculateVariance(double dx, double dy, double dz = 0);
 			void updateNoiseVariance();
 
 			bool policyConverged();
@@ -76,10 +69,16 @@ namespace demo_learning {
 
 			void resetRollout();
 
+			bool createFiles(std::string relPath);
+			
 			template<typename T>
 			void saveDataToFile(std::string filename, T, bool);
 			
 			void saveKernelsToFile();
+
+			void spaceKernelsOnGrid();
+
+			void spaceKernelsOnManifold(double height, double radius);
 
 			void printVector(std::vector<double> vec);
 			bool printAllKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
@@ -91,6 +90,7 @@ namespace demo_learning {
 			bool getNetworkWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res);
 			bool getRunningWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res);
 			bool visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+			bool resetRBFNetwork(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 
 		private:
 			
@@ -106,6 +106,7 @@ namespace demo_learning {
 			ros::ServiceServer get_network_weights_srv_;
 			ros::ServiceServer get_running_weights_srv_;
 			ros::ServiceServer vis_kernel_mean_srv_;
+			ros::ServiceServer reset_RBFN_srv_;
 
 			ros::Publisher marker_pub;
 
@@ -130,12 +131,17 @@ namespace demo_learning {
 
 			int numPolicies = 0;
 			double intialNoiceVar = 0;
+			int numTrial_ = 1;
 			bool useCorrNoise;
 			int numRows;
 			int numDim;
 
 			int burnInTrials;
 			int maxNumSamples;
+
+			double grid_x_;
+			double grid_y_;
+			double grid_z_;
 
 			std::string relativePath;
 			std::string kernelTotalActivationPerTimeFile;
@@ -148,6 +154,8 @@ namespace demo_learning {
 			std::string noiseFile;
 			std::string krenelMeanFile;
 			std::string krenelCovarFile;	
+
+			std::string spacingPolicy_;
 
 			bool coverged = false;
 		};

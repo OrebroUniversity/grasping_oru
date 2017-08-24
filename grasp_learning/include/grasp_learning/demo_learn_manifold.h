@@ -78,111 +78,33 @@ public:
   template <typename ROSMessageType>
   void topicCallback(const ROSMessageType& msg);
 
-
-private:
-
-  fileHandler fileHandler_;
-  
-  std::string relativePath;
-  
-  std::string rewardFile;
-  std::string finalRewardFile;
-  
-  std::string pointToLineDistFile;
-  
-  std::string jointVelFile;
-  std::string jointVelMessageFile;
-  std::string jointVelAccFile;
-
-  std::string jointTrajLengthFile;
-  std::string jointTrajAccFile;
-
-  std::string gripperPosFile;
-  
-  std::string samplingTimeFile;
-
-  std::default_random_engine generator;
-  std::normal_distribution<double> dist;
-
-
-  std::vector<ros::Subscriber> subs_;
-
-  unsigned int n_jnts;
-  std::vector<double> PCofObject;
-  ros::NodeHandle nh_;
-  ros::NodeHandle n_;
-
-  hiqp_ros::HiQPClient hiqp_client_;
-
-  bool with_gazebo_;  ///<indicate whether the node is run in simulation
-  double decay_rate_;
-  double exec_time_;
-  double manifold_height_;
-  double manifold_radius_;
-  double object_radius_;
-  std::vector<double> manifoldPos;
-
-  bool init=true;
-  // object
-
-  GraspInterval grasp_;
-
-  /// Clients to other nodes
-  ros::ServiceClient set_gazebo_physics_clt_;
-  ros::ServiceClient policy_search_clt_;
-  ros::ServiceClient add_noise_clt_;
-  ros::ServiceClient set_RBFN_clt_;
-  ros::ServiceClient get_network_weights_clt_;
-  ros::ServiceClient vis_kernel_mean_clt_;
-  ros::Subscriber gripper_pos;
-
-  ros::ServiceClient close_gripper_clt_;
-  ros::ServiceClient open_gripper_clt_;
-
-  grasp_learning::SetRBFN set_RBFN_srv_;
-  grasp_learning::PolicySearch policy_search_srv_;
-  grasp_learning::GetNetworkWeights get_network_weights_srv_;
-
-  std_srvs::Empty empty_srv_;
-
-  /// Servers
-  ros::ServiceServer start_demo_srv_;
-  //Publisher oublishing an empty message when the demo grasp is over
-  ros::Publisher start_recording_;
-  ros::Publisher finish_recording_;
-  ros::Publisher run_new_episode_;
-
-
-  grasp_learning::StartRecording start_msg_;
-  grasp_learning::FinishRecording finish_msg_;
-  //Empty message published by finished_grasping_
-  std_msgs::Empty empty_msg_;
-  //** Manipulator joint configuration prior to reach-to-grasp */
-  std::vector<double> sensing_config_;
-
-  std::vector<std::vector<double>> gripperPos;
-  std::vector<std::vector<double>> jointVel;
-  std::vector<double> samplingTime;
-
-  std::vector<double> finalPos;
-
-
   void robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg);
+
+  void robotCollisionCallback(const std_msgs::Empty::ConstPtr& msg);
+
+
   //**First deactivates the HQP control scheme (the controller will output zero
   // velocity commands afterwards) and then calls a ros::shutdown */
   void safeShutdown();
   //**like shutdown but we can run again */
   void safeReset();
 
-  bool doGraspAndLift();
+
+  bool doGraspAndLiftNullspace();
+
+  bool doGraspAndLiftTaskspace();
+
+  void resetTrial();
 
   bool startDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+
+  bool runDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+
+  bool pauseDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
   void updatePolicy();
 
   std::vector<double> generateStartPosition(std::vector<double> vec);
-
-  std::vector<double> getActions();
 
   void printVector(const std::vector<double>& vec);
 
@@ -194,6 +116,8 @@ private:
 
   void calculateReward();
 
+  void calculateReachingReward();
+  
   bool successfulGrasp();
 
   bool isCollision();
@@ -224,11 +148,133 @@ private:
 
   void visualizeKernels();
 
+  bool createFiles(std::string);
+
+  void saveTrialDataToFile();
+
   template<typename T>
   void saveDataToFile(std::string filename, T, bool);
 
   template<typename T>
   std::vector<T> accumulateVector(std::vector<T> vec);
+
+private:
+
+  fileHandler fileHandler_;
+  
+  std::string relativePath;
+  
+  std::string rewardFile;
+  std::string finalRewardFile;
+  std::string normalizedRewardFile;
+
+  std::string pointToLineDistFile;
+  std::string pointToPointDistFile;
+
+  std::string jointVelFile;
+  std::string jointVelMessageFile;
+  std::string jointVelAccFile;
+
+  std::string jointTrajLengthFile;
+  std::string jointTrajAccFile;
+
+  std::string gripperPosFile;
+  
+  std::string samplingTimeFile;
+
+  std::string trialDataFile;
+
+  std::default_random_engine generator;
+  std::normal_distribution<double> dist;
+
+
+  std::vector<ros::Subscriber> subs_;
+
+  unsigned int n_jnts;
+
+
+  std::vector<double> PCofObject;
+  ros::NodeHandle nh_;
+  ros::NodeHandle n_;
+
+  hiqp_ros::HiQPClient hiqp_client_;
+
+  bool with_gazebo_;  ///<indicate whether the node is run in simulation
+  double decay_rate_;
+  double exec_time_;
+  double manifold_height_;
+  double manifold_radius_;
+  double object_radius_;
+  std::vector<double> manifoldPos;
+
+  int numTrial_ = 1;
+  int maxNumTrials_ = 0;
+
+  int numRollouts_ = 1;
+  int maxRolloutsPerTrial_ = 0;
+  
+  bool policyConverged_ = false;
+
+  bool collision_ = false;
+
+  bool nullspace_=true;
+
+  bool init=true;
+
+  bool run_demo_ = true;
+  // object
+
+  GraspInterval grasp_;
+
+  /// Clients to other nodes
+  ros::ServiceClient set_gazebo_physics_clt_;
+  ros::ServiceClient policy_search_clt_;
+  ros::ServiceClient add_noise_clt_;
+  ros::ServiceClient set_RBFN_clt_;
+  ros::ServiceClient get_network_weights_clt_;
+  ros::ServiceClient vis_kernel_mean_clt_;
+  ros::ServiceClient reset_RBFN_clt_;
+  ros::ServiceClient start_demo_clt_;
+
+
+  ros::Subscriber gripper_pos;
+  ros::Subscriber robot_collision;
+
+
+  ros::ServiceClient close_gripper_clt_;
+  ros::ServiceClient open_gripper_clt_;
+
+  grasp_learning::SetRBFN set_RBFN_srv_;
+  grasp_learning::PolicySearch policy_search_srv_;
+  grasp_learning::GetNetworkWeights get_network_weights_srv_;
+
+  std_srvs::Empty empty_srv_;
+
+  /// Servers
+  ros::ServiceServer start_demo_srv_;
+  ros::ServiceServer run_demo_srv_;
+  ros::ServiceServer pause_demo_srv_;
+
+  //Publisher oublishing an empty message when the demo grasp is over
+  ros::Publisher start_recording_;
+  ros::Publisher finish_recording_;
+  ros::Publisher run_new_episode_;
+
+
+  grasp_learning::StartRecording start_msg_;
+  grasp_learning::FinishRecording finish_msg_;
+  //Empty message published by finished_grasping_
+  std_msgs::Empty empty_msg_;
+  //** Manipulator joint configuration prior to reach-to-grasp */
+  std::vector<double> sensing_config_;
+
+  std::vector<std::vector<double>> gripperPos;
+  std::vector<std::vector<double>> jointVel;
+  std::vector<double> samplingTime;
+
+  std::vector<double> finalPos;
+
+
 };
 
 }  // end namespace hqp controllers

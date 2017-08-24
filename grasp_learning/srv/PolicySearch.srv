@@ -1,2 +1,4 @@
 float64 reward
 float64[] rewards
+---
+bool converged

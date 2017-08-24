@@ -234,7 +234,7 @@ Visualization Manager:
       Marker Topic: /RBFNetwork/kernel_markers
       Name: MarkerArray
       Namespaces:
-        {}
+        gaussian_kernels: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -275,10 +275,10 @@ Visualization Manager:
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.469798177
+      Pitch: 0.209798172
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.0122225378
+      Yaw: 0.0122226579
     Saved: ~
 Window Geometry:
   Displays:

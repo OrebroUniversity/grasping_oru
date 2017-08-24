@@ -4,28 +4,40 @@
   <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
 
+  <node name="yumi_collision" pkg="yumi_collision" type="yumi_collision_node"/>
+
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
-   
-   <param name="num_kernels" value="15"/>
+
+    <param name="num_kernels" value="200"/>
+
+   <!-- <param name="num_kernels" value="15"/> --> <!-- Works well for spacing around the manifold  -->
+
    <param name="num_kernel_rows" value="1"/>
 
    <!-- <param name="variance" value="0.0001"/> -->
-   <param name="variance" value="0.001"/>
+   <param name="variance" value="10"/>
    <!-- <param name="variance" value="0.01"/> -->
 
-   <param name="num_policies" value="1"/>
-   <param name="num_dim" value="2"/>
+   <param name="num_policies" value="3"/>
+   <param name="num_dim" value="3"/>
    <param name="use_corr_noise" type="bool" value="false"/>
    <param name="burn_in_trials" value="8"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
-  </node>
+   <!-- <param name="spacing_policy" type="str" value="manifold"/> -->
+
+   <param name="spacing_policy" type="str" value="grid"/>
+
+   <param name="grid_x" value="0.7"/>
+   <param name="grid_y" value="0.7"/>
+   <param name="grid_z" value="0.7"/>
+
+ </node>
 
  <!-- launch the grasp_learning node -->
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
-   <param name="with_gazebo" type="bool" value="false"/>
-   <param name="generalize_policy" type="bool" value="false"/>
+   <param name="with_gazebo" type="bool" value="true"/>
    <param name="decay_rate" type="double" value="4"/>
    <param name="exec_time" type="double" value="2"/>
 
@@ -39,8 +51,15 @@
    <!-- <rosparam param="final_pos"> [0.394, -0.0598, 0.2]</rosparam> --> <!-- Bottom left corner -->
 
    <rosparam param="PC_of_object"> [1, 0, 0, 0, 0, 0.2]</rosparam> 
+
+   <param name="nullspace" type="bool" value="false "/>
+
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
+   <param name="max_num_trials" type="int" value="10"/>
+
+   <param name="max_rollouts_per_trial" type="int" value="300"/>
 
  </node>
+
 </launch>

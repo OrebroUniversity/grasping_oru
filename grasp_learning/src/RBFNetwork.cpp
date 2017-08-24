@@ -45,6 +45,7 @@ namespace demo_learning {
 			get_network_weights_srv_ = nh.advertiseService("RBFNetwork/get_network_weights", &RBFNetwork::getNetworkWeights, this);
 			get_running_weights_srv_ = nh.advertiseService("RBFNetwork/get_running_weights", &RBFNetwork::getRunningWeights, this);
 			vis_kernel_mean_srv_ = nh.advertiseService("RBFNetwork/visualize_kernel_means", &RBFNetwork::visualizeKernelMeans, this);
+			reset_RBFN_srv_ = nh.advertiseService("RBFNetwork/reset_RBFN", &RBFNetwork::resetRBFNetwork, this);
 
 			marker_pub = nh.advertise<visualization_msgs::MarkerArray>("RBFNetwork/kernel_markers", 1);
 
@@ -61,38 +62,58 @@ namespace demo_learning {
 
 			nh_.param<int>("burn_in_trials",  burnInTrials, 8);
 			nh_.param<int>("max_num_samples", maxNumSamples, 5);
-			nh_.param<std::string>("relative_path", relativePath, "asd");
 
-			kernelTotalActivationPerTimeFile = relativePath + "RBFN/kernel_total_activation_per_timestep.txt";
-			kernelWiseTotalActivationFile = relativePath + "RBFN/kernel_wise_total_activation.txt";
-			kernelOutputFile = relativePath + "RBFN/kernel_activation.txt";
-			rewardsOutputFile = relativePath + "reward/normalized_rewards.txt";
-			networkOutputFile = relativePath + "RBFN/output.txt";
-			runningWeightsFile = relativePath + "RBFN/running_weights.txt";
-			networkWeightsFile = relativePath + "RBFN/network_weights.txt";
-			noiseFile = relativePath + "RBFN/noise.txt";
-			krenelMeanFile = relativePath + "RBFN/kernel_mean.txt";
-			krenelCovarFile = relativePath + "RBFN/kernel_covar.txt";
+			nh_.param<double>("grid_x", grid_x_, 1.0);
+			nh_.param<double>("grid_y", grid_y_, 1.0);
+			nh_.param<double>("grid_z", grid_z_, 1.0);
+
+			nh_.param<std::string>("spacing_policy", spacingPolicy_, "grid");
+
+			nh_.param<std::string>("relative_path", relativePath, " ");
 
 
+			createFiles(relativePath);
+
+			PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies);
+			setNoiseVariance(intialNoiceVar);
+
+			ROS_INFO("Set up all services");
+		}
+
+		bool RBFNetwork::createFiles(std::string relPath){
+
+
+			std::string trial_folder = relPath + "trial_" + std::to_string(numTrial_)+ "/";
+
+			std::string RBFN_folder = relPath + "trial_" + std::to_string(numTrial_)+ "/RBFN/";
+
+			std::vector<std::string> folders {trial_folder, RBFN_folder};
+
+			if(!fileHandler_.createFolders(folders)){
+				ROS_INFO("Foalder not created");
+				return false;
+			}
+
+			kernelTotalActivationPerTimeFile = RBFN_folder + "kernel_total_activation_per_timestep.txt";
+			kernelWiseTotalActivationFile = RBFN_folder + "kernel_wise_total_activation.txt";
+			kernelOutputFile = RBFN_folder + "kernel_activation.txt";
+
+			networkOutputFile = RBFN_folder + "output.txt";
+			runningWeightsFile = RBFN_folder + "running_weights.txt";
+			networkWeightsFile = RBFN_folder + "network_weights.txt";
+			noiseFile = RBFN_folder + "noise.txt";
+			krenelMeanFile = RBFN_folder + "kernel_mean.txt";
+			krenelCovarFile = RBFN_folder + "kernel_covar.txt";
 
 			fileHandler_.createFile(kernelTotalActivationPerTimeFile);
 			fileHandler_.createFile(kernelWiseTotalActivationFile);
 			fileHandler_.createFile(kernelOutputFile);
-			fileHandler_.createFile(rewardsOutputFile);
 			fileHandler_.createFile(networkOutputFile);
 			fileHandler_.createFile(runningWeightsFile);
 			fileHandler_.createFile(networkWeightsFile);
 			fileHandler_.createFile(noiseFile);
 			fileHandler_.createFile(krenelMeanFile);
 			fileHandler_.createFile(krenelCovarFile);
-
-
-
-			PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies, relativePath);
-			setNoiseVariance(intialNoiceVar);
-
-			ROS_INFO("Set up all services");
 		}
 
 
@@ -100,42 +121,12 @@ namespace demo_learning {
 			ROS_INFO("Building the RBF Network");
 
 			global_pos = req.globalPos;
-			manifold_height = req.height;
 
-			double column_spacing = (2*PI)/numKernels;
-			double row_spacing = req.height/(numRows+1.0);
-			Eigen::VectorXd mean(numDim);
-			Eigen::MatrixXd covar = Eigen::MatrixXd::Zero(numDim,numDim);
-			double r = req.radius;
-			double dx = r*(cos(0*column_spacing)-cos(1*column_spacing));
-			double dy = r*(sin(0*column_spacing)-sin(1*column_spacing));
-			double var = 2*calculateVariance(dx, dy);
-
-			// for(int i =0;i<numDim;i++){
-			// 	covar(i,i)=var;
-			// }
-
-			if (numDim<3){
-				for (int column=0;column<numKernels;column++){
-					mean(0)= req.globalPos[0]+r*cos(column*column_spacing);
-					mean(1)= req.globalPos[1]+r*sin(column*column_spacing);
-					// GaussianKernel kernel(mean, covar);
-					GaussianKernel kernel(mean, var);
-					Network.push_back(kernel);
-				}
-
+			if (spacingPolicy_.compare("grid")==0){
+				spaceKernelsOnGrid();
 			}
-			else{
-				for (int row = 1;row<=numRows;row++){
-					mean(2) = req.globalPos[2]+req.height/2;
-					for (int column=0;column<numKernels;column++){
-						mean(0)= req.globalPos[0]+r*cos(column*column_spacing);
-						mean(1)= req.globalPos[1]+r*sin(column*column_spacing);
-						// GaussianKernel kernel(mean, covar);
-						GaussianKernel kernel(mean, var);
-						Network.push_back(kernel);
-					}
-				}
+			else if (spacingPolicy_.compare("manifold") == 0){
+				spaceKernelsOnManifold(req.height, req.radius);
 			}
 
 			weights = Eigen::MatrixXd::Zero(numKernels, numPolicies);
@@ -144,6 +135,68 @@ namespace demo_learning {
 			rollout_noise = Eigen::MatrixXd::Zero(numKernels,numPolicies);
 			saveKernelsToFile();
 			return true;
+		}
+
+
+		void RBFNetwork::spaceKernelsOnGrid(){
+
+			Eigen::VectorXd mean(numDim);
+
+			double numKernPerDim = cbrt(numKernels);
+
+
+			double dx = grid_x_/numKernPerDim;
+			double dy = grid_y_/numKernPerDim;
+			double dz = grid_z_/numKernPerDim;
+			double var = calculateVariance(dx, dy, dz)/4.0;
+			std::cout<<var<<std::endl;
+
+			for (double x=0;x<dx*numKernPerDim; x+=dx){
+				for(double y=0;y<dy*numKernPerDim; y+=dy){
+					for(double z=0;z<dz*numKernPerDim; z+=dz){
+						mean(0) = x+global_pos[0]/2.0-grid_x_/2.0+0.4;
+						mean(1) = y+global_pos[1]/2.0-grid_y_/2.0;
+						mean(2) = z+global_pos[2]/2.0-grid_z_/2.0+0.3;
+						GaussianKernel kernel(mean, var);
+						Network.push_back(kernel);
+					}
+				}
+			}
+
+		}
+
+		void RBFNetwork::spaceKernelsOnManifold(double height, double radius){
+
+			manifold_height = height;
+			double column_spacing = (2*PI)/numKernels;
+			double row_spacing = height/(numRows+1.0);
+			Eigen::VectorXd mean(numDim);
+			double r = radius;
+			double dx = r*(cos(0*column_spacing)-cos(1*column_spacing));
+			double dy = r*(sin(0*column_spacing)-sin(1*column_spacing));
+			double var = 2*calculateVariance(dx, dy);
+			std::cout<<var<<std::endl;
+
+			if (numDim<3){
+				for (int column=0;column<numKernels;column++){
+					mean(0)= global_pos[0]+r*cos(column*column_spacing);
+					mean(1)= global_pos[1]+r*sin(column*column_spacing);
+					GaussianKernel kernel(mean, var);
+					Network.push_back(kernel);
+				}
+
+			}
+			else{
+				for (int row = 1;row<=numRows;row++){
+					mean(2) = global_pos[2]+height/2;
+					for (int column=0;column<numKernels;column++){
+						mean(0)= global_pos[0]+r*cos(column*column_spacing);
+						mean(1)= global_pos[1]+r*sin(column*column_spacing);
+						GaussianKernel kernel(mean, var);
+						Network.push_back(kernel);
+					}
+				}
+			}
 		}
 
 		void RBFNetwork::saveKernelsToFile(){
@@ -162,8 +215,8 @@ namespace demo_learning {
 			}
 		}
 
-		double RBFNetwork::calculateVariance(double dx, double dy){
-			double var = sqrt(dx*dx+dy*dy);
+		double RBFNetwork::calculateVariance(double dx, double dy, double dz){
+			double var = sqrt(dx*dx+dy*dy+dz*dz);
 			// ROS_INFO("Variance is %lf", var);
 			return var;
 		}
@@ -180,9 +233,9 @@ namespace demo_learning {
 			double dnom = 0;	
 			for (int i = 0; i < numKernels; i++){
 				double activation = Network[i].kernelActivation(x);
-				if(activation < ACTIVATION_THRESHOLD){
-					activation = 0;
-				}
+				// if(activation < ACTIVATION_THRESHOLD){
+				// 	activation = 0;
+				// }
 				kernelOutput(i,num_col) = activation;
 
 				dnom += activation;
@@ -196,9 +249,6 @@ namespace demo_learning {
 					result[j] /= dnom;
 				}
 			}
-			// else{
-			// 	ROS_INFO("Zero total activation");
-			// }
 
 			networkOutput_.push_back(result[0]);
 			res.result = result;
@@ -283,38 +333,44 @@ namespace demo_learning {
 		void RBFNetwork::resetRollout(){
 			updateNoiseVariance();
 			resetRunningWeights();
-			coverged = (policyConverged() ? true:false);
 			kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
-			// rollout_noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
-			rollout_noise.setZero();// = Eigen::MatrixXd::Zero(numKernels, 0);
+			rollout_noise.setZero();
 			networkOutput_.clear();
 		}
 
 		bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_learning::PolicySearch::Response& res){
-			// Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.reward, kernelOutput*kernelOutput.transpose());
+
 			if(!coverged){
 				kernelOutput = (kernelOutput.array() < ACTIVATION_THRESHOLD).select(0, kernelOutput);
+				// std::cout<<kernelOutput<<std::endl;
 
 				Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput);
 				updateWeights(updatedWeights);
 				std::cout<<updatedWeights.transpose()<<std::endl;
+				// std::cout<<updatedWeights.size()<<std::endl;
+
 			}
+
+			coverged = (policyConverged() ? true:false);
+			res.converged = coverged;
+
 			double* ptr = &req.rewards[0];
 			Eigen::Map<Eigen::VectorXd> rewards(ptr, req.rewards.size());
 
 			double* ptr2 = &networkOutput_[0];
 			Eigen::Map<Eigen::VectorXd> outputs(ptr2, networkOutput_.size());
 
-
-			saveDataToFile(kernelTotalActivationPerTimeFile, kernelOutput.colwise().sum(), true);
-			saveDataToFile(kernelWiseTotalActivationFile, kernelOutput.rowwise().sum().transpose(), true);
-			saveDataToFile(kernelOutputFile, kernelOutput, false);
 			saveDataToFile(rewardsOutputFile, rewards.transpose(), true);
 			saveDataToFile(networkOutputFile, outputs.transpose(), true);
 			saveDataToFile(networkWeightsFile, weights.transpose(), true);
 			saveDataToFile(runningWeightsFile, runningWeights.transpose(), true);
 			saveDataToFile(noiseFile, rollout_noise.transpose(), true);
 
+			if(spacingPolicy_.compare("manifold") == 0){
+				saveDataToFile(kernelTotalActivationPerTimeFile, kernelOutput.colwise().sum(), true);
+				saveDataToFile(kernelWiseTotalActivationFile, kernelOutput.rowwise().sum().transpose(), true);
+				saveDataToFile(kernelOutputFile, kernelOutput, false);
+			}
 			return true;
 		}
 
@@ -362,15 +418,30 @@ namespace demo_learning {
 			std::cout<<std::endl;
 		}
 
+		bool RBFNetwork::resetRBFNetwork(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
+			ROS_INFO("Resetting the RBFNetwork (including the weights) and PoWER algorithm.");
+			PoWER.resetPolicySearch();
+			weights.setZero();
+			resetRunningWeights();
+			coverged = false;
+			kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
+			rollout_noise.setZero();
+			networkOutput_.clear();
+			setNoiseVariance(intialNoiceVar);
+			numTrial_++;
+			createFiles(relativePath);
+			saveKernelsToFile();
+			return true;
+		}
+
 
 		bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response){
 			visualization_msgs::MarkerArray marker_array;
 
-			// Eigen::MatrixXd covar = Network[0].getCovar();
 			double var = Network[0].getVar();
 			for(int i =0;i<numKernels;i++){
 				Eigen::VectorXd mean = Network[i].getMean();
-
+				
 				visualization_msgs::Marker marker_mean;
 				marker_mean.header.frame_id = "world";
 				marker_mean.header.stamp = ros::Time();
@@ -378,9 +449,6 @@ namespace demo_learning {
 				marker_mean.id = i+1;
 				marker_mean.type = visualization_msgs::Marker::SPHERE;
 				marker_mean.action = visualization_msgs::Marker::ADD;
-				marker_mean.pose.position.x = mean(0);
-				marker_mean.pose.position.y = mean(1);
-				marker_mean.pose.position.z = global_pos[2]+manifold_height/2;
 				marker_mean.pose.orientation.x = 0.0;
 				marker_mean.pose.orientation.y = 0.0;
 				marker_mean.pose.orientation.z = 0.0;
@@ -394,33 +462,56 @@ namespace demo_learning {
 				marker_mean.color.b = 0.0;
 				marker_mean.lifetime = ros::Duration();
 
-				marker_array.markers.push_back(marker_mean);
 
 				visualization_msgs::Marker marker_var;
 				marker_var.header.frame_id = "world";
 				marker_var.header.stamp = ros::Time();
 				marker_var.ns = "gaussian_kernels";
 				marker_var.id = -(i+1);
-				marker_var.type = visualization_msgs::Marker::CYLINDER;
 				marker_var.action = visualization_msgs::Marker::ADD;
-				marker_var.pose.position.x = mean(0);
-				marker_var.pose.position.y = mean(1);
-				marker_var.pose.position.z = global_pos[2]+manifold_height/2;
 				marker_var.pose.orientation.x = 0.0;
 				marker_var.pose.orientation.y = 0.0;
 				marker_var.pose.orientation.z = 0.0;
 				marker_var.pose.orientation.w = 1.0;
-				marker_var.scale.x = var/2.0;
-				marker_var.scale.y = var/2.0;
-				marker_var.scale.z = 0;
-				marker_var.color.a = 0.5;
+				marker_var.color.a = 0.0;
 				marker_var.color.r = 1.0;
 				marker_var.color.g = 0.0;
 				marker_var.color.b = 0.0;
 				marker_var.lifetime = ros::Duration();
 
-				marker_array.markers.push_back(marker_var);
 
+				if (spacingPolicy_.compare("grid")==0){
+					marker_var.type = visualization_msgs::Marker::SPHERE;
+
+					marker_mean.pose.position.x = mean(0);
+					marker_mean.pose.position.y = mean(1);
+					marker_mean.pose.position.z = mean(2);
+
+					marker_var.pose.position.x = mean(0);
+					marker_var.pose.position.y = mean(1);
+					marker_var.pose.position.z = mean(2);
+					marker_var.scale.x = var/2.0;
+					marker_var.scale.y = var/2.0;
+					marker_var.scale.z = var/2.0;
+
+				}
+				else if (spacingPolicy_.compare("manifold") == 0){
+					marker_var.type = visualization_msgs::Marker::CYLINDER;
+
+					marker_mean.pose.position.x = mean(0);
+					marker_mean.pose.position.y = mean(1);
+					marker_mean.pose.position.z = global_pos[2]+manifold_height/2;
+
+					marker_var.pose.position.x = mean(0);
+					marker_var.pose.position.y = mean(1);
+					marker_var.pose.position.z = global_pos[2]+manifold_height/2;
+					marker_var.scale.x = var/2.0;
+					marker_var.scale.y = var/2.0;
+					marker_var.scale.z = 0;
+				}
+
+				marker_array.markers.push_back(marker_mean);
+				marker_array.markers.push_back(marker_var);
 
 			}
 			marker_pub.publish(marker_array);

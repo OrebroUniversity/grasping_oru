@@ -123,10 +123,24 @@ namespace hiqp
       std::vector<double> RBFNOutput;
       double sampling = 0;
 
+      bool frame_tasks_ = false;
+
       KDL::JntArray jointarray;
 
+
+      double angle1;
+      double angle2;
+      double angle3;
+      Eigen::Matrix3d m;
+
+      Eigen::Quaternion<double> q_;
+
+      KDL::Vector frame_pos_;
+
       std::shared_ptr<GeometricPrimitiveMap> gpm; 
+      std::shared_ptr<GeometricFrame> frame_;
       std::shared_ptr<GeometricPoint> point;
+
       std::vector<KinematicQuantities> kin_q_list;
       KinematicQuantities kin_q;
       std::vector<double> qdot;

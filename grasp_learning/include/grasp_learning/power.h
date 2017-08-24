@@ -9,6 +9,7 @@
 #include "ros/ros.h"
 #include <numeric>
 #include <grasp_learning/fileHandler.h>
+#include <map>
 
 class power
 {
@@ -19,17 +20,19 @@ public:
 	bool operator()(const std::pair<double, int>& firstElem, const std::pair<double, int>& secondElem);
 	double varianceSearch();
 
-	// Eigen::MatrixXd policySearch(Eigen::MatrixXd noise,const double rewards);
 	Eigen::MatrixXd policySearch(const Eigen::MatrixXd noise,const std::vector<double> rewards,const  Eigen::MatrixXd kernelActivation);
 
-	void print_imp_sampler(std::vector<std::pair<double,int> > imp_sampler);
-	void clear_data();
-	// void setParams(int, int, int);
-	void setParams(int, int, int, int, std::string);
+	void printImpSampler(std::vector<std::pair<double,int> > imp_sampler);
+	void resetPolicySearch();
+
+	void setParams(int, int, int, int);
 
 	std::vector<double> getHighestRewards();
 
 	double getNumRollouts();
+
+	void populateMap(int idx);
+
 private:
 	double curr_int = 0;
 	int num_of_kernels = 0;
@@ -43,6 +46,9 @@ private:
 
 	std::vector<std::pair<double,int> > imp_sampler;
 	// Eigen::MatrixXd noises;
+	std::map<int,Eigen::MatrixXd> CMat;
+
+
 	std::vector<Eigen::MatrixXd> noises;
 	fileHandler fileHandler_;
 	std::string matrixNum;
