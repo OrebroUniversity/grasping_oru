@@ -130,6 +130,9 @@ namespace demo_learning {
 			else if (spacingPolicy_.compare("manifold") == 0){
 				spaceKernelsOnManifold(req.height, req.radius);
 			}
+			else if (spacingPolicy_.compare("plane") == 0){
+				spaceKernelsOnPlane(req.height);
+			}
 
 			weights = Eigen::MatrixXd::Zero(numKernels, numPolicies);
 			runningWeights = weights;
@@ -139,6 +142,27 @@ namespace demo_learning {
 			return true;
 		}
 
+
+		void RBFNetwork::spaceKernelsOnPlane(double height){
+
+			Eigen::VectorXd mean(numDim);
+
+			double numKernPerDim = sqrt(numKernels);
+
+			double dx = grid_x_/numKernPerDim;
+			double dy = grid_y_/numKernPerDim;
+			double var = 2*calculateVariance(dx, dy);
+			std::cout<<var<<std::endl;
+
+			for (double x=0;x<dx*numKernPerDim; x+=dx){
+				for(double y=0;y<dy*numKernPerDim; y+=dy){
+					mean(0) = x+global_pos[0]/2.0;
+					mean(1) = y-grid_y_/2.0;
+					GaussianKernel kernel(mean, var);
+					Network.push_back(kernel);
+				}
+			}
+		}
 
 		void RBFNetwork::spaceKernelsOnGrid(){
 
@@ -150,13 +174,13 @@ namespace demo_learning {
 			double dx = grid_x_/numKernPerDim;
 			double dy = grid_y_/numKernPerDim;
 			double dz = grid_z_/numKernPerDim;
-			double var = calculateVariance(dx, dy, dz)/4.0;
+			double var = calculateVariance(dx, dy, dz)/5.0;
 			std::cout<<var<<std::endl;
 
 			for (double x=0;x<dx*numKernPerDim; x+=dx){
 				for(double y=0;y<dy*numKernPerDim; y+=dy){
 					for(double z=0;z<dz*numKernPerDim; z+=dz){
-						mean(0) = x+global_pos[0]/2.0-grid_x_/2.0+0.4;
+						mean(0) = x+global_pos[0]/2.0-grid_x_/2.0+0.2;
 						mean(1) = y+global_pos[1]/2.0-grid_y_/2.0;
 						mean(2) = z+global_pos[2]/2.0-grid_z_/2.0+0.3;
 						GaussianKernel kernel(mean, var);
@@ -350,7 +374,7 @@ namespace demo_learning {
 
 				Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput);
 				updateWeights(updatedWeights);
-				std::cout<<updatedWeights.transpose()<<std::endl;
+				// std::cout<<updatedWeights.transpose()<<std::endl;
 				// std::cout<<updatedWeights.size()<<std::endl;
 
 			}
@@ -512,6 +536,21 @@ namespace demo_learning {
 					marker_var.scale.y = var/2.0;
 					marker_var.scale.z = 0;
 				}
+				else if (spacingPolicy_.compare("plane") == 0){
+					marker_var.type = visualization_msgs::Marker::CYLINDER;
+
+					marker_mean.pose.position.x = mean(0);
+					marker_mean.pose.position.y = mean(1);
+					marker_mean.pose.position.z = global_pos[2]+manifold_height;
+
+					marker_var.pose.position.x = mean(0);
+					marker_var.pose.position.y = mean(1);
+					marker_var.pose.position.z = global_pos[2]+manifold_height;
+					marker_var.scale.x = var/2.0;
+					marker_var.scale.y = var/2.0;
+					marker_var.scale.z = 0;
+				}
+
 
 				marker_array.markers.push_back(marker_mean);
 				marker_array.markers.push_back(marker_var);

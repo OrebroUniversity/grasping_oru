@@ -55,9 +55,6 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 		return res;
 	}
 
-	double param_dnom_weights =0;
-	double param_dnom_noise = 0;
-	double curr_reward=0;
 	int idx = 0;
 
 
@@ -72,32 +69,17 @@ Eigen::MatrixXd power::policySearch(const Eigen::MatrixXd currNoise, const std::
 		Eigen::MatrixXd C = Eigen::MatrixXd::Zero(num_of_kernels, num_of_kernels);
 
 		populateMap(idx);
-		// C = (C.array() < 1e-5).select(0, C);
 		C = CMat.find(idx)->second;
 		A += C;
 		for(int i =0;i<num_policies;i++){
 			B.col(i) += C*noises[i].col(idx);
 		}
-		// std::cout<<C<<std::endl;
 	}
-	// std::cout<<B<<std::endl;
 	Eigen::MatrixXd min_matrix = Eigen::MatrixXd::Identity(num_of_kernels, num_of_kernels);
 
 	double min = 1e-10;
 
 	Eigen::MatrixXd invMat = (A+min*min_matrix).inverse();
-
-	// std::cout<<A<<std::endl<<std::endl;
-	// std::cout<<invMat<<std::endl<<std::endl;
-	// std::cout<<B.transpose()<<std::endl<<std::endl;;
-
-
-	// for(int i=0;i<num_of_kernels;i++){
-	// 	if(A(i,i)<1e-2){
-	// 		B(i,0)=0;
-	// 	}
-	// }
-	// std::cout<<B.transpose()<<std::endl<<std::endl;;
 
 	Eigen::MatrixXd new_weights = Eigen::MatrixXd::Zero(num_of_kernels, num_policies);
 
@@ -143,7 +125,7 @@ double power::varianceSearch(){
 	else{
 		double beta = 0;
 		double curr_reward=0;
-		for (int elem=0; elem<num_imp_sampler_noise;elem++){
+		for (int elem=0; elem<10;elem++){
 			curr_reward = imp_sampler[elem].first;
 			beta += curr_reward;
 		}
@@ -175,7 +157,10 @@ void power::resetPolicySearch(){
 	rewards.clear();
 	kernelActivations.clear();
 	CMat.clear();
-	noises.clear();
+	noises.resize(num_policies);
+	for(int i =0;i<num_policies;i++){
+		noises.push_back(Eigen::MatrixXd::Zero(num_of_kernels, 0));
+	}
 	imp_sampler.clear();
 }
 

@@ -164,8 +164,11 @@ namespace hiqp
       }
 
       else{
-        e_dot_star_.resize(2);
-
+        e_dot_star_.resize(3);
+        e_dot_star_(0) = -lambda_ * e(0);
+        e_dot_star_(1) = RBFNOutput[0];
+        e_dot_star_(2) = RBFNOutput[1];
+        /*
         if(RBFNOutput.size()>1){
           e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
         }
@@ -174,6 +177,7 @@ namespace hiqp
         }
 
         e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
+        */
       }
       return 0;
     }
