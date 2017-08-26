@@ -255,7 +255,7 @@ void DemoLearnManifold::calculateReachingReward(){
 
   std::vector<double> result;
 
-  double Rpos = 1;
+  double Rpos = 10;
   double res = 0;
   std::vector<double> pointToPoint;
 
