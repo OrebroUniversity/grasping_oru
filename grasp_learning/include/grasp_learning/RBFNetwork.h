@@ -76,6 +76,8 @@ namespace demo_learning {
 			
 			void saveKernelsToFile();
 
+			void spaceKernelsOnPlane(double height);
+
 			void spaceKernelsOnGrid();
 
 			void spaceKernelsOnManifold(double height, double radius);
