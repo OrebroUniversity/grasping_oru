@@ -151,7 +151,7 @@ namespace demo_learning {
 
 			double dx = grid_x_/numKernPerDim;
 			double dy = grid_y_/numKernPerDim;
-			double var = 2*calculateVariance(dx, dy);
+			double var = calculateVariance(dx, dy)/2;
 			std::cout<<var<<std::endl;
 
 			for (double x=0;x<dx*numKernPerDim; x+=dx){
