@@ -349,8 +349,11 @@ void DemoLearnManifold::calculateReward(){
   std::reverse(result.begin(),result.end());
   std::reverse(pointToLine.begin(),pointToLine.end());
 
+  std::vector<double> normalizedRes = normalizeVector(result);
+
   saveDataToFile(rewardFile, convertToEigenVector(result).transpose(), true);
-  saveDataToFile(finalRewardFile, result[0], true);
+  saveDataToFile(finalRewardFile, normalizedRes[0], true);
+  saveDataToFile(normalizedRewardFile, convertToEigenVector(normalizedRes).transpose(), true);
 
   saveDataToFile(pointToLineDistFile, convertToEigenVector(pointToLine).transpose(), true);
   
@@ -365,8 +368,8 @@ void DemoLearnManifold::calculateReward(){
 
   saveDataToFile(samplingTimeFile, convertToEigenVector(samplingTime).transpose(), true);
 
-  policy_search_srv_.request.rewards = normalizeVector(result);
   policy_search_srv_.request.reward = result[0];
+  policy_search_srv_.request.rewards = normalizedRes;
 }
 
 
