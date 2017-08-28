@@ -8,7 +8,7 @@
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
 
-    <param name="num_kernels" value="343"/>
+    <param name="num_kernels" value="125"/>
     <!-- <param name="num_kernels" value="49"/> --> <!-- Works well for spacing on a plane  -->
 
    <!-- <param name="num_kernels" value="15"/> --> <!-- Works well for spacing around the manifold  -->
@@ -16,7 +16,7 @@
    <param name="num_kernel_rows" value="1"/>
 
    <!--param name="variance" value="0.01"/-->  <!-- Works well for learning policy on a plane  -->
-   <param name="variance" value="1"/>  <!-- Works well for learning policy on a plane  -->
+   <param name="variance" value="2"/>  <!-- Works well for learning policy on a plane  -->
 
    <!-- <param name="num_policies" value="2"/> --> <!-- Works well for learning policy on a plane  -->
    <!-- <param name="num_dim" value="2"/> --> <!-- Works well for learning policy on a plane  -->

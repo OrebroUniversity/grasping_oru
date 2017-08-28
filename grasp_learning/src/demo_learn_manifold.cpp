@@ -563,7 +563,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
   // Define the primitives
   eef_point = hiqp_ros::createPrimitiveMsg(
   "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.1});
+  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.2});
 
   manifold = hiqp_ros::createPrimitiveMsg(
   "grasp_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.3}, {
@@ -726,11 +726,11 @@ bool DemoLearnManifold::doGraspAndLiftTaskspace() {
 
   eef_point = hiqp_ros::createPrimitiveMsg(
   "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.1});
+  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
   final_point = hiqp_ros::createPrimitiveMsg(
   "final_point", "point", "world", true, {1, 1, 0, 1},
-  {manifoldPos[0], manifoldPos[1], manifoldPos[2] + manifold_height_ / 2});
+  {manifoldPos[0], manifoldPos[1], 0.1});
 
 
   hiqp_msgs::Primitive gripperFrame;
@@ -742,7 +742,7 @@ bool DemoLearnManifold::doGraspAndLiftTaskspace() {
   // Define the primitives
   gripperFrame = hiqp_ros::createPrimitiveMsg(
   "gripper_frame", "frame", grasp_.e_frame_, true, {1, 0, 0, 1},
-  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.1});
+  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
   pointFrame = hiqp_ros::createPrimitiveMsg(
   "point_frame", "frame", "world", true, {0.0, 0.0, 1.0, 1},
