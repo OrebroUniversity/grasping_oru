@@ -8,26 +8,31 @@
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
 
-    <param name="num_kernels" value="100"/>
+    <param name="num_kernels" value="216"/>
+    <!-- <param name="num_kernels" value="49"/> --> <!-- Works well for spacing on a plane  -->
 
    <!-- <param name="num_kernels" value="15"/> --> <!-- Works well for spacing around the manifold  -->
 
    <param name="num_kernel_rows" value="1"/>
 
-   <!-- <param name="variance" value="0.0001"/> -->
-   <!-- <param name="variance" value="1"/> -->
-   <param name="variance" value="0.01"/>
+   <!--param name="variance" value="0.01"/-->  <!-- Works well for learning policy on a plane  -->
+   <param name="variance" value="1"/>  <!-- Works well for learning policy on a plane  -->
 
-   <param name="num_policies" value="2"/>
-   <param name="num_dim" value="2"/>
+   <!-- <param name="num_policies" value="2"/> --> <!-- Works well for learning policy on a plane  -->
+   <!-- <param name="num_dim" value="2"/> --> <!-- Works well for learning policy on a plane  -->
+
+   <param name="num_policies" value="3"/>
+   <param name="num_dim" value="3"/>
+
    <param name="use_corr_noise" type="bool" value="false"/>
-   <param name="burn_in_trials" value="8"/>
+   <param name="burn_in_trials" value="10"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
    <!-- <param name="spacing_policy" type="str" value="manifold"/> -->
+   <param name="spacing_policy" type="str" value="grid"/>
 
-   <param name="spacing_policy" type="str" value="plane"/>
+   <!-- <param name="spacing_policy" type="str" value="plane"/> -->
 
    <param name="grid_x" value="0.7"/>
    <param name="grid_y" value="0.7"/>
@@ -55,6 +60,8 @@
    <rosparam param="PC_of_object"> [1, 0, 0, 0, 0, 0.2]</rosparam> 
 
    <param name="nullspace" type="bool" value="false "/>
+
+   <param name="task" type="str" value="grid"/>
 
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 

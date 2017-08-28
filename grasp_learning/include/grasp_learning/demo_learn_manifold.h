@@ -164,6 +164,8 @@ private:
   
   std::string relativePath;
   
+  std::string task_;
+
   std::string rewardFile;
   std::string finalRewardFile;
   std::string normalizedRewardFile;
