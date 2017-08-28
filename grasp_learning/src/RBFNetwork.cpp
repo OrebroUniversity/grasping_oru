@@ -387,7 +387,7 @@ bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_
 		Eigen::MatrixXd updatedWeights = PoWER.policySearch2(noisePerTimestep_, req.rewards);
 
 		updateWeights(updatedWeights);
-		std::cout << weights.transpose() << std::endl;
+		// std::cout << weights.transpose() << std::endl;
 		// std::cout<<updatedWeights.size()<<std::endl;
 
 	}
