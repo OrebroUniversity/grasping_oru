@@ -67,6 +67,9 @@ RBFNetwork::RBFNetwork() {
 	nh_.param<double>("grid_y", grid_y_, 1.0);
 	nh_.param<double>("grid_z", grid_z_, 1.0);
 
+	nh_.param<double>("convergance_treshold", conv_threshold_, 0.5);
+
+
 	nh_.param<std::string>("spacing_policy", spacingPolicy_, "grid");
 
 	nh_.param<std::string>("relative_path", relativePath, " ");
@@ -325,7 +328,7 @@ bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Emp
 
 bool RBFNetwork::policyConverged() {
 	std::vector<double> vec = PoWER.getHighestRewards();
-	if (meanOfVector(vec) > COVERGANCE_THRESHOLD) {
+	if (meanOfVector(vec) > conv_threshold_) {
 		return true;
 	} else {
 		return false;
@@ -405,7 +408,7 @@ bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_
 	saveDataToFile(kernelWiseTotalActivationFile, kernelOutput.rowwise().sum().transpose(), true);
 	saveDataToFile(kernelTotalActivationPerTimeFile, kernelOutput.colwise().sum(), true);
 	saveDataToFile(kernelOutputFile, kernelOutput, false);
-	saveDataToFile(noisePerTimeStepFile, concatenateMatrices(noisePerTimestep_), true);
+	// saveDataToFile(noisePerTimeStepFile, concatenateMatrices(noisePerTimestep_), true);
 }
 
 template<typename T>
@@ -595,6 +598,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 			marker_var.scale.z = 0;
 		}
 
+ 
 
 		marker_array.markers.push_back(marker_mean);
 		marker_array.markers.push_back(marker_var);

@@ -16,7 +16,7 @@
    <param name="num_kernel_rows" value="1"/>
 
    <!--param name="variance" value="0.01"/-->  <!-- Works well for learning policy on a plane  -->
-   <param name="variance" value="2"/>  <!-- Works well for learning policy on a plane  -->
+   <param name="variance" value="2"/>  
 
    <!-- <param name="num_policies" value="2"/> --> <!-- Works well for learning policy on a plane  -->
    <!-- <param name="num_dim" value="2"/> --> <!-- Works well for learning policy on a plane  -->
@@ -25,8 +25,8 @@
    <param name="num_dim" value="3"/>
 
    <param name="use_corr_noise" type="bool" value="false"/>
-   <param name="burn_in_trials" value="10"/>
-   <param name="max_num_samples" value="5"/>
+   <param name="burn_in_trials" value="20"/>
+   <param name="max_num_samples" value="10"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
    <!-- <param name="spacing_policy" type="str" value="manifold"/> -->
@@ -37,6 +37,9 @@
    <param name="grid_x" value="0.7"/>
    <param name="grid_y" value="0.7"/>
    <param name="grid_z" value="0.7"/>
+
+   <param name="convergance_treshold" value="0.4"/>
+
 
  </node>
 

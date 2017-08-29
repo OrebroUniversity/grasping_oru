@@ -20,8 +20,8 @@
 #include <fstream>
 
 #define PI 3.14159265358979323846
-#define ACTIVATION_THRESHOLD 0.2
-#define COVERGANCE_THRESHOLD 0.4
+// #define ACTIVATION_THRESHOLD 0.2
+// #define COVERGANCE_THRESHOLD 0.4
 
 namespace demo_learning {
 namespace RBFNetwork {
@@ -147,6 +147,8 @@ class RBFNetwork {
 	double grid_x_;
 	double grid_y_;
 	double grid_z_;
+
+	double conv_threshold_;
 
 	std::string relativePath;
 	std::string kernelTotalActivationPerTimeFile;
