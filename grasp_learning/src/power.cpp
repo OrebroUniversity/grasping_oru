@@ -178,7 +178,7 @@ double power::varianceSearch() {
 	} else {
 		double beta = 0;
 		double curr_reward = 0;
-		for (int elem = 0; elem < 10; elem++) {
+		for (int elem = 0; elem < 5; elem++) {
 			curr_reward = imp_sampler[elem].first;
 			beta += curr_reward;
 		}

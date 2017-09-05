@@ -96,6 +96,8 @@ public:
 
   void resetTrial();
 
+  bool pictureMode(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+
   bool startDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
   bool runDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
@@ -256,6 +258,8 @@ private:
   ros::ServiceServer start_demo_srv_;
   ros::ServiceServer run_demo_srv_;
   ros::ServiceServer pause_demo_srv_;
+  ros::ServiceServer picture_mode_srv_;
+
 
   //Publisher oublishing an empty message when the demo grasp is over
   ros::Publisher start_recording_;

@@ -180,7 +180,7 @@ void RBFNetwork::spaceKernelsOnGrid() {
 	double dx = grid_x_ / numKernPerDim;
 	double dy = grid_y_ / numKernPerDim;
 	double dz = grid_z_ / numKernPerDim;
-	double var = calculateVariance(dx, dy, dz) / 5.0;
+	double var = calculateVariance(dx, dy, dz) / 7.0;
 	std::cout << var << std::endl;
 
 	for (double x = 0; x < dx * numKernPerDim; x += dx) {
@@ -206,7 +206,7 @@ void RBFNetwork::spaceKernelsOnManifold(double height, double radius) {
 	double r = radius;
 	double dx = r * (cos(0 * column_spacing) - cos(1 * column_spacing));
 	double dy = r * (sin(0 * column_spacing) - sin(1 * column_spacing));
-	double var = 2 * calculateVariance(dx, dy);
+	double var = calculateVariance(dx, dy)/2.0;
 	std::cout << var << std::endl;
 
 	if (numDim < 3) {
@@ -509,8 +509,8 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 		marker_mean.scale.x = 0.01;
 		marker_mean.scale.y = 0.01;
 		marker_mean.scale.z = 0.01;
-		marker_mean.color.a = 0.5;
-		marker_mean.color.r = 0.0;
+		marker_mean.color.a = 0.6;
+		marker_mean.color.r = 1.0;
 		marker_mean.color.g = 1.0;
 		marker_mean.color.b = 0.0;
 		marker_mean.lifetime = ros::Duration();
@@ -584,7 +584,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 
 			marker_mean.pose.position.x = mean(0);
 			marker_mean.pose.position.y = mean(1);
-			marker_mean.pose.position.z = global_pos[2] + manifold_height;
+			marker_mean.pose.position.z = 0.11;//global_pos[2] + manifold_height;
 
 			marker_num.pose.position.x = mean(0);
 			marker_num.pose.position.y = mean(1);
@@ -602,9 +602,9 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 
 		marker_array.markers.push_back(marker_mean);
 		marker_array.markers.push_back(marker_var);
-		if (spacingPolicy_.compare("grid") != 0) {
-			marker_array.markers.push_back(marker_num);
-		}
+		// if (spacingPolicy_.compare("grid") != 0) {
+		// 	marker_array.markers.push_back(marker_num);
+		// }
 	}
 	marker_pub.publish(marker_array);
 	return true;
