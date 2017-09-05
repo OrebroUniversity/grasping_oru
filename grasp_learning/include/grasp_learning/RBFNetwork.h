@@ -50,7 +50,7 @@ class RBFNetwork {
 	~RBFNetwork() {};
 
 	Eigen::MatrixXd getKernelWeights();
-	void updateWeights(Eigen::MatrixXd);
+	bool updateWeights(Eigen::MatrixXd);
 
 	void resetRunningWeights();
 	int getNumKernels();
@@ -60,7 +60,7 @@ class RBFNetwork {
 	double calculateVariance(double dx, double dy, double dz = 0);
 	void updateNoiseVariance();
 
-	bool policyConverged();
+	bool policyConverged(Eigen::MatrixXd, Eigen::MatrixXd);
 
 	double meanOfVector(const std::vector<double>& vec);
 	void setNoiseVariance(const double variance);
@@ -95,6 +95,7 @@ class RBFNetwork {
 	bool getRunningWeights(grasp_learning::GetNetworkWeights::Request& req, grasp_learning::GetNetworkWeights::Response& res);
 	bool visualizeKernelMeans(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 	bool resetRBFNetwork(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+	bool printRunningNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 
   private:
 
@@ -111,6 +112,7 @@ class RBFNetwork {
 	ros::ServiceServer get_running_weights_srv_;
 	ros::ServiceServer vis_kernel_mean_srv_;
 	ros::ServiceServer reset_RBFN_srv_;
+	ros::ServiceServer print_running_noise_srv_;
 
 	ros::Publisher marker_pub;
 

@@ -129,11 +129,12 @@ int TDynRBFN::update(RobotStatePtr robot_state,
   }
 
   else {
-    e_dot_star_.resize(3);
-    e_dot_star_(0) = -lambda_ * e(0);
-    e_dot_star_(1) = RBFNOutput[0];
-    e_dot_star_(2) = RBFNOutput[1];
-    /*
+    //e_dot_star_.resize(3);
+    //e_dot_star_(0) = -lambda_ * e(0);
+    //e_dot_star_(1) = RBFNOutput[0];
+    //e_dot_star_(2) = RBFNOutput[1];
+    
+    e_dot_star_.resize(2);
     if(RBFNOutput.size()>1){
       e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
     }
@@ -142,7 +143,7 @@ int TDynRBFN::update(RobotStatePtr robot_state,
     }
 
     e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
-    */
+    
   }
   return 0;
 }

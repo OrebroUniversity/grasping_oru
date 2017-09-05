@@ -46,6 +46,8 @@ RBFNetwork::RBFNetwork() {
 	get_running_weights_srv_ = nh.advertiseService("RBFNetwork/get_running_weights", &RBFNetwork::getRunningWeights, this);
 	vis_kernel_mean_srv_ = nh.advertiseService("RBFNetwork/visualize_kernel_means", &RBFNetwork::visualizeKernelMeans, this);
 	reset_RBFN_srv_ = nh.advertiseService("RBFNetwork/reset_RBFN", &RBFNetwork::resetRBFNetwork, this);
+	print_running_noise_srv_ = nh.advertiseService("RBFNetwork/print_running_noise", &RBFNetwork::printRunningNoise, this);
+
 
 	marker_pub = nh.advertise<visualization_msgs::MarkerArray>("RBFNetwork/kernel_markers", 1);
 
@@ -73,7 +75,6 @@ RBFNetwork::RBFNetwork() {
 	nh_.param<std::string>("spacing_policy", spacingPolicy_, "grid");
 
 	nh_.param<std::string>("relative_path", relativePath, " ");
-
 
 	createFiles(relativePath);
 
@@ -326,7 +327,8 @@ bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Emp
 	return true;
 }
 
-bool RBFNetwork::policyConverged() {
+bool RBFNetwork::policyConverged(Eigen::MatrixXd w1, Eigen::MatrixXd w2) {
+
 	std::vector<double> vec = PoWER.getHighestRewards();
 	if (meanOfVector(vec) > conv_threshold_) {
 		return true;
@@ -355,8 +357,10 @@ void RBFNetwork::resetRunningWeights() {
 }
 
 
-void RBFNetwork::updateWeights(Eigen::MatrixXd newWeights) {
+bool RBFNetwork::updateWeights(Eigen::MatrixXd newWeights) {
+	Eigen::MatrixXd temp = weights;
 	weights += newWeights;
+	return policyConverged(temp, weights);
 }
 
 
@@ -389,13 +393,13 @@ bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_
 		// Eigen::MatrixXd updatedWeights = PoWER.policySearch(rollout_noise, req.rewards, kernelOutput, noisePerTimestep_);
 		Eigen::MatrixXd updatedWeights = PoWER.policySearch2(noisePerTimestep_, req.rewards);
 
-		updateWeights(updatedWeights);
+		coverged = updateWeights(updatedWeights);
 		// std::cout << weights.transpose() << std::endl;
 		// std::cout<<updatedWeights.size()<<std::endl;
 
 	}
 
-	coverged = (policyConverged() ? true : false);
+	//coverged = (policyConverged() ? true : false);
 	res.converged = coverged;
 
 	double* ptr = &req.rewards[0];
@@ -443,6 +447,16 @@ bool RBFNetwork::getRunningWeights(grasp_learning::GetNetworkWeights::Request& r
 		}
 	}
 	res.weights = vec;
+	return true;
+}
+
+bool RBFNetwork::printRunningNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
+	for (int i = 0; i < numPolicies; i++) {
+		for (int j = 0; j < numKernels; j++) {
+			std::cout<<rollout_noise(j, i)<<" ";
+		}
+		std::cout<<std::endl;
+	}
 	return true;
 }
 
