@@ -2,44 +2,37 @@
 <launch>
 
   <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
 
-  <node name="yumi_collision" pkg="yumi_collision" type="yumi_collision_node"/>
+  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/-->
+
+  <!--node name="yumi_collision" pkg="yumi_collision" type="yumi_collision_node"/-->
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
+  <!-- <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen"> -->
 
-    <!--param name="num_kernels" value="216"/-->
-    <!-- param name="num_kernels" value="49"/--> <!-- Works well for spacing on a plane  -->
+   <param name="num_kernels" value="15"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <param name="num_kernels" value="15"/> <!-- Works well for spacing around the manifold  -->
+   <!-- <param name="num_kernel_rows" value="1"/> -->
 
-   <param name="num_kernel_rows" value="1"/>
-
-   <param name="variance" value="0.001"/>  <!-- Works well for learning policy on a plane  -->
+   <param name="variance" value="0.001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
    <!--param name="variance" value="4"/-->  
+   <!-- <param name="variance" value="2"/>   -->
 
-   <!-- <param name="num_policies" value="2"/> --> <!-- Works well for learning policy on a plane  -->
-   <!-- <param name="num_dim" value="2"/> --> <!-- Works well for learning policy on a plane  -->
-
-   <param name="num_policies" value="1"/>
-   <param name="num_dim" value="2"/>
+   <param name="num_policies" value="1"/> <!-- 3 for grid, 2 for plane, and 1 for manifold -->
+   <param name="num_dim" value="2"/> <!-- 3 for grid, and 2 for plane and manifold -->
 
    <param name="use_corr_noise" type="bool" value="false"/>
    <param name="burn_in_trials" value="15"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
-   <param name="spacing_policy" type="str" value="manifold"/>
-   <!-- param name="spacing_policy" type="str" value="grid"/ -->
-
-   <!-- param name="spacing_policy" type="str" value="plane"/-->
+   <param name="spacing_policy" type="str" value="manifold"/> <!-- possibilities grid, plane, and manifold -->
 
    <param name="grid_x" value="0.7"/>
    <param name="grid_y" value="0.7"/>
    <param name="grid_z" value="0.5"/>
 
-   <param name="convergance_treshold" value="0.42"/>
-
+   <param name="convergance_treshold" value="0.8"/> <!-- 0.42 for plane and 0.6 for manifold  -->
 
  </node>
 
@@ -50,22 +43,20 @@
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
    <param name="exec_time" type="double" value="4"/> 
 
-   <param name="manifold_height" value="0.1"/>
+   <param name="manifold_height" value="0.12"/>
    <param name="manifold_radius" value="0.06"/>
       <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->
 
-   <rosparam param="manifold_pos"> [0.35, 0, 0.1]</rosparam>
-   <param name="object_radius" value="0.03"/>
-   <!-- <rosparam param="final_pos"> [0.29, 0, 0.2]</rosparam> --> <!-- Upper  -->
-   <!-- <rosparam param="final_pos"> [0.41, 0, 0.2]</rosparam> --> <!-- Bottom -->  
-   <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> <!-- Upper left corner -->
-   <!-- <rosparam param="final_pos"> [0.394, -0.0598, 0.2]</rosparam> --> <!-- Bottom left corner -->
+   <rosparam param="manifold_pos"> [0.3, -0.05, 0.125]</rosparam>
 
-   <rosparam param="PC_of_object"> [1, 0, 0, 0, 0, 0.2]</rosparam> 
+   <param name="object_radius" value="0.025"/>
+   <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> 
+
+   <rosparam param="PC_of_object"> [1, 0, 0, 0, -0.05, 0.2]</rosparam> 
 
    <param name="nullspace" type="bool" value="true"/>
 
-   <param name="task" type="str" value="manifold"/>
+   <param name="task" type="str" value="manifold"/> <!-- value: manifold or plane -->
 
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 

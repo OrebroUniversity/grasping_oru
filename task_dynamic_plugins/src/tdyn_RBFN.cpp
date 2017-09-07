@@ -49,15 +49,15 @@ int TDynRBFN::init(const std::vector<std::string>& parameters,
     return -1;
   }
 
-  client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("RBFNetwork/network_output", true);
+  client_NN_ = nh_.serviceClient<grasp_learning::CallRBFN>("/RBFNetwork/network_output", true);
 
   add_noise_clt_ = nh_.serviceClient<std_srvs::Empty>("/RBFNetwork/add_weight_noise");
 
-  state_pub = nh_.advertise<grasp_learning::RobotState>("demo_learn_manifold/robot_state", 2000);
+  state_pub = nh_.advertise<grasp_learning::RobotState>("/demo_learn_manifold/robot_state", 2000);
 
   lambda_ = std::stod(parameters.at(1));
 
-  frame_tasks_ = std::stod(parameters.at(2));
+  task_ = parameters.at(2);
 
   e_dot_star_.resize(e_initial.rows());
   performance_measures_.resize(e_initial.rows());
@@ -68,6 +68,7 @@ int TDynRBFN::init(const std::vector<std::string>& parameters,
     std::make_shared<KDL::TreeJntToJacSolver>(robot_state->kdl_tree_);
 
   vec.resize(3);
+  ROS_INFO("Created TDYN");
   return 0;
 }
 
@@ -111,10 +112,10 @@ int TDynRBFN::update(RobotStatePtr robot_state,
   if (client_NN_.call(srv_)) {
     RBFNOutput = srv_.response.result;
   } else {
-    // std::cout<<"Calling RBFN server failed"<<std::endl;
+    ROS_ERROR("Calling RBFN server failed");
   }
 
-  if (frame_tasks_) {
+  if (task_.compare("frame")==0) {
 
 
     e_dot_star_.resize(1);
@@ -128,12 +129,13 @@ int TDynRBFN::update(RobotStatePtr robot_state,
     e_dot_star_(0) = -lambda_ * e(0);
   }
 
-  else {
-    //e_dot_star_.resize(3);
-    //e_dot_star_(0) = -lambda_ * e(0);
-    //e_dot_star_(1) = RBFNOutput[0];
-    //e_dot_star_(2) = RBFNOutput[1];
-    
+  else if (task_.compare("plane")==0){
+    e_dot_star_.resize(3);
+    e_dot_star_(0) = -lambda_ * e(0);
+    e_dot_star_(1) = RBFNOutput[0];
+    e_dot_star_(2) = RBFNOutput[1];
+  }
+  else if (task_.compare("manifold")==0){
     e_dot_star_.resize(2);
     if(RBFNOutput.size()>1){
       e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
@@ -141,9 +143,10 @@ int TDynRBFN::update(RobotStatePtr robot_state,
     else{
       e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
     }
-
     e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
-    
+  }
+  else{
+    ROS_ERROR("The task is not correct");
   }
   return 0;
 }

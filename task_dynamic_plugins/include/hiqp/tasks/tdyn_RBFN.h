@@ -123,7 +123,7 @@ namespace hiqp
       std::vector<double> RBFNOutput;
       double sampling = 0;
 
-      bool frame_tasks_ = false;
+      std::string task_;
 
       KDL::JntArray jointarray;
 
