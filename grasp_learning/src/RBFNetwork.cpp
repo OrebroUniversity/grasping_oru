@@ -207,7 +207,7 @@ void RBFNetwork::spaceKernelsOnManifold(double height, double radius) {
 	double r = radius;
 	double dx = r * (cos(0 * column_spacing) - cos(1 * column_spacing));
 	double dy = r * (sin(0 * column_spacing) - sin(1 * column_spacing));
-	double var = calculateVariance(dx, dy)/2.0;
+	double var = calculateVariance(dx, dy) / 2.0;
 	std::cout << var << std::endl;
 
 	if (numDim < 3) {
@@ -219,9 +219,11 @@ void RBFNetwork::spaceKernelsOnManifold(double height, double radius) {
 		}
 
 	} else {
-		for (int row = 1; row <= numRows; row++) {
-			mean(2) = global_pos[2] + height / 2;
-			for (int column = 0; column < numKernels; column++) {
+		double kernelsPerRow = numKernels/numRows;
+		column_spacing = (2 * PI) / kernelsPerRow;
+		for (double row = row_spacing; row < height; row+=row_spacing) {
+			mean(2) = global_pos[2]+row;
+			for (int column = 0; column < kernelsPerRow; column++) {
 				mean(0) = global_pos[0] + r * cos(column * column_spacing);
 				mean(1) = global_pos[1] + r * sin(column * column_spacing);
 				GaussianKernel kernel(mean, var);
@@ -453,9 +455,9 @@ bool RBFNetwork::getRunningWeights(grasp_learning::GetNetworkWeights::Request& r
 bool RBFNetwork::printRunningNoise(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
 	for (int i = 0; i < numPolicies; i++) {
 		for (int j = 0; j < numKernels; j++) {
-			std::cout<<rollout_noise(j, i)<<" ";
+			std::cout << rollout_noise(j, i) << " ";
 		}
-		std::cout<<std::endl;
+		std::cout << std::endl;
 	}
 	return true;
 }
@@ -523,7 +525,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 		marker_mean.scale.x = 0.01;
 		marker_mean.scale.y = 0.01;
 		marker_mean.scale.z = 0.01;
-		marker_mean.color.a = 0.6;
+		marker_mean.color.a = 0.7;
 		marker_mean.color.r = 1.0;
 		marker_mean.color.g = 1.0;
 		marker_mean.color.b = 0.0;
@@ -581,18 +583,26 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 
 			marker_mean.pose.position.x = mean(0);
 			marker_mean.pose.position.y = mean(1);
-			marker_mean.pose.position.z = global_pos[2] + manifold_height / 2;
+			if (numDim < 3) {
+				marker_mean.pose.position.z = global_pos[2] + manifold_height / 2;
+			} else {
+				marker_mean.pose.position.z = mean(2);
+			}
+			// marker_num.pose.position.x = mean(0);
+			// marker_num.pose.position.y = mean(1);
+			// marker_num.pose.position.z = global_pos[2] + manifold_height / 2;
+			// if (numDim < 3) {
+			// 	marker_num.pose.position.z = global_pos[2] + manifold_height / 2;
+			// } else {
+			// 	marker_num.pose.position.z = mean(3);
+			// }
 
-			marker_num.pose.position.x = mean(0);
-			marker_num.pose.position.y = mean(1);
-			marker_num.pose.position.z = global_pos[2] + manifold_height / 2;
-
-			marker_var.pose.position.x = mean(0);
-			marker_var.pose.position.y = mean(1);
-			marker_var.pose.position.z = global_pos[2] + manifold_height / 2;
-			marker_var.scale.x = var / 2.0;
-			marker_var.scale.y = var / 2.0;
-			marker_var.scale.z = 0;
+			// marker_var.pose.position.x = mean(0);
+			// marker_var.pose.position.y = mean(1);
+			// marker_var.pose.position.z = global_pos[2] + manifold_height / 2;
+			// marker_var.scale.x = var / 2.0;
+			// marker_var.scale.y = var / 2.0;
+			// marker_var.scale.z = 0;
 		} else if (spacingPolicy_.compare("plane") == 0) {
 			marker_var.type = visualization_msgs::Marker::CYLINDER;
 
@@ -612,10 +622,10 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 			marker_var.scale.z = 0;
 		}
 
- 
+
 
 		marker_array.markers.push_back(marker_mean);
-		marker_array.markers.push_back(marker_var);
+		// marker_array.markers.push_back(marker_var);
 		//if (spacingPolicy_.compare("grid") != 0) {
 		//	marker_array.markers.push_back(marker_num);
 		//}

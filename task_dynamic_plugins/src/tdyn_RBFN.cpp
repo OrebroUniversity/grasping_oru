@@ -115,7 +115,7 @@ int TDynRBFN::update(RobotStatePtr robot_state,
     ROS_ERROR("Calling RBFN server failed");
   }
 
-  if (task_.compare("frame")==0) {
+  if (task_.compare("frame") == 0) {
 
 
     e_dot_star_.resize(1);
@@ -129,23 +129,29 @@ int TDynRBFN::update(RobotStatePtr robot_state,
     e_dot_star_(0) = -lambda_ * e(0);
   }
 
-  else if (task_.compare("plane")==0){
+  else if (task_.compare("plane") == 0) {
     e_dot_star_.resize(3);
     e_dot_star_(0) = -lambda_ * e(0);
     e_dot_star_(1) = RBFNOutput[0];
     e_dot_star_(2) = RBFNOutput[1];
-  }
-  else if (task_.compare("manifold")==0){
-    e_dot_star_.resize(2);
-    if(RBFNOutput.size()>1){
-      e_dot_star_(0) = RBFNOutput[1]-lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
-    }
-    else{
+  } else if (task_.compare("manifold") == 0) {
+    if (RBFNOutput.size() == 1) {
+      e_dot_star_.resize(2);
       e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
+      // e_dot_star_(2) = 0;//RBFNOutput;
+    } else if (RBFNOutput.size() == 2) {
+      e_dot_star_.resize(3);
+      e_dot_star_(0) = -lambda_ * e(0);//RBFNOutput-lambda_ * e(0);
+      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
+      e_dot_star_(2) = RBFNOutput[1];//RBFNOutput;
+    } else {
+      e_dot_star_.resize(3);
+      e_dot_star_(0) = RBFNOutput[2] - lambda_ * e(0); //RBFNOutput-lambda_ * e(0);
+      e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
+      e_dot_star_(2) = RBFNOutput[1];//RBFNOutput;
     }
-    e_dot_star_(1) = RBFNOutput[0];//RBFNOutput;
-  }
-  else{
+  } else {
     ROS_ERROR("The task is not correct");
   }
   return 0;

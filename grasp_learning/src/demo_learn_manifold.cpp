@@ -26,7 +26,7 @@ DemoLearnManifold::DemoLearnManifold()
   nh_.param<std::string>("task", task_, "plane");
 
 
-  PCofObject.back() = manifoldPos.back()+manifold_height_/2.0;
+  PCofObject.back() = manifoldPos.back() + manifold_height_ / 2.0;
   nh_.param<std::string>("relative_path", relativePath, "asd");
 
 
@@ -65,12 +65,12 @@ DemoLearnManifold::DemoLearnManifold()
   finish_msg_.str = ' ';
 
   if (!with_gazebo_) {
-/*    close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
-    open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
+    /*    close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
+        open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
 
-    close_gripper_clt_.waitForExistence();
-    open_gripper_clt_.waitForExistence();
-  */
+        close_gripper_clt_.waitForExistence();
+        open_gripper_clt_.waitForExistence();
+      */
   } else {
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
@@ -366,6 +366,25 @@ double DemoLearnManifold::pointToLineDist(std::vector<double> point, std::vector
   return vectorLength(p2);
 }
 
+double DemoLearnManifold::pointToPlaneDist(std::vector<double> point, std::vector<double> plane) {
+  Eigen::Vector3d v_hat;
+  v_hat << line[0], line[1], line[2];
+  Eigen::Vector3d d;
+  d << line[3], line[4], line[5];
+  Eigen::Vector3d p;
+  p << point[0], point[1], point[2];
+
+   v_hat.dot(p - d);
+
+  double s =  v_hat.dot(p - d);
+
+  Eigen::Vector3d proj;
+  proj = -x + s * v_hat;
+  std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
+  return vectorLength(p2);
+}
+
+
 double DemoLearnManifold::vectorLength(const std::vector<double>& vec) {
   double diff_square = 0;
   double diff = 0;
@@ -557,7 +576,6 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
   hiqp_msgs::Task gripperToObject;
 
   hiqp_msgs::Primitive eef_point;
-  hiqp_msgs::Primitive object;
   hiqp_msgs::Primitive manifold;
   hiqp_msgs::Primitive gripper_approach_axis;
   hiqp_msgs::Primitive gripper_vertical_axis;
@@ -565,70 +583,77 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
   hiqp_msgs::Primitive grasp_plane;
   hiqp_msgs::Primitive PC_of_object;
   hiqp_msgs::Primitive final_point;
+  hiqp_msgs::Primitive PC_of_object2;
+  hiqp_msgs::Primitive object;
 
-  if (task_.compare("manifold") == 0) {
-  // Define the primitives
-  eef_point = hiqp_ros::createPrimitiveMsg(
-  "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
+  if (task_.compare("simplified_manifold") == 0) {
 
-  manifold = hiqp_ros::createPrimitiveMsg(
-  "grasp_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.5}, {
-    0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
-    manifold_radius_, manifold_height_
-  });
+    // Define the primitives
+    eef_point = hiqp_ros::createPrimitiveMsg(
+    "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
+    {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
-  object = hiqp_ros::createPrimitiveMsg(
-     "object_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.5},
-     {0, 0, 1,manifoldPos[0], manifoldPos[1], manifoldPos[2],
-       0.001,manifold_height_});
+    manifold = hiqp_ros::createPrimitiveMsg(
+    "grasp_manifold", "cylinder", "world", true, {0.0, 0.0, 1.0, 0.30}, {
+      0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
+      manifold_radius_, manifold_height_
+    });
 
-  gripper_approach_axis = hiqp_ros::createPrimitiveMsg(
-  "gripper_approach_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
-  {0, 0, 1, 0, 0, 0.1});
+    object = hiqp_ros::createPrimitiveMsg(
+    "object_manifold", "cylinder", "world", true, {0.0, 0.0, 1.0, 0.40}, {
+      0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
+      object_radius_, manifold_height_
+    });
 
-  gripper_vertical_axis = hiqp_ros::createPrimitiveMsg(
-  "gripper_vertical_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
-  {0, -1, 0, 0, 0, 0.1});
+    gripper_approach_axis = hiqp_ros::createPrimitiveMsg(
+    "gripper_approach_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
+    {0, 0, 1, 0, 0, 0.1});
 
-  grasp_target_axis = hiqp_ros::createPrimitiveMsg(
-  "grasp_target_axis", "line", "world", true, {0, 1, 0, 1},
-  {0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2]});
+    gripper_vertical_axis = hiqp_ros::createPrimitiveMsg(
+    "gripper_vertical_axis", "line", grasp_.e_frame_, true, {0, 0, 1, 1},
+    {0, -1, 0, 0, 0, 0.1});
+
+    grasp_target_axis = hiqp_ros::createPrimitiveMsg(
+    "grasp_target_axis", "line", "world", true, {0, 1, 0, 1},
+    {0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2]});
 
 
-  PC_of_object = hiqp_ros::createPrimitiveMsg(
-                   "PC_of_object", "line", "world", true, {1, 1, 1, 1},
-                   PCofObject);
+    PC_of_object = hiqp_ros::createPrimitiveMsg(
+                     "PC_of_object", "line", "world", true, {1, 1, 1, 1},
+                     PCofObject);
+
+    // PCofObject.back() += manifold_height_ / 2.0;
+    // PC_of_object2 = hiqp_ros::createPrimitiveMsg(
+    //                  "PC_of_object2", "line", "world", true, {0, 1, 1, 1},
+    //                  PCofObject);
+
 
     grasp_plane = hiqp_ros::createPrimitiveMsg(
-    "grasp_plane", "plane", "world", true, {0, 1.0, 0, 0.4},
-    {0, 0, 1, manifoldPos[2]+manifold_height_/2}); //0.1
+    "grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.75},
+    {0, 0, 1, manifoldPos[2] + manifold_height_ / 2}); //0.1
 
     // Define the tasks
 
-     gripperToObject = hiqp_ros::createTaskMsg(
-     "point_to_object", 2, false, false, true,
-     {"TDefGeomProj", "point", "cylinder",
-     eef_point.name + " = " + object.name},
-     {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+    gripperToObject = hiqp_ros::createTaskMsg(
+    "point_to_object", 2, false, false, true, {
+      "TDefGeomProj", "point", "cylinder",
+      eef_point.name + " = " + object.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
+    gripperAxisToTargetAxis = hiqp_ros::createTaskMsg(
+    "gripper_approach_axis_coplanar_grasp_target_axis", 2, false, false, true, {
+      "TDefGeomProj", "line", "line",
+      gripper_approach_axis.name + " = " + grasp_target_axis.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
-  // Define tasks
-
-
-  gripperAxisToTargetAxis = hiqp_ros::createTaskMsg(
-  "gripper_approach_axis_coplanar_grasp_target_axis", 2, false, false, true, {
-    "TDefGeomProj", "line", "line",
-    gripper_approach_axis.name + " = " + grasp_target_axis.name
-  },
-  {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
-
-  gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
-  "gripper_vertical_axis_parallel_grasp_target_axis", 2, false, false, true, {
-    "TDefGeomAlign", "line", "line",
-    gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0"
-  },
-  {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+    gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
+    "gripper_vertical_axis_parallel_grasp_target_axis", 2, false, false, true, {
+      "TDefGeomAlign", "line", "line",
+      gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0"
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
     gripperToGraspPlane = hiqp_ros::createTaskMsg(
     "gripper_ee_point_on_grasp_plane", 2, false, false, true, {
@@ -646,7 +671,14 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     start_recording_.publish(start_msg_);
 
-    hiqp_client_.setPrimitives({eef_point, gripper_approach_axis, gripper_vertical_axis, grasp_target_axis, grasp_plane, manifold, PC_of_object, object});
+    // hiqp_client_.setPrimitives({eef_point, grasp_target_axis, grasp_plane, manifold, object});
+
+    // char c;
+    // std::cin >> c;
+    // hiqp_client_.setPrimitives({gripper_approach_axis, gripper_vertical_axis, PC_of_object});
+
+    hiqp_client_.setPrimitives({eef_point, grasp_target_axis, grasp_plane, manifold, object, gripper_approach_axis, gripper_vertical_axis, PC_of_object});
+
 
     hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperToManifold, gripperAxisAlignedToTargetAxis});
 
@@ -666,25 +698,178 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
     {1e-10, 1e-10, 1e-10, 1e-10}, exec_time_);
 
-  //hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
+    // char c;
+    // std::cin >> c;
+    // hiqp_client_.removePrimitives({manifold.name, PC_of_object.name});
 
+    // hiqp_client_.setPrimitives({PC_of_object2});
     hiqp_client_.setTasks({gripperToGraspPlane, gripperAxisToTargetAxis, gripperToObject, gripperAxisAlignedToTargetAxis});
 
 // Activate all tasks for bringing the gripper to the object manifold
-   hiqp_client_.activateTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
-   gripperToObject.name, gripperAxisAlignedToTargetAxis.name, object.name});
+    hiqp_client_.activateTasks({gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
+                                gripperToObject.name, gripperAxisAlignedToTargetAxis.name
+                               });
 
 
- hiqp_client_.waitForCompletion(
-   {gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
-     gripperToObject.name, gripperAxisAlignedToTargetAxis.name},
-     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-     {1e-5,1e-5,1e-10,1e-5}, exec_time_);
+    hiqp_client_.waitForCompletion( {
+      gripperToGraspPlane.name, gripperAxisToTargetAxis.name,
+      gripperToObject.name, gripperAxisAlignedToTargetAxis.name
+    },
+    {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
+    {0, 0, 0, 0}, exec_time_);
     //char c;
-    //std::cin>>c;
+    // std::cin >> c;
 
-  hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
-    grasp_target_axis.name, grasp_plane.name, manifold.name, PC_of_object.name});
+    hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
+                                   grasp_target_axis.name, grasp_plane.name, manifold.name, PC_of_object.name
+                                  });
+
+  } else if (task_.compare("manifold") == 0) {
+
+    hiqp_msgs::Primitive upper_grasp_plane;
+    hiqp_msgs::Primitive lower_grasp_plane;
+
+    hiqp_msgs::Task gripperBelowUpperPlane;
+    hiqp_msgs::Task gripperAboveLowerPlane;
+
+    // Define the primitives
+
+    grasp_plane = hiqp_ros::createPrimitiveMsg(
+    "grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.75},
+    {0, 0, 1, manifoldPos[2] + manifold_height_ / 2}); //0.1
+
+    eef_point = hiqp_ros::createPrimitiveMsg(
+    "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
+    {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
+
+    manifold = hiqp_ros::createPrimitiveMsg(
+    "grasp_manifold", "cylinder", "world", true, {0.0, 0.0, 1.0, 0.30}, {
+      0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
+      manifold_radius_, manifold_height_
+    });
+
+    object = hiqp_ros::createPrimitiveMsg(
+    "object_manifold", "cylinder", "world", true, {0.0, 0.0, 1.0, 0.40}, {
+      0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
+      object_radius_, manifold_height_
+    });
+
+    gripper_approach_axis = hiqp_ros::createPrimitiveMsg(
+    "gripper_approach_axis", "line", grasp_.e_frame_, true, {1, 1, 0, 1},
+    {0, 0, 1, 0, 0, 0.1});
+
+    gripper_vertical_axis = hiqp_ros::createPrimitiveMsg(
+    "gripper_vertical_axis", "line", grasp_.e_frame_, true, {1, 1, 0, 1},
+    {0, -1, 0, 0, 0, 0.1});
+
+    grasp_target_axis = hiqp_ros::createPrimitiveMsg(
+    "grasp_target_axis", "line", "world", true, {0, 0, 0, 1},
+    {0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2]});
+
+
+    PC_of_object = hiqp_ros::createPrimitiveMsg(
+                     "PC_of_object", "line", "world", true, {0, 1, 1, 1},
+                     PCofObject);
+
+    // PCofObject.back() += manifold_height_ / 2.0;
+    // PC_of_object2 = hiqp_ros::createPrimitiveMsg(
+    //                  "PC_of_object2", "line", "world", true, {0, 1, 1, 1},
+    //                  PCofObject);
+
+
+    upper_grasp_plane = hiqp_ros::createPrimitiveMsg(
+    "upper_grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.5},
+    {0, 0, 1, manifoldPos[2] + manifold_height_}); //0.1
+
+    lower_grasp_plane = hiqp_ros::createPrimitiveMsg(
+    "lower_grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.5},
+    {0, 0, 1, manifoldPos[2]+0.1*manifold_height_}); //0.1
+
+    // Define the tasks
+
+    gripperToObject = hiqp_ros::createTaskMsg(
+    "point_to_object", 2, false, false, true, {
+      "TDefGeomProj", "point", "cylinder",
+      eef_point.name + " = " + object.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+
+    gripperAxisToTargetAxis = hiqp_ros::createTaskMsg(
+    "gripper_approach_axis_coplanar_grasp_target_axis", 2, false, false, true, {
+      "TDefGeomProj", "line", "line",
+      gripper_approach_axis.name + " = " + grasp_target_axis.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+
+    gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
+    "gripper_vertical_axis_parallel_grasp_target_axis", 2, false, false, true, {
+      "TDefGeomAlign", "line", "line",
+      gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0"
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+
+    gripperBelowUpperPlane = hiqp_ros::createTaskMsg(
+    "gripper_ee_point_below_upper_grasp_plane", 2, false, false, true, {
+      "TDefGeomProj", "point", "plane",
+      eef_point.name + " < " + upper_grasp_plane.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+
+    gripperAboveLowerPlane = hiqp_ros::createTaskMsg(
+    "gripper_ee_point_above_lower_grasp_plane", 2, false, false, true, {
+      "TDefGeomProj", "point", "plane",
+      eef_point.name + " > " + lower_grasp_plane.name
+    },
+    {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
+
+
+    gripperToManifold = hiqp_ros::createTaskMsg(
+    "point_to_manifold", 3, false, false, true, {
+      "TDefGeomProjWithNullspace", "point", "cylinder",
+      eef_point.name + " = " + manifold.name
+    },
+    {"TDynRBFN", std::to_string(decay_rate_ * DYNAMICS_GAIN), "manifold"});
+
+    start_recording_.publish(start_msg_);
+
+    using hiqp_ros::TaskDoneReaction;
+
+    // hiqp_client_.setPrimitives({eef_point, grasp_target_axis, manifold, object, gripper_approach_axis, gripper_vertical_axis, PC_of_object, grasp_plane, upper_grasp_plane});
+
+    // hiqp_client_.setTasks({gripperAxisToTargetAxis, gripperToManifold, gripperAxisAlignedToTargetAxis, gripperToGraspPlane});
+
+    // hiqp_client_.activateTasks({gripperAxisToTargetAxis.name,
+    //                             gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
+    //                             gripperToGraspPlane.name
+    //                            });
+
+    // hiqp_client_.waitForCompletion( {
+    //   gripperAxisToTargetAxis.name,
+    //   gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
+    //   gripperToGraspPlane.name
+    // },
+    // {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
+    // {1e-10, 1e-10, 1e-10, 0}, exec_time_);
+
+    hiqp_client_.setPrimitives({eef_point, grasp_target_axis, manifold, object, gripper_approach_axis, gripper_vertical_axis, PC_of_object, upper_grasp_plane, lower_grasp_plane});
+
+    hiqp_client_.setTasks({gripperAxisToTargetAxis, gripperToManifold, gripperAxisAlignedToTargetAxis, gripperBelowUpperPlane, gripperAboveLowerPlane});
+
+
+
+    hiqp_client_.activateTasks({gripperAxisToTargetAxis.name,
+                                gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
+                                gripperBelowUpperPlane.name, gripperAboveLowerPlane.name
+                               });
+
+// Set the gripper approach pose
+    hiqp_client_.waitForCompletion( {
+      gripperAxisToTargetAxis.name,
+      gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
+      gripperBelowUpperPlane.name, gripperAboveLowerPlane.name
+    },
+    {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
+    {1e-10, 1e-10, 1e-10, 1e-10, 1e-10}, exec_time_);
 
 
   } else if (task_.compare("plane") == 0) {
@@ -730,48 +915,6 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     hiqp_client_.removePrimitives({eef_point.name, grasp_plane.name, final_point.name});
 
-  }
-
-  else {
-
-    eef_point = hiqp_ros::createPrimitiveMsg(
-    "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-    {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
-
-    final_point = hiqp_ros::createPrimitiveMsg(
-    "final_point", "point", "world", true, {1, 1, 1, 1},
-    {manifoldPos[0], manifoldPos[1], 0.2});
-
-    object = hiqp_ros::createPrimitiveMsg(
-       "object_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.5},
-       {0, 0, 1,manifoldPos[0], manifoldPos[1], manifoldPos[2],
-         0.001,manifold_height_});
-
-
-    hiqp_msgs::Task point2Point;
-
-  point2Point = hiqp_ros::createTaskMsg(
-  "p2p", 2, true, false, true, {
-    "TDefGeomProj", "point", "cylinder",
-    eef_point.name + " = " + object.name
-  }, {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
-
-    hiqp_client_.setPrimitives({eef_point,  object});
-
-    hiqp_client_.setTasks({point2Point});
-
-    using hiqp_ros::TaskDoneReaction;
-
-    hiqp_client_.activateTasks({point2Point.name});
-
-    hiqp_client_.waitForCompletion(
-    {point2Point.name},
-    {TaskDoneReaction::REMOVE},
-    {0}, exec_time_);
-
-    hiqp_client_.removePrimitives({eef_point.name, object.name});
-    char z;
-    std::cin>>z;
   }
 
   finish_recording_.publish(finish_msg_);
@@ -902,23 +1045,23 @@ bool DemoLearnManifold::runDemo(std_srvs::Empty::Request& req, std_srvs::Empty::
   return true;
 }
 
-bool DemoLearnManifold::pictureMode(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res){
-    hiqp_client_.resetHiQPController();
-    visualizeKernels();
+bool DemoLearnManifold::pictureMode(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res) {
+  hiqp_client_.resetHiQPController();
+  visualizeKernels();
 
-    hiqp_client_.setJointAngles(sensing_config_);
-    hiqp_msgs::Primitive eef_point;
-    hiqp_msgs::Primitive final_point;
+  hiqp_client_.setJointAngles(sensing_config_);
+  hiqp_msgs::Primitive eef_point;
+  hiqp_msgs::Primitive final_point;
 
-    eef_point = hiqp_ros::createPrimitiveMsg(
-    "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-    {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
+  eef_point = hiqp_ros::createPrimitiveMsg(
+  "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
+  {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
-    final_point = hiqp_ros::createPrimitiveMsg(
-    "final_point", "point", "world", true, {1, 1, 1, 1},
-    {manifoldPos[0], manifoldPos[1], 0.2});
+  final_point = hiqp_ros::createPrimitiveMsg(
+  "final_point", "point", "world", true, {1, 1, 1, 1},
+  {manifoldPos[0], manifoldPos[1], 0.2});
 
-    hiqp_msgs::Task point2Point;
+  hiqp_msgs::Task point2Point;
 
   point2Point = hiqp_ros::createTaskMsg(
   "p2p", 2, true, false, true, {
@@ -926,25 +1069,25 @@ bool DemoLearnManifold::pictureMode(std_srvs::Empty::Request& req, std_srvs::Emp
     eef_point.name + " = " + final_point.name
   }, {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
-    hiqp_client_.setPrimitives({eef_point,  final_point});
+  hiqp_client_.setPrimitives({eef_point,  final_point});
 
-    hiqp_client_.setTasks({point2Point});
+  hiqp_client_.setTasks({point2Point});
 
-    char c;
-    std::cin>>c;
+  char c;
+  std::cin >> c;
 
 
-    using hiqp_ros::TaskDoneReaction;
+  using hiqp_ros::TaskDoneReaction;
 
 // Activate all tasks for bringing the gripper to the manifold
-    hiqp_client_.activateTasks({point2Point.name});
+  hiqp_client_.activateTasks({point2Point.name});
 
 // Set the gripper approach pose
-    hiqp_client_.waitForCompletion({point2Point.name},
-    {TaskDoneReaction::REMOVE},
-    {1e-10}, exec_time_);
+  hiqp_client_.waitForCompletion({point2Point.name},
+  {TaskDoneReaction::REMOVE},
+  {1e-10}, exec_time_);
 
-    return true;
+  return true;
 }
 
 

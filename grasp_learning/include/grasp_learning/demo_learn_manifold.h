@@ -49,9 +49,9 @@ namespace demo_learning {
 
 #define DYNAMICS_GAIN 1.5
 
-  struct GraspInterval {
+struct GraspInterval {
 
-    hiqp_msgs::Primitive plane;
+  hiqp_msgs::Primitive plane;
 
   std::string obj_frame_;  // object frame
   std::string e_frame_;    // endeffector frame
@@ -62,12 +62,12 @@ namespace demo_learning {
 
 
 class DemoLearnManifold {
-public:
+ public:
   DemoLearnManifold();
 
 
   template <typename ROSMessageType>
-  int addSubscription(ros::NodeHandle& controller_nh, const std::string& topic_name, unsigned int buffer_size){
+  int addSubscription(ros::NodeHandle& controller_nh, const std::string& topic_name, unsigned int buffer_size) {
     ros::Subscriber sub;
     sub = controller_nh.subscribe(topic_name, buffer_size,  &DemoLearnManifold::topicCallback<ROSMessageType>, this);
     ROS_INFO_STREAM("Subsribed to topic '" << topic_name << "'");
@@ -119,7 +119,7 @@ public:
   void calculateReward();
 
   void calculateReachingReward();
-  
+
   bool successfulGrasp();
 
   bool isCollision();
@@ -129,6 +129,8 @@ public:
   double pointToPointDist(std::vector<double> point1, std::vector<double> point2);
 
   double pointToLineDist(std::vector<double> point, std::vector<double> line);
+
+  double pointToPlaneDist(std::vector<double> point, std::vector<double> plane);
 
   double vectorLength(const std::vector<double>& vec);
 
@@ -160,12 +162,12 @@ public:
   template<typename T>
   std::vector<T> accumulateVector(std::vector<T> vec);
 
-private:
+ private:
 
   fileHandler fileHandler_;
-  
+
   std::string relativePath;
-  
+
   std::string task_;
 
   std::string rewardFile;
@@ -183,7 +185,7 @@ private:
   std::string jointTrajAccFile;
 
   std::string gripperPosFile;
-  
+
   std::string samplingTimeFile;
 
   std::string trialDataFile;
@@ -216,14 +218,14 @@ private:
 
   int numRollouts_ = 1;
   int maxRolloutsPerTrial_ = 0;
-  
+
   bool policyConverged_ = false;
 
   bool collision_ = false;
 
-  bool nullspace_=true;
+  bool nullspace_ = true;
 
-  bool init=true;
+  bool init = true;
 
   bool run_demo_ = true;
   // object
