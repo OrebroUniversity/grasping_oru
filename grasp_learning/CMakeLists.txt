@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rosbag
   yumi_hw
-  grasp_planner
   hiqp_msgs
   message_generation
 )
@@ -54,7 +53,7 @@ generate_messages(
 
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rosbag hiqp_ros controller_manager_msgs gazebo_msgs yumi_hw grasp_planner message_runtime
+  CATKIN_DEPENDS roscpp rosbag hiqp_ros controller_manager_msgs gazebo_msgs yumi_hw message_runtime
   INCLUDE_DIRS include
 )
 

@@ -365,7 +365,7 @@ double DemoLearnManifold::pointToLineDist(std::vector<double> point, std::vector
   std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
   return vectorLength(p2);
 }
-
+/*
 double DemoLearnManifold::pointToPlaneDist(std::vector<double> point, std::vector<double> plane) {
   Eigen::Vector3d v_hat;
   v_hat << line[0], line[1], line[2];
@@ -382,7 +382,7 @@ double DemoLearnManifold::pointToPlaneDist(std::vector<double> point, std::vecto
   proj = -x + s * v_hat;
   std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
   return vectorLength(p2);
-}
+}*/
 
 
 double DemoLearnManifold::vectorLength(const std::vector<double>& vec) {

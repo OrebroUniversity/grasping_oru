@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <node name="retimer" pkg="grasp_planner" type="tf_retime" output="screen"/>
-  <node name="pc_pub" pkg="grasp_planner" type="pointcloud_publisher" output="screen"/>
-  <node name="viz" pkg="rviz" type="rviz" output="screen"/>
-
-</launch>
