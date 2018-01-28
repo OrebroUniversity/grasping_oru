@@ -10,16 +10,16 @@
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
   <!-- <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen"> -->
 
-   <param name="num_kernels" value="15"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
+   <param name="num_kernels" value="50"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <!-- <param name="num_kernel_rows" value="1"/> -->
+   <param name="num_kernel_rows" value="5"/>
 
    <param name="variance" value="0.001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
    <!--param name="variance" value="4"/-->  
    <!-- <param name="variance" value="2"/>   -->
 
-   <param name="num_policies" value="1"/> <!-- 3 for grid, 2 for plane, and 1 for manifold -->
-   <param name="num_dim" value="2"/> <!-- 3 for grid, and 2 for plane and manifold -->
+   <param name="num_policies" value="2"/> <!-- 3 for grid, 2 for plane, and 1 for manifold -->
+   <param name="num_dim" value="3"/> <!-- 3 for grid, and 2 for plane and manifold -->
 
    <param name="use_corr_noise" type="bool" value="false"/>
    <param name="burn_in_trials" value="15"/>
@@ -28,10 +28,12 @@
 
    <param name="spacing_policy" type="str" value="manifold"/> <!-- possibilities grid, plane, and manifold -->
 
-   <param name="grid_x" value="0.7"/>
+   <!--These three following parameters are not used when learning on a manifold -->
+   <param name="grid_x" value="0.7"/>  
    <param name="grid_y" value="0.7"/>
    <param name="grid_z" value="0.5"/>
 
+   <!-- The policy is concidered converged after the mean return of max_num_samples are above a predefined threshold -->
    <param name="convergance_treshold" value="0.85"/> <!-- 0.42 for plane and 0.6 for manifold  -->
 
  </node>

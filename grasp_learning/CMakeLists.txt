@@ -66,15 +66,6 @@ include_directories(include
 
 
 
-## Declare a cpp executable
-add_executable(demo_learning
-  src/demo_learning.cpp
-)
-
-add_executable(grasp_recorder_node
-  src/grasp_recorder_node.cpp src/grasp_recorder.cpp
-)
-
 add_executable(run_demo_node
   src/run_demo_node.cpp
 )
@@ -88,17 +79,6 @@ add_executable(RBFNetwork
 )
 
 
-# add_executable(RBFNetworkNode
-#   src/RBFNetworkNode.cpp src/RBFNetwork.cpp src/power.cpp
-# )
-
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(demo_learning ${catkin_LIBRARIES})
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(grasp_recorder_node ${catkin_LIBRARIES})
-
 ## Specify libraries to link a library or executable target against
 target_link_libraries(run_demo_node ${catkin_LIBRARIES})
 
@@ -107,6 +87,3 @@ target_link_libraries(demo_learn_manifold ${catkin_LIBRARIES})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(RBFNetwork ${catkin_LIBRARIES})
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(RBFNetworkNode ${catkin_LIBRARIES})

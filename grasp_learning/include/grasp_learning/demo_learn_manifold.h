@@ -10,7 +10,7 @@
 #include <std_msgs/Empty.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64MultiArray.h>
-
+#include <control_msgs/JointControllerState.h>
 #include <gazebo_msgs/SetPhysicsProperties.h>
 
 #include <hiqp_ros/hiqp_client.h>
@@ -82,7 +82,7 @@ class DemoLearnManifold {
 
   void robotCollisionCallback(const std_msgs::Empty::ConstPtr& msg);
 
-
+  void gripperStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
   //**First deactivates the HQP control scheme (the controller will output zero
   // velocity commands afterwards) and then calls a ros::shutdown */
   void safeShutdown();
@@ -103,6 +103,7 @@ class DemoLearnManifold {
   bool runDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
   bool pauseDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+
 
   void updatePolicy();
 
@@ -161,6 +162,7 @@ class DemoLearnManifold {
 
   template<typename T>
   std::vector<T> accumulateVector(std::vector<T> vec);
+
 
  private:
 
@@ -228,6 +230,8 @@ class DemoLearnManifold {
   bool init = true;
 
   bool run_demo_ = true;
+
+  double unsuccessful_grasp_ = 0;
   // object
 
   GraspInterval grasp_;
@@ -245,7 +249,7 @@ class DemoLearnManifold {
 
   ros::Subscriber gripper_pos;
   ros::Subscriber robot_collision;
-
+  ros::Subscriber robot_state;
 
   ros::ServiceClient close_gripper_clt_;
   ros::ServiceClient open_gripper_clt_;

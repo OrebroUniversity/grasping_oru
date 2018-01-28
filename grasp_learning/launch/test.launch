@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-
-  <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
-
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
-
-</launch>

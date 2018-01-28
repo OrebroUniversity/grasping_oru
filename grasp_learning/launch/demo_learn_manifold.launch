@@ -3,16 +3,16 @@
 
   <include file="$(find hiqp_demos)/launch/yumi_simulation.launch"/>
 
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/>
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find grasp_learning)/launch/demo.rviz"/> -->
 
   <!--node name="yumi_collision" pkg="yumi_collision" type="yumi_collision_node"/-->
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
   <!-- <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen"> -->
 
-   <param name="num_kernels" value="15"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
+   <param name="num_kernels" value="50"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <param name="num_kernel_rows" value="3"/>
+   <param name="num_kernel_rows" value="5"/>
 
    <param name="variance" value="0.001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
    <!--param name="variance" value="4"/-->  
@@ -22,7 +22,7 @@
    <param name="num_dim" value="3"/> <!-- 3 for grid, and 2 for plane and manifold -->
 
    <param name="use_corr_noise" type="bool" value="false"/>
-   <param name="burn_in_trials" value="15"/>
+   <param name="burn_in_trials" value="7"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
@@ -40,9 +40,11 @@
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="true"/>
    <param name="decay_rate" type="double" value="4"/>
-   <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
+
+   <!-- The execution time for on rollout -->
    <param name="exec_time" type="double" value="2"/> 
 
+   <!-- The hight and radius of the grasping manifold is specified here. This is then propageted to the RBF network-->
    <param name="manifold_height" value="0.12"/>
    <param name="manifold_radius" value="0.05"/>
       <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->

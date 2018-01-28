@@ -45,6 +45,8 @@ DemoLearnManifold::DemoLearnManifold()
 
   robot_collision = n_.subscribe("/yumi/collision", 10, &DemoLearnManifold::robotCollisionCallback, this);
 
+  robot_state = n_.subscribe("/yumi/joint_states", 10, &DemoLearnManifold::gripperStateCallback, this);
+
 
   set_gazebo_physics_clt_ = n_.serviceClient<gazebo_msgs::SetPhysicsProperties>(
                               "/gazebo/set_physics_properties");
@@ -65,12 +67,12 @@ DemoLearnManifold::DemoLearnManifold()
   finish_msg_.str = ' ';
 
   if (!with_gazebo_) {
-    /*    close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
-        open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
+        // close_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("close_gripper");
+        // open_gripper_clt_ = n_.serviceClient<yumi_hw::YumiGrasp>("open_gripper");
 
-        close_gripper_clt_.waitForExistence();
-        open_gripper_clt_.waitForExistence();
-      */
+        // close_gripper_clt_.waitForExistence();
+        // open_gripper_clt_.waitForExistence();
+      
   } else {
     // if gazebo is used, set the simulated gravity to zero in order to prevent
     // gazebo's joint drifting glitch
@@ -209,6 +211,15 @@ void DemoLearnManifold::robotStateCallback(const grasp_learning::RobotState::Con
   samplingTime.push_back(msg->samplingTime);
 }
 
+void DemoLearnManifold::gripperStateCallback(const sensor_msgs::JointState::ConstPtr& msg){
+  if(msg->name[1].compare("gripper_r_joint")==0){
+    if(msg->position[1]<0.3){
+      unsuccessful_grasp_ = 1;
+    }
+  }
+
+}
+
 void DemoLearnManifold::robotCollisionCallback(const std_msgs::Empty::ConstPtr& msg) {
   collision_ = true;
 }
@@ -277,7 +288,7 @@ void DemoLearnManifold::calculateReward() {
   }
 
   res = -Rpos * pointToLine.back();
-
+  res -= unsuccessful_grasp_; // If grasp is successful then add zero punishment
 
   // if(isCollision()){
   //   res += Rcollision;
@@ -365,25 +376,6 @@ double DemoLearnManifold::pointToLineDist(std::vector<double> point, std::vector
   std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
   return vectorLength(p2);
 }
-/*
-double DemoLearnManifold::pointToPlaneDist(std::vector<double> point, std::vector<double> plane) {
-  Eigen::Vector3d v_hat;
-  v_hat << line[0], line[1], line[2];
-  Eigen::Vector3d d;
-  d << line[3], line[4], line[5];
-  Eigen::Vector3d p;
-  p << point[0], point[1], point[2];
-
-   v_hat.dot(p - d);
-
-  double s =  v_hat.dot(p - d);
-
-  Eigen::Vector3d proj;
-  proj = -x + s * v_hat;
-  std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
-  return vectorLength(p2);
-}*/
-
 
 double DemoLearnManifold::vectorLength(const std::vector<double>& vec) {
   double diff_square = 0;
@@ -532,22 +524,6 @@ void DemoLearnManifold::setRBFNetwork() {
 
 }
 
-
-
-std::vector<double> DemoLearnManifold::generateStartPosition(std::vector<double> curr_sensing_vec) {
-
-  std::vector<double> new_sensing_config = curr_sensing_vec;
-  for (unsigned int i = 0; i < 7; i++) {
-    new_sensing_config[i] += this->dist(this->generator);
-  }
-  ROS_INFO("Previous start configuration");
-  printVector(sensing_config_);
-  ROS_INFO("New start configuration");
-  printVector(new_sensing_config);
-
-  return new_sensing_config;
-
-}
 
 void DemoLearnManifold::visualizeKernels() {
   if (vis_kernel_mean_clt_.call(empty_srv_)) {
@@ -834,23 +810,6 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     using hiqp_ros::TaskDoneReaction;
 
-    // hiqp_client_.setPrimitives({eef_point, grasp_target_axis, manifold, object, gripper_approach_axis, gripper_vertical_axis, PC_of_object, grasp_plane, upper_grasp_plane});
-
-    // hiqp_client_.setTasks({gripperAxisToTargetAxis, gripperToManifold, gripperAxisAlignedToTargetAxis, gripperToGraspPlane});
-
-    // hiqp_client_.activateTasks({gripperAxisToTargetAxis.name,
-    //                             gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
-    //                             gripperToGraspPlane.name
-    //                            });
-
-    // hiqp_client_.waitForCompletion( {
-    //   gripperAxisToTargetAxis.name,
-    //   gripperToManifold.name, gripperAxisAlignedToTargetAxis.name,
-    //   gripperToGraspPlane.name
-    // },
-    // {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-    // {1e-10, 1e-10, 1e-10, 0}, exec_time_);
-
     hiqp_client_.setPrimitives({eef_point, grasp_target_axis, manifold, object, gripper_approach_axis, gripper_vertical_axis, PC_of_object, upper_grasp_plane, lower_grasp_plane});
 
     hiqp_client_.setTasks({gripperAxisToTargetAxis, gripperToManifold, gripperAxisAlignedToTargetAxis, gripperBelowUpperPlane, gripperAboveLowerPlane});
@@ -870,6 +829,26 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     },
     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
     {1e-10, 1e-10, 1e-10, 1e-10, 1e-10}, exec_time_);
+
+
+    hiqp_client_.setTasks({gripperBelowUpperPlane, gripperAboveLowerPlane, gripperAxisToTargetAxis, gripperToObject, gripperAxisAlignedToTargetAxis});
+
+// Activate all tasks for bringing the gripper to the object manifold
+    hiqp_client_.activateTasks({gripperBelowUpperPlane.name, gripperAboveLowerPlane.name,
+                                gripperAxisToTargetAxis.name, gripperToObject.name, gripperAxisAlignedToTargetAxis.name
+                               });
+
+
+    hiqp_client_.waitForCompletion( {
+      gripperBelowUpperPlane.name, gripperAboveLowerPlane.name,
+      gripperAxisToTargetAxis.name, gripperToObject.name, gripperAxisAlignedToTargetAxis.name
+    },
+    {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
+    {0, 0, 0, 0, 0}, exec_time_);
+
+    hiqp_client_.removePrimitives({eef_point.name, gripper_approach_axis.name, gripper_vertical_axis.name,
+                                   grasp_target_axis.name, upper_grasp_plane.name, lower_grasp_plane.name, manifold.name, PC_of_object.name, object.name
+                                  });
 
 
   } else if (task_.compare("plane") == 0) {
@@ -1135,6 +1114,7 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req, std_srvs::Empty
     init = false;
   }
 
+  unsuccessful_grasp_ = 0;
   ROS_INFO("Trying to put the manipulator in transfer configuration.");
   hiqp_client_.setJointAngles(sensing_config_);
 

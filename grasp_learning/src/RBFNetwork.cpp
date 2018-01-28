@@ -202,13 +202,11 @@ void RBFNetwork::spaceKernelsOnManifold(double height, double radius) {
 
 	manifold_height = height;
 	double column_spacing = (2 * PI) / numKernels;
-	double row_spacing = height / (numRows + 1.0);
 	Eigen::VectorXd mean(numDim);
 	double r = radius;
 	double dx = r * (cos(0 * column_spacing) - cos(1 * column_spacing));
 	double dy = r * (sin(0 * column_spacing) - sin(1 * column_spacing));
 	double var = calculateVariance(dx, dy) / 2.0;
-	std::cout << var << std::endl;
 
 	if (numDim < 3) {
 		for (int column = 0; column < numKernels; column++) {
@@ -219,15 +217,18 @@ void RBFNetwork::spaceKernelsOnManifold(double height, double radius) {
 		}
 
 	} else {
+		double row_spacing = height / (numRows);
 		double kernelsPerRow = numKernels/numRows;
 		column_spacing = (2 * PI) / kernelsPerRow;
-		for (double row = row_spacing; row < height; row+=row_spacing) {
+		double num_kern = 0;
+		for (double row = row_spacing; row <= height; row+=row_spacing) {
 			mean(2) = global_pos[2]+row;
 			for (int column = 0; column < kernelsPerRow; column++) {
 				mean(0) = global_pos[0] + r * cos(column * column_spacing);
 				mean(1) = global_pos[1] + r * sin(column * column_spacing);
 				GaussianKernel kernel(mean, var);
 				Network.push_back(kernel);
+				num_kern++;
 			}
 		}
 	}
