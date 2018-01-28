@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-
-	<node name="run_demo_node" pkg="grasp_learning" type="run_demo_node" output="screen">
-		<param name="max_rollouts" type="double"  value="300" />
- 	</node>
-</launch>
