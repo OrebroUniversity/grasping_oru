@@ -513,7 +513,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 		Eigen::VectorXd mean = Network[i].getMean();
 
 		visualization_msgs::Marker marker_mean;
-		marker_mean.header.frame_id = "world";
+		marker_mean.header.frame_id = "yumi_pedestal";
 		marker_mean.header.stamp = ros::Time();
 		marker_mean.ns = "gaussian_kernels";
 		marker_mean.id = i + 1;
@@ -533,7 +533,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 		marker_mean.lifetime = ros::Duration();
 
 		visualization_msgs::Marker marker_num;
-		marker_num.header.frame_id = "world";
+		marker_num.header.frame_id = "yumi_pedestal";
 		marker_num.header.stamp = ros::Time();
 		marker_num.ns = "gaussian_kernels";
 		marker_num.id = numKernels + 1 + i;
@@ -549,7 +549,7 @@ bool RBFNetwork::visualizeKernelMeans(std_srvs::Empty::Request& request, std_srv
 
 
 		visualization_msgs::Marker marker_var;
-		marker_var.header.frame_id = "world";
+		marker_var.header.frame_id = "yumi_pedestal";
 		marker_var.header.stamp = ros::Time();
 		marker_var.ns = "gaussian_kernels";
 		marker_var.id = -(i + 1);
