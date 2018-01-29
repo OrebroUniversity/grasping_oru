@@ -18,7 +18,6 @@ namespace demo_learning {
     nh_.param<double>("manifold_radius", manifold_radius_, 5);
     nh_.param<double>("object_radius", object_radius_, 2.5);
     nh_.getParam("manifold_pos", manifoldPos);
-    nh_.getParam("final_pos", finalPos);
     nh_.getParam("PC_of_object", PCofObject);
     nh_.param<bool>("nullspace", nullspace_, true);
     nh_.param<int>("max_num_trials", maxNumTrials_, 10);
@@ -115,7 +114,7 @@ namespace demo_learning {
     };
 
   // DEFAULT GRASP
-  grasp_.obj_frame_ = "world";         // object frame
+  grasp_.obj_frame_ = "yumi_pedestal";         // object frame
   grasp_.e_frame_ = "gripper_r_base";  // sizeeffector frame
   grasp_.e_.setZero();  // sizeeffector point expressed in the sizeeffector frame
   grasp_.isSphereGrasp = false;
@@ -586,13 +585,13 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
       {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.14});
 
     manifold = hiqp_ros::createPrimitiveMsg(
-      "grasp_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.5}, {
+      "grasp_manifold", "cylinder", "yumi_pedestal", true, {1.0, 0.0, 0.0, 0.5}, {
         0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2],
         manifold_radius_, manifold_height_
       });
 
     object = hiqp_ros::createPrimitiveMsg(
-     "object_manifold", "cylinder", "world", true, {1.0, 0.0, 0.0, 0.5},
+     "object_manifold", "cylinder", "yumi_pedestal", true, {1.0, 0.0, 0.0, 0.5},
      {0, 0, 1,manifoldPos[0], manifoldPos[1], manifoldPos[2],
        object_radius_,manifold_height_});
 
@@ -605,19 +604,19 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
       {0, -1, 0, 0, 0, 0.1});
 
     grasp_target_axis = hiqp_ros::createPrimitiveMsg(
-      "grasp_target_axis", "line", "world", true, {0, 1, 0, 1},
+      "grasp_target_axis", "line", "yumi_pedestal", true, {0, 1, 0, 1},
       {0, 0, 1, manifoldPos[0], manifoldPos[1], manifoldPos[2]});
 
     PC_of_object = hiqp_ros::createPrimitiveMsg(
-     "PC_of_object", "line", "world", true, {1, 1, 1, 1},
+     "PC_of_object", "line", "yumi_pedestal", true, {1, 1, 1, 1},
      PCofObject);
 
     upper_grasp_plane = hiqp_ros::createPrimitiveMsg(
-      "upper_grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.5},
+      "upper_grasp_plane", "plane", "yumi_pedestal", true, {0.0, 1.0, 0.0, 0.5},
     {0, 0, 1, manifoldPos[2] + manifold_height_}); //0.1
 
     lower_grasp_plane = hiqp_ros::createPrimitiveMsg(
-      "lower_grasp_plane", "plane", "world", true, {0.0, 1.0, 0.0, 0.5},
+      "lower_grasp_plane", "plane", "yumi_pedestal", true, {0.0, 1.0, 0.0, 0.5},
     {0, 0, 1, manifoldPos[2]+0.1*manifold_height_}); //0.1
 
     // Define the tasks
@@ -722,7 +721,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     //Define the primitives
     final_point = hiqp_ros::createPrimitiveMsg(
-      "final_point", "point", "world", true, {1, 1, 0, 1},
+      "final_point", "point", "yumi_pedestal", true, {1, 1, 0, 1},
       {manifoldPos[0], manifoldPos[1], 0.1});
 
     eef_point = hiqp_ros::createPrimitiveMsg(
@@ -730,7 +729,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
       {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.17});
 
     grasp_plane = hiqp_ros::createPrimitiveMsg(
-      "grasp_plane", "plane", "world", true, {0, 1.0, 0, 0.4},
+      "grasp_plane", "plane", "yumi_pedestal", true, {0, 1.0, 0, 0.4},
     {0, 0, 1, 0.1}); //0.1
 
     hiqp_msgs::Task gripperToGraspPlane;
@@ -778,7 +777,7 @@ bool DemoLearnManifold::doGraspAndLiftTaskspace() {
     {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
   final_point = hiqp_ros::createPrimitiveMsg(
-    "final_point", "point", "world", true, {1, 1, 0, 1},
+    "final_point", "point", "yumi_pedestal", true, {1, 1, 0, 1},
     {manifoldPos[0], manifoldPos[1], 0.1});
 
 
@@ -790,7 +789,7 @@ bool DemoLearnManifold::doGraspAndLiftTaskspace() {
   hiqp_msgs::Task pointAbovePlane;
 
   grasp_plane = hiqp_ros::createPrimitiveMsg(
-    "grasp_plane", "plane", "world", true, {0, 1.0, 0, 0.4},
+    "grasp_plane", "plane", "yumi_pedestal", true, {0, 1.0, 0, 0.4},
   {0, 0, 1, 0.1}); //0.89
 
   // Define the primitives
@@ -799,7 +798,7 @@ bool DemoLearnManifold::doGraspAndLiftTaskspace() {
     {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
   pointFrame = hiqp_ros::createPrimitiveMsg(
-    "point_frame", "frame", "world", true, {0.0, 0.0, 1.0, 1},
+    "point_frame", "frame", "yumi_pedestal", true, {0.0, 0.0, 1.0, 1},
     { -0.1, 0, 0});
 
   frameToFrame = hiqp_ros::createTaskMsg(
@@ -909,7 +908,7 @@ bool DemoLearnManifold::pictureMode(std_srvs::Empty::Request& req, std_srvs::Emp
     {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.13});
 
   final_point = hiqp_ros::createPrimitiveMsg(
-    "final_point", "point", "world", true, {1, 1, 1, 1},
+    "final_point", "point", "yumi_pedestal", true, {1, 1, 1, 1},
     {manifoldPos[0], manifoldPos[1], 0.2});
 
   hiqp_msgs::Task point2Point;
