@@ -60,7 +60,7 @@ namespace demo_learning {
     reset_RBFN_clt_ = n_.serviceClient<std_srvs::Empty>("/RBFNetwork/reset_RBFN");
     start_demo_clt_ = n_.serviceClient<std_srvs::Empty>("demo_learn_manifold/start_demo");
 
-    grasp_msg.request.gripper_id = 1;
+    grasp_msg.request.gripper_id = 2;
 
 
     start_recording_ = n_.advertise<grasp_learning::StartRecording>("/start_recording", 1);
