@@ -27,7 +27,6 @@
 #include <grasp_learning/fileHandler.h>
 
 
-
 #include <Eigen/Core>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/mutex.hpp>
@@ -47,6 +46,7 @@
 
 namespace demo_learning {
 
+#define GRASP_THRESHOLD 0.009
 #define DYNAMICS_GAIN 1.5
 
 struct GraspInterval {
@@ -82,7 +82,8 @@ class DemoLearnManifold {
 
   void robotCollisionCallback(const std_msgs::Empty::ConstPtr& msg);
 
-  void gripperStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+  void graspStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+
   //**First deactivates the HQP control scheme (the controller will output zero
   // velocity commands afterwards) and then calls a ros::shutdown */
   void safeShutdown();
@@ -104,6 +105,7 @@ class DemoLearnManifold {
 
   bool pauseDemo(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
+  bool setPolicyConverged(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
   void updatePolicy();
 
@@ -192,6 +194,7 @@ class DemoLearnManifold {
 
   std::string trialDataFile;
 
+  std::string graspSuccessFile;
   std::default_random_engine generator;
   std::normal_distribution<double> dist;
 
@@ -234,6 +237,8 @@ class DemoLearnManifold {
   double unsuccessful_grasp_ = 0;
   // object
 
+  int graspFail = 1;
+
   GraspInterval grasp_;
 
   /// Clients to other nodes
@@ -249,7 +254,7 @@ class DemoLearnManifold {
 
   ros::Subscriber gripper_pos;
   ros::Subscriber robot_collision;
-  ros::Subscriber robot_state;
+  ros::Subscriber gripper_state;
 
   ros::ServiceClient close_gripper_clt_;
   ros::ServiceClient open_gripper_clt_;
@@ -265,13 +270,15 @@ class DemoLearnManifold {
   ros::ServiceServer run_demo_srv_;
   ros::ServiceServer pause_demo_srv_;
   ros::ServiceServer picture_mode_srv_;
-
+  ros::ServiceServer set_policy_converged_srv_;
 
   //Publisher oublishing an empty message when the demo grasp is over
   ros::Publisher start_recording_;
   ros::Publisher finish_recording_;
   ros::Publisher run_new_episode_;
 
+
+  yumi_hw::YumiGrasp grasp_msg;
 
   grasp_learning::StartRecording start_msg_;
   grasp_learning::FinishRecording finish_msg_;

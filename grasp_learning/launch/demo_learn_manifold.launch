@@ -52,6 +52,7 @@
    <rosparam param="manifold_pos"> [0.3, -0.05, 0.125]</rosparam>
 
    <param name="object_radius" value="0.02"/>
+
    <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> 
 
    <rosparam param="PC_of_object"> [1, 0, 0, 0.3, -0.05, 0.2]</rosparam> 
