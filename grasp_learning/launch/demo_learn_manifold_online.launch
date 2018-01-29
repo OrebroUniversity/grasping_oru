@@ -10,7 +10,7 @@
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
   <!-- <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen"> -->
 
-   <param name="num_kernels" value="15"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
+   <param name="num_kernels" value="13"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
    <!-- <param name="num_kernel_rows" value="1"/> -->
 
@@ -22,7 +22,7 @@
    <param name="num_dim" value="2"/> <!-- 3 for grid, and 2 for plane and manifold -->
 
    <param name="use_corr_noise" type="bool" value="false"/>
-   <param name="burn_in_trials" value="15"/>
+   <param name="burn_in_trials" value="8"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
 
@@ -32,7 +32,7 @@
    <param name="grid_y" value="0.7"/>
    <param name="grid_z" value="0.5"/>
 
-   <param name="convergance_treshold" value="0.85"/> <!-- 0.42 for plane and 0.6 for manifold  -->
+   <param name="convergance_treshold" value="0.9"/> <!-- 0.42 for plane and 0.6 for manifold  -->
 
  </node>
 
@@ -41,15 +41,15 @@
    <param name="with_gazebo" type="bool" value="false"/>
    <param name="decay_rate" type="double" value="1"/> <!-- value: 4 in simulation and 1 on real robot-->
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
-   <param name="exec_time" type="double" value="4"/> 
+   <param name="exec_time" type="double" value="5"/> 
 
    <param name="manifold_height" value="0.12"/>
-   <param name="manifold_radius" value="0.06"/>
+   <param name="manifold_radius" value="0.05"/>
       <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->
 
    <rosparam param="manifold_pos"> [0.3, -0.05, 0.125]</rosparam>
 
-   <param name="object_radius" value="0.025"/>
+   <param name="object_radius" value="0.02"/>
    <rosparam param="final_pos"> [0.2997, -0.0326, 0.2]</rosparam> 
 
    <!--rosparam param="manifold_pos"> [0.32, 0, 0.15]</rosparam-->
@@ -67,6 +67,9 @@
    <param name="max_num_trials" type="int" value="10"/>
 
    <param name="max_rollouts_per_trial" type="int" value="300"/>
+
+   <remap from="/close_gripper" to="/yumi/yumi_gripper/do_grasp"/>
+   <remap from="/open_gripper" to="/yumi/yumi_gripper/release_grasp"/>
 
  </node>
 
