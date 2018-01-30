@@ -42,9 +42,9 @@
  <!-- launch the grasp_learning node -->
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
-   <param name="decay_rate" type="double" value="1"/> <!-- value: 4 in simulation and 1 on real robot-->
+   <param name="decay_rate" type="double" value="0.8"/> <!-- value: 4 in simulation and 1 on real robot-->
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
-   <param name="exec_time" type="double" value="5"/> 
+   <param name="exec_time" type="double" value="7"/> 
 
    <param name="manifold_height" value="0.12"/>
    <param name="manifold_radius" value="0.05"/>
