@@ -40,6 +40,25 @@ public:
 
 	}
 
+	template<typename T>
+	bool readFromFile(std::string file_name, int row, int col, T& matrix){
+		std::ifstream input_file(file_name);
+		double data;
+		if (input_file.is_open()){
+			for(int i=0;i<col;i++){
+				for(int j=0;j<row;j++){
+					input_file >> data;
+					matrix(j,i) = data;
+				}
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
+
 	bool createFolder(std::string dir_path){
 		boost::filesystem::path dir(dir_path);
 		if(!boost::filesystem::exists(dir_path)){

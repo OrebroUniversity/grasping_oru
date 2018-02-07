@@ -136,6 +136,9 @@ class RBFNetwork {
 
 	int numKernels = 0;
 
+	bool loadWeightsFromFile;
+	std::string weightFile;
+
 	int numPolicies = 0;
 	double intialNoiceVar = 0;
 	int numTrial_ = 1;
@@ -160,6 +163,7 @@ class RBFNetwork {
 	std::string networkOutputFile;
 	std::string runningWeightsFile;
 	std::string networkWeightsFile;
+	std::string lastNetworkWeightsFile;
 	std::string noiseFile;
 	std::string krenelMeanFile;
 	std::string krenelCovarFile;

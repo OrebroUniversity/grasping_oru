@@ -923,9 +923,6 @@ bool DemoLearnManifold::pictureMode(std_srvs::Empty::Request& req, std_srvs::Emp
 
   hiqp_client_.setTasks({point2Point});
 
-  char c;
-  std::cin >> c;
-
 
   using hiqp_ros::TaskDoneReaction;
 

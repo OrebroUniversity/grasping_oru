@@ -56,6 +56,9 @@ RBFNetwork::RBFNetwork() {
 
 	nh_.param<int>("num_kernels", numKernels, 10);
 	nh_.param<int>("num_kernel_rows", numRows, 1);
+	nh_.param<bool>("load_weights_from_file", loadWeightsFromFile, false);
+	nh_.param<std::string>("weight_file", weightFile, " ");
+
 
 	nh_.param<double>("variance", intialNoiceVar, 0.001);
 	nh_.param<int>("num_policies", numPolicies, 1);
@@ -105,6 +108,8 @@ bool RBFNetwork::createFiles(std::string relPath) {
 	networkOutputFile = RBFN_folder + "output.txt";
 	runningWeightsFile = RBFN_folder + "running_weights.txt";
 	networkWeightsFile = RBFN_folder + "network_weights.txt";
+	lastNetworkWeightsFile = RBFN_folder + "last_network_weights.txt";
+
 	noiseFile = RBFN_folder + "noise.txt";
 	krenelMeanFile = RBFN_folder + "kernel_mean.txt";
 	krenelCovarFile = RBFN_folder + "kernel_covar.txt";
@@ -116,6 +121,7 @@ bool RBFNetwork::createFiles(std::string relPath) {
 	fileHandler_.createFile(networkOutputFile);
 	fileHandler_.createFile(runningWeightsFile);
 	fileHandler_.createFile(networkWeightsFile);
+	fileHandler_.createFile(lastNetworkWeightsFile);
 	fileHandler_.createFile(noiseFile);
 	fileHandler_.createFile(krenelMeanFile);
 	fileHandler_.createFile(krenelCovarFile);
@@ -140,6 +146,10 @@ bool RBFNetwork::buildRBFNetwork(grasp_learning::SetRBFN::Request& req, grasp_le
 	}
 
 	weights = Eigen::MatrixXd::Zero(numKernels, numPolicies);
+	if(loadWeightsFromFile){
+		std::string weightFilePath = relativePath+weightFile;
+		fileHandler_.readFromFile(weightFilePath, numKernels, numPolicies, weights);
+	}
 	runningWeights = weights;
 	ROS_INFO("%d kernels were created", numKernels);
 	rollout_noise = Eigen::MatrixXd::Zero(numKernels, numPolicies);
@@ -397,12 +407,9 @@ bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_
 		Eigen::MatrixXd updatedWeights = PoWER.policySearch2(noisePerTimestep_, req.rewards);
 
 		coverged = updateWeights(updatedWeights);
-		// std::cout << weights.transpose() << std::endl;
-		// std::cout<<updatedWeights.size()<<std::endl;
 
 	}
 
-	//coverged = (policyConverged() ? true : false);
 	res.converged = coverged;
 
 	double* ptr = &req.rewards[0];
@@ -410,6 +417,7 @@ bool RBFNetwork::policySearch(grasp_learning::PolicySearch::Request& req, grasp_
 
 	saveDataToFile(networkOutputFile, ConvertToEigenMatrix(networkOutput_).transpose(), true);
 	saveDataToFile(networkWeightsFile, weights.transpose(), true);
+	saveDataToFile(lastNetworkWeightsFile, weights.transpose(), false);
 	saveDataToFile(runningWeightsFile, runningWeights.transpose(), true);
 	saveDataToFile(noiseFile, rollout_noise.transpose(), true);
 	saveDataToFile(kernelWiseTotalActivationFile, kernelOutput.rowwise().sum().transpose(), true);
