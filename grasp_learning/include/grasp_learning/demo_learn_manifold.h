@@ -46,7 +46,7 @@
 
 namespace demo_learning {
 
-#define GRASP_THRESHOLD 0.005
+#define GRASP_THRESHOLD 0.0005
 #define DYNAMICS_GAIN 1.5
 
 struct GraspInterval {

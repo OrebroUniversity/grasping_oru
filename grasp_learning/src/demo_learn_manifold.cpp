@@ -224,7 +224,7 @@ void DemoLearnManifold::robotCollisionCallback(const std_msgs::Empty::ConstPtr& 
 
 void DemoLearnManifold::graspStateCallback(const sensor_msgs::JointState::ConstPtr& msg){
 
-  if(msg->position[0]<GRASP_THRESHOLD){
+  if(msg->position[1]<GRASP_THRESHOLD){
     graspFail = 1;
   }
 }
@@ -277,7 +277,7 @@ void DemoLearnManifold::calculateReward() {
   double Rvel = 0.0005;
   double Rpos = 0;
   double res = 0;
-  double Rgrasp = 1;
+  double Rgrasp = 1.5;
   double Rcollision = -1;
 
   std::vector<double> jointVel_ = calcJointVel();
@@ -287,7 +287,7 @@ void DemoLearnManifold::calculateReward() {
   if (task_.compare("manifold") == 0) {
     Rtraj = 0;//0.1;
     Rvel = 0;//0.0001;
-    Rpos = 700;
+    Rpos = 7;
     pointToLine.push_back(pointToPlaneDist(gripperPos.back(), PCofObject));
     res = -Rpos * pointToLine.back()-Rgrasp*graspFail;
   } else {
@@ -336,7 +336,11 @@ void DemoLearnManifold::calculateReward() {
 
   saveDataToFile(gripperPosFile, convertToEigenMatrix(gripperPos).transpose(), true);
 
-  int sucess = (graspFail==1 ? 0:1);
+  int sucess;
+  if (graspFail)
+	sucess = 0;
+  else
+	sucess = 1;
   saveDataToFile(graspSuccessFile, sucess, true);
   policy_search_srv_.request.reward = result[0];
   policy_search_srv_.request.rewards = normalizedRes;

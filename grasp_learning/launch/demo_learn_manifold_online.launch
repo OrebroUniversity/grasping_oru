@@ -47,17 +47,17 @@
  <!-- launch the grasp_learning node -->
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
-   <param name="decay_rate" type="double" value="0.2"/> <!-- value: 4 in simulation and 1 on real robot-->
+   <param name="decay_rate" type="double" value="0.3"/> <!-- value: 4 in simulation and 1 on real robot-->
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
    <param name="exec_time" type="double" value="11"/> 
 
    <param name="manifold_height" value="0.20"/>
-   <param name="manifold_radius" value="0.06"/>
+   <param name="manifold_radius" value="0.07"/>
       <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->
 
    <rosparam param="manifold_pos"> [0.3, -0.11, 0.04]</rosparam>
 
-   <param name="object_radius" value="0.025"/>
+   <param name="object_radius" value="0.022"/>
 
    <rosparam param="PC_of_object"> [1, 0, 0, 0, -0.11, 0.3]</rosparam> 
 
