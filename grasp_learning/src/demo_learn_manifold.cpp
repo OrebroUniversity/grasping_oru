@@ -277,7 +277,7 @@ void DemoLearnManifold::calculateReward() {
   double Rvel = 0.0005;
   double Rpos = 0;
   double res = 0;
-  double Rgrasp = 0.1;
+  double Rgrasp = 1;
   double Rcollision = -1;
 
   std::vector<double> jointVel_ = calcJointVel();
@@ -287,7 +287,7 @@ void DemoLearnManifold::calculateReward() {
   if (task_.compare("manifold") == 0) {
     Rtraj = 0;//0.1;
     Rvel = 0;//0.0001;
-    Rpos = 10;
+    Rpos = 700;
     pointToLine.push_back(pointToPlaneDist(gripperPos.back(), PCofObject));
     res = -Rpos * pointToLine.back()-Rgrasp*graspFail;
   } else {
