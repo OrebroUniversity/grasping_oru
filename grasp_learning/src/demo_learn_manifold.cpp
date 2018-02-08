@@ -277,7 +277,7 @@ void DemoLearnManifold::calculateReward() {
   double Rvel = 0.0005;
   double Rpos = 0;
   double res = 0;
-  double Rgrasp = 0.01;
+  double Rgrasp = 1;
   double Rcollision = -1;
 
   std::vector<double> jointVel_ = calcJointVel();
@@ -285,10 +285,10 @@ void DemoLearnManifold::calculateReward() {
   std::vector<double> pointToLine;
 
   if (task_.compare("manifold") == 0) {
-    Rtraj = 0.1;
-    Rvel = 0.0001;
+    Rtraj = 0;//0.1;
+    Rvel = 0;//0.0001;
     Rpos = 700;
-    pointToLine.push_back(pointToLineDist(gripperPos.back(), PCofObject));
+    pointToLine.push_back(pointToPlaneDist(gripperPos.back(), PCofObject));
     res = -Rpos * pointToLine.back()-Rgrasp*graspFail;
   } else {
     Rpos = 10;
@@ -308,7 +308,7 @@ void DemoLearnManifold::calculateReward() {
   for (unsigned int i = gripperPos.size() - 1; i-- > 0;) {
 
     if (task_.compare("manifold") == 0) {
-      pointToLine.push_back(pointToLineDist(gripperPos.back(), PCofObject));
+      pointToLine.push_back(pointToPlaneDist(gripperPos.back(), PCofObject));
     } else {
       pointToLine.push_back(pointToPointDist(gripperPos.back(), manifoldPos));
     }
@@ -384,6 +384,11 @@ double DemoLearnManifold::pointToLineDist(std::vector<double> point, std::vector
   std::vector<double> p2(proj.data(), proj.data() + proj.rows() * proj.cols());
   return vectorLength(p2);
 }
+
+double DemoLearnManifold::pointToPlaneDist(std::vector<double> point, std::vector<double> plane) {
+  return fabs(point[1]-plane[4]);
+}
+
 
 double DemoLearnManifold::vectorLength(const std::vector<double>& vec) {
   double diff_square = 0;
