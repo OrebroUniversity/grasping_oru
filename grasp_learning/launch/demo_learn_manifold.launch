@@ -9,9 +9,9 @@
 
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
 
-   <param name="num_kernels" value="50"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
+   <param name="num_kernels" value="30"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <param name="num_kernel_rows" value="5"/>
+   <param name="num_kernel_rows" value="10"/>
 
    <param name="load_weights_from_file" value="false"/>
    <param name="weight_file" type="str" value="trial_1/opt_params/last_network_weights.txt"/>
@@ -47,7 +47,7 @@
    <param name="exec_time" type="double" value="2"/> 
 
    <!-- The hight and radius of the grasping manifold is specified here. This is then propageted to the RBF network-->
-   <param name="manifold_height" value="0.12"/>
+   <param name="manifold_height" value="0.20"/>
    <param name="manifold_radius" value="0.05"/>
       <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->
 

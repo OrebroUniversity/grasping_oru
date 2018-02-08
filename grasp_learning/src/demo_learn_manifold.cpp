@@ -516,8 +516,8 @@ void DemoLearnManifold::addNoise() {
 
 void DemoLearnManifold::setRBFNetwork() {
   set_RBFN_srv_.request.radius = manifold_radius_;
-  set_RBFN_srv_.request.height = manifold_height_;
-  std::vector<double> vec {manifoldPos[0], manifoldPos[1], manifoldPos[2]};
+  set_RBFN_srv_.request.height = 0.75*manifold_height_;
+  std::vector<double> vec {manifoldPos[0], manifoldPos[1], manifoldPos[2]+0.25*manifold_height_};
   set_RBFN_srv_.request.globalPos = vec;
 
   ROS_INFO("Calling buld RBFN service");
@@ -617,7 +617,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     lower_grasp_plane = hiqp_ros::createPrimitiveMsg(
       "lower_grasp_plane", "plane", "yumi_pedestal", true, {0.0, 1.0, 0.0, 0.5},
-    {0, 0, 1, manifoldPos[2]+0.1*manifold_height_}); //0.1
+    {0, 0, 1, manifoldPos[2]+0.25*manifold_height_}); //0.1
 
     // Define the tasks
 
