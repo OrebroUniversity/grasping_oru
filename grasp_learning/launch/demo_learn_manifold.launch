@@ -26,7 +26,7 @@
    <param name="num_policies" value="2"/> <!-- 3 for grid, 2 for plane, and 1 for manifold -->
    <param name="num_dim" value="3"/> <!-- 3 for grid, and 2 for plane and manifold -->
 
-   <param name="use_corr_noise" type="bool" value="true"/>
+   <param name="use_corr_noise" type="bool" value="false"/>
    <param name="burn_in_trials" value="7"/>
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>

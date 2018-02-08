@@ -131,6 +131,7 @@ class RBFNetwork {
 	std::vector<double> global_pos;
 	double manifold_height = 0;
 	power PoWER;
+	MultiVariateGaussian multiVarGauss;
 	MultiVariateGaussian multiVarGauss1;
 	MultiVariateGaussian multiVarGauss2;
 
