@@ -582,7 +582,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     eef_point = hiqp_ros::createPrimitiveMsg(
       "point_eef", "point", grasp_.e_frame_, true, {1, 0, 0, 1},
-      {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.14});
+      {grasp_.e_(0), grasp_.e_(1), grasp_.e_(2) + 0.11});
 
     manifold = hiqp_ros::createPrimitiveMsg(
       "grasp_manifold", "cylinder", "yumi_pedestal", true, {1.0, 0.0, 0.0, 0.5}, {
@@ -633,7 +633,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
 
     gripperAxisToTargetAxis = hiqp_ros::createTaskMsg(
       "gripper_approach_axis_coplanar_grasp_target_axis", 2, false, false, true, {
-        "TDefGeomProj", "line", "line",
+        "TDefGeomProj", "line", "line", "0.01",
         gripper_approach_axis.name + " = " + grasp_target_axis.name
       },
       {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
@@ -641,7 +641,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
       "gripper_vertical_axis_parallel_grasp_target_axis", 2, false, false, true, {
         "TDefGeomAlign", "line", "line",
-        gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0"
+        gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0.01",
       },
       {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
