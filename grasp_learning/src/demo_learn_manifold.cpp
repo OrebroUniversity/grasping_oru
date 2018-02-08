@@ -641,7 +641,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     gripperAxisAlignedToTargetAxis = hiqp_ros::createTaskMsg(
       "gripper_vertical_axis_parallel_grasp_target_axis", 2, false, false, true, {
         "TDefGeomAlign", "line", "line",
-        gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0",
+        gripper_vertical_axis.name + " = " + grasp_target_axis.name,  "0"
       },
       {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
 
@@ -665,7 +665,6 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
         eef_point.name + " > " + lower_grasp_plane.name
       },
       {"TDynLinear", std::to_string(decay_rate_ * DYNAMICS_GAIN)});
-
 
     start_recording_.publish(start_msg_);
 

@@ -17,8 +17,8 @@
    <param name="weight_file" type="str" value="trial_1/opt_params/last_network_weights.txt"/>
 
    <param name="variance" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
-   <param name="varianceX" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
-   <param name="varianceY" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="varianceX" value="0.00001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="varianceY" value="0.01"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
 
    <!--param name="variance" value="4"/-->  
    <!-- <param name="variance" value="2"/>   -->
