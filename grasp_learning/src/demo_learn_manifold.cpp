@@ -748,7 +748,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
       gripperAxisToTargetAxis.name, gripperAxisAlignedToTargetAxis.name, gripperAboveFinalPlane.name
     },
     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-    {0, 0, 0}, exec_time_);
+    {0, 0, 0}, 3);
 
     hiqp_client_.removePrimitives({eef_point.name, grasp_target_axis.name, gripper_approach_axis.name, gripper_vertical_axis.name, final_plane.name});
 
