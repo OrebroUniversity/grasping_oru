@@ -287,7 +287,7 @@ void DemoLearnManifold::calculateReward() {
   if (task_.compare("manifold") == 0) {
     Rtraj = 0;//0.1;
     Rvel = 0;//0.0001;
-    Rpos = 700;
+    Rpos = 20;
     pointToLine.push_back(pointToPlaneDist(gripperPos.back(), PCofObject));
     res = -Rpos * pointToLine.back()-Rgrasp*graspFail;
   } else {
