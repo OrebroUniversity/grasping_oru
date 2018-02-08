@@ -266,7 +266,12 @@ void RBFNetwork::setNoiseVariance(const double variance, const int dist) {
 			multiVarGauss2.setCovarAsDiffernceMatrix(numKernels, variance);
 		}
 	} else {
-		multiVarGauss1.setCovarAsIndentityMatrix(numKernels, variance);
+		if (dist == 1){
+			multiVarGauss1.setCovarAsIndentityMatrix(numKernels, variance);
+		}
+		else{
+			multiVarGauss2.setCovarAsIndentityMatrix(numKernels, variance);
+		}
 	}
 }
 
