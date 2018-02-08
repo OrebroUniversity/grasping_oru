@@ -10,9 +10,9 @@
   <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen" launch-prefix="terminator -mx">
   <!-- <node name="RBFNetwork" pkg="grasp_learning" type="RBFNetwork" output="screen"> -->
 
-   <param name="num_kernels" value="50"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
+   <param name="num_kernels" value="24"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <param name="num_kernel_rows" value="5"/>
+   <param name="num_kernel_rows" value="3"/>
 
    <param name="load_weights_from_file" value="true"/>
 
