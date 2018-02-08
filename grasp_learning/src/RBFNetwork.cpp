@@ -60,7 +60,10 @@ RBFNetwork::RBFNetwork() {
 	nh_.param<std::string>("weight_file", weightFile, " ");
 
 
-	nh_.param<double>("variance", intialNoiceVar, 0.001);
+//	nh_.param<double>("variance", intialNoiceVar, 0.001);
+	nh_.param<double>("variance", intialNoiceVarX, 0.001);
+	nh_.param<double>("variance", intialNoiceVarY, 0.001);
+
 	nh_.param<int>("num_policies", numPolicies, 1);
 	nh_.param<int>("num_dim", numDim, 1);
 	nh_.param<bool>("use_corr_noise", useCorrNoise, false);
@@ -82,7 +85,8 @@ RBFNetwork::RBFNetwork() {
 	createFiles(relativePath);
 
 	PoWER.setParams(numKernels, burnInTrials, maxNumSamples, numPolicies);
-	setNoiseVariance(intialNoiceVar);
+	setNoiseVariance(intialNoiceVarX,1);
+	setNoiseVariance(intialNoiceVarY,2);
 
 	ROS_INFO("Set up all services");
 }
@@ -253,11 +257,16 @@ void RBFNetwork::saveKernelsToFile() {
 
 }
 
-void RBFNetwork::setNoiseVariance(const double variance) {
+void RBFNetwork::setNoiseVariance(const double variance, const int dist) {
 	if (useCorrNoise) {
-		multiVarGauss.setCovarAsDiffernceMatrix(numKernels, variance);
+		if (dist == 1){
+			multiVarGauss1.setCovarAsDiffernceMatrix(numKernels, variance);
+		}
+		else{
+			multiVarGauss2.setCovarAsDiffernceMatrix(numKernels, variance);
+		}
 	} else {
-		multiVarGauss.setCovarAsIndentityMatrix(numKernels, variance);
+		multiVarGauss1.setCovarAsIndentityMatrix(numKernels, variance);
 	}
 }
 
@@ -331,7 +340,7 @@ bool RBFNetwork::addWeightNoise(std_srvs::Empty::Request& request, std_srvs::Emp
 
 	if (!coverged) {
 		for (int i = 0; i < numPolicies; i++) {
-			rollout_noise.col(i) = sampleNoise();
+			rollout_noise.col(i) = sampleNoise(i);
 			runningWeights.col(i) += rollout_noise.col(i);
 		}
 	} else {
@@ -355,14 +364,23 @@ double RBFNetwork::meanOfVector(const std::vector<double>& vec) {
 	return sum / vec.size();
 }
 
-Eigen::MatrixXd RBFNetwork::sampleNoise() {
-	return multiVarGauss.sample(1);
+Eigen::MatrixXd RBFNetwork::sampleNoise(const int dist) {
+	if(dist==0){
+		return multiVarGauss1.sample(1);
+	}
+	else{
+		return multiVarGauss2.sample(1);
+	}
 }
 
 void RBFNetwork::updateNoiseVariance() {
 	double beta = PoWER.varianceSearch();
-	ROS_INFO("New beta %lf and noise variance %lf", beta, beta * intialNoiceVar);
-	setNoiseVariance(beta * intialNoiceVar);
+	ROS_INFO("New beta %lf and noise variance x %lf", beta, beta * intialNoiceVarX);
+	ROS_INFO("New beta %lf and noise variance y %lf", beta, beta * intialNoiceVarY);
+
+	setNoiseVariance(beta * intialNoiceVarX,1);
+	setNoiseVariance(beta * intialNoiceVarY,2);
+
 }
 
 void RBFNetwork::resetRunningWeights() {
@@ -488,7 +506,8 @@ bool RBFNetwork::resetRBFNetwork(std_srvs::Empty::Request& request, std_srvs::Em
 	kernelOutput = Eigen::MatrixXd::Zero(numKernels, 0);
 	rollout_noise.setZero();
 	networkOutput_.clear();
-	setNoiseVariance(intialNoiceVar);
+	setNoiseVariance(intialNoiceVarX,1);
+	setNoiseVariance(intialNoiceVarY,2);
 	numTrial_++;
 	createFiles(relativePath);
 	saveKernelsToFile();

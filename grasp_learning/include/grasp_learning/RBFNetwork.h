@@ -56,14 +56,14 @@ class RBFNetwork {
 	int getNumKernels();
 	void printAllKernelMean();
 	void printKernelMean(int kernel);
-	Eigen::MatrixXd sampleNoise();
+	Eigen::MatrixXd sampleNoise(const int dist);
 	double calculateVariance(double dx, double dy, double dz = 0);
 	void updateNoiseVariance();
 
 	bool policyConverged(Eigen::MatrixXd, Eigen::MatrixXd);
 
 	double meanOfVector(const std::vector<double>& vec);
-	void setNoiseVariance(const double variance);
+	void setNoiseVariance(const double variance, const int dist);
 
 	void resetRollout();
 
@@ -131,7 +131,9 @@ class RBFNetwork {
 	std::vector<double> global_pos;
 	double manifold_height = 0;
 	power PoWER;
-	MultiVariateGaussian multiVarGauss;
+	MultiVariateGaussian multiVarGauss1;
+	MultiVariateGaussian multiVarGauss2;
+
 	fileHandler fileHandler_;
 
 	int numKernels = 0;
@@ -141,6 +143,9 @@ class RBFNetwork {
 
 	int numPolicies = 0;
 	double intialNoiceVar = 0;
+	double intialNoiceVarX = 0;
+	double intialNoiceVarY = 0;
+
 	int numTrial_ = 1;
 	bool useCorrNoise;
 	int numRows;

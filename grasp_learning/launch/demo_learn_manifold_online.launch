@@ -17,6 +17,9 @@
    <param name="load_weights_from_file" value="true"/>
 
    <param name="variance" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="variancex" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="variancey" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+
    <!--param name="variance" value="4"/-->  
    <!-- <param name="variance" value="2"/>   -->
 
@@ -44,7 +47,7 @@
  <!-- launch the grasp_learning node -->
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
-   <param name="decay_rate" type="double" value="0.8"/> <!-- value: 4 in simulation and 1 on real robot-->
+   <param name="decay_rate" type="double" value="0.5"/> <!-- value: 4 in simulation and 1 on real robot-->
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
    <param name="exec_time" type="double" value="7"/> 
 
