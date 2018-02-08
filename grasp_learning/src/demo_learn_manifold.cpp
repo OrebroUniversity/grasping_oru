@@ -732,28 +732,27 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
         ROS_ERROR("could not close gripper");
         ROS_BREAK();
       }
-
+      sleep(1);
+    }
     hiqp_client_.setPrimitives({eef_point, grasp_target_axis, gripper_approach_axis, gripper_vertical_axis, final_plane});
 
 
     hiqp_client_.setTasks({gripperAxisToTargetAxis, gripperAxisAlignedToTargetAxis, gripperAboveFinalPlane});
 
-    hiqp_client_.activateTasks({gripperAxisToTargetAxis.name, gripperAxisAlignedToTargetAxis.name, gripperBelowUpperPlane.name
+    hiqp_client_.activateTasks({gripperAxisToTargetAxis.name, gripperAxisAlignedToTargetAxis.name, gripperAboveFinalPlane.name
     });
 
 
 
     hiqp_client_.waitForCompletion( {
-      gripperAxisToTargetAxis.name, gripperAxisAlignedToTargetAxis.name, gripperBelowUpperPlane.name
+      gripperAxisToTargetAxis.name, gripperAxisAlignedToTargetAxis.name, gripperAboveFinalPlane.name
     },
     {TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE, TaskDoneReaction::REMOVE},
-    {0, 0, 0}, 2);
+    {0, 0, 0}, exec_time_);
 
     hiqp_client_.removePrimitives({eef_point.name, grasp_target_axis.name, gripper_approach_axis.name, gripper_vertical_axis.name, final_plane.name});
 
 
-      sleep(1);
-    }
 
   } else if (task_.compare("plane") == 0) {
 
