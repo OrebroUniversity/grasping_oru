@@ -727,7 +727,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
    });
 
     if(!with_gazebo_){
-      //grasp_msg.request.effort = 20;
+      grasp_msg.request.effort = 20;
       if (!close_gripper_clt_.call(grasp_msg)) {
         ROS_ERROR("could not close gripper");
         ROS_BREAK();
@@ -1025,12 +1025,12 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req, std_srvs::Empty
   hiqp_client_.setJointAngles(sensing_config_);
 
   if(!with_gazebo_){
-    //grasp_msg.request.effort = -10;
+    grasp_msg.request.effort = -10;
     if (!open_gripper_clt_.call(grasp_msg)) {
       ROS_ERROR("could not open gripper");
       ROS_BREAK();
     }
-    //grasp_msg.request.effort = 0;
+    grasp_msg.request.effort = 0;
 
     if (!open_gripper_clt_.call(grasp_msg)) {
       ROS_ERROR("could not open gripper");
