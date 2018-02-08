@@ -14,7 +14,7 @@
 
    <param name="num_kernel_rows" value="4"/>
 
-   <param name="load_weights_from_file" value="true"/>
+   <param name="load_weights_from_file" value="false"/>
 
    <param name="variance" value="0.0001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
    <param name="variancex" value="0.0001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
