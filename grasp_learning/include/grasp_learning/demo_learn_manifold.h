@@ -241,7 +241,7 @@ class DemoLearnManifold {
   // object
 
   int graspFail = 1;
-
+  bool doGrasp = false;
   GraspInterval grasp_;
 
   /// Clients to other nodes

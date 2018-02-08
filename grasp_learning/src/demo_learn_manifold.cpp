@@ -224,8 +224,10 @@ void DemoLearnManifold::robotCollisionCallback(const std_msgs::Empty::ConstPtr& 
 
 void DemoLearnManifold::graspStateCallback(const sensor_msgs::JointState::ConstPtr& msg){
 
-  if(msg->position[1]<GRASP_THRESHOLD){
-    graspFail = 1;
+  if(doGrasp){
+    if(msg->position[1]<GRASP_THRESHOLD){
+      graspFail = 1;
+    }
   }
 }
 
@@ -735,6 +737,7 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
    });
 
     if(!with_gazebo_){
+      doGrasp = true;
       grasp_msg.request.effort = 20;
       if (!close_gripper_clt_.call(grasp_msg)) {
         ROS_ERROR("could not close gripper");
@@ -759,6 +762,17 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     {0, 0, 0}, 3);
 
     hiqp_client_.removePrimitives({eef_point.name, grasp_target_axis.name, gripper_approach_axis.name, gripper_vertical_axis.name, final_plane.name});
+
+    if(!with_gazebo_){
+      doGrasp = false;
+      grasp_msg.request.effort = -10;
+      if (!open_gripper_clt_.call(grasp_msg)) {
+        ROS_ERROR("could not open gripper");
+        ROS_BREAK();
+      }
+
+      sleep(2);
+    }
 
 
 
@@ -1029,19 +1043,9 @@ bool DemoLearnManifold::startDemo(std_srvs::Empty::Request& req, std_srvs::Empty
     init = false;
   }
 
-  unsuccessful_grasp_ = 0;
   ROS_INFO("Trying to put the manipulator in transfer configuration.");
   hiqp_client_.setJointAngles(sensing_config_);
 
-  if(!with_gazebo_){
-    grasp_msg.request.effort = -10;
-    if (!open_gripper_clt_.call(grasp_msg)) {
-      ROS_ERROR("could not open gripper");
-      ROS_BREAK();
-    }
-
-    sleep(2);
-  }
   ROS_INFO("DEMO FINISHED.");
 
   run_new_episode_.publish(empty_msg_);
