@@ -211,9 +211,11 @@ void DemoLearnManifold::saveDataToFile(std::string file, T data, bool append) {
 void DemoLearnManifold::safeReset() { hiqp_client_.resetHiQPController(); }
 
 void DemoLearnManifold::robotStateCallback(const grasp_learning::RobotState::ConstPtr& msg) {
-  gripperPos.push_back(msg->gripperPos);
-  jointVel.push_back(msg->jointVel);
-  samplingTime.push_back(msg->samplingTime);
+  if(demo_running_){
+    gripperPos.push_back(msg->gripperPos);
+    jointVel.push_back(msg->jointVel);
+    samplingTime.push_back(msg->samplingTime);
+  }
 }
 
 void DemoLearnManifold::robotCollisionCallback(const std_msgs::Empty::ConstPtr& msg) {
