@@ -46,7 +46,7 @@
 
 namespace demo_learning {
 
-#define GRASP_THRESHOLD 0.009
+#define GRASP_THRESHOLD 0.005
 #define DYNAMICS_GAIN 1.5
 
 struct GraspInterval {
@@ -218,6 +218,9 @@ class DemoLearnManifold {
   double object_radius_;
   std::vector<double> manifoldPos;
 
+
+  bool demo_running_ = false;
+  
   int numTrial_ = 1;
   int maxNumTrials_ = 0;
 
