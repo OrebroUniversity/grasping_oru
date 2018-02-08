@@ -12,12 +12,12 @@
 
    <param name="num_kernels" value="24"/> <!-- 216 for grid, 49 for plane, and 15 for manifold  -->
 
-   <param name="num_kernel_rows" value="3"/>
+   <param name="num_kernel_rows" value="4"/>
 
    <param name="load_weights_from_file" value="true"/>
 
-   <param name="variance" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
-   <param name="variancex" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="variance" value="0.0001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
+   <param name="variancex" value="0.0001"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
    <param name="variancey" value="0.0005"/>  <!-- 4 for grid, and 0.001 for pland and manifold -->
 
    <!--param name="variance" value="4"/-->  
@@ -28,7 +28,7 @@
 
    <param name="use_corr_noise" type="bool" value="false"/>
 
-   <param name="burn_in_trials" value="8"/>
+   <param name="burn_in_trials" value="7"/>
 
    <param name="max_num_samples" value="5"/>
    <param name="relative_path" type="str" value="$(find grasp_learning)/stored_data/data/"/>
@@ -47,19 +47,19 @@
  <!-- launch the grasp_learning node -->
  <node name="demo_learn_manifold" pkg="grasp_learning" type="demo_learn_manifold" respawn="false" output="screen" >
    <param name="with_gazebo" type="bool" value="false"/>
-   <param name="decay_rate" type="double" value="0.5"/> <!-- value: 4 in simulation and 1 on real robot-->
+   <param name="decay_rate" type="double" value="0.1"/> <!-- value: 4 in simulation and 1 on real robot-->
    <!--param name="exec_time" type="double" value="2"/--> <!-- Use for everything except learning on a grid-->
-   <param name="exec_time" type="double" value="7"/> 
+   <param name="exec_time" type="double" value="11"/> 
 
-   <param name="manifold_height" value="0.12"/>
-   <param name="manifold_radius" value="0.05"/>
-      <!--rosparam param="manifold_pos"> [0.35, 0, 0.15]</rosparam-->
+   <param name="manifold_height" value="0.20"/>
+   <param name="manifold_radius" value="0.06"/>
+      <!--rosparam param="manifold_pos"> [0.33, 0, 0.15]</rosparam-->
 
-   <rosparam param="manifold_pos"> [0.3, -0.05, 0.04]</rosparam>
+   <rosparam param="manifold_pos"> [0.3, -0.11, 0.04]</rosparam>
 
-   <param name="object_radius" value="0.02"/>
+   <param name="object_radius" value="0.03"/>
 
-   <rosparam param="PC_of_object"> [1, 0, 0, 0, -0.05, 0.2]</rosparam> 
+   <rosparam param="PC_of_object"> [1, 0, 0, 0, -0.11, 0.2]</rosparam> 
 
    <param name="nullspace" type="bool" value="true"/>
 
