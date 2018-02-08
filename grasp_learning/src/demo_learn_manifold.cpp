@@ -618,8 +618,8 @@ bool DemoLearnManifold::doGraspAndLiftNullspace() {
     {0, 0, 1, manifoldPos[2] + manifold_height_}); //0.1
 
     lower_grasp_plane = hiqp_ros::createPrimitiveMsg(
-      "lower_grasp_plane", "plane", "yumi_pedestal", true, {0.0, 1.0, 0.0, 0.5},
-    {0, 0, 1, manifoldPos[2]+0.25*manifold_height_}); //0.1
+      "lower_grasp_plane", "plane", "yumi_pedestal", true, {0.0, 1.0, 1.0, 0.5},
+    {0, 0, 1, manifoldPos[2]+0.4*manifold_height_}); //0.1
 
     // Define the tasks
 
