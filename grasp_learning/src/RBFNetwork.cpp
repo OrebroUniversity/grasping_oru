@@ -60,9 +60,9 @@ RBFNetwork::RBFNetwork() {
 	nh_.param<std::string>("weight_file", weightFile, " ");
 
 
-//	nh_.param<double>("variance", intialNoiceVar, 0.001);
-	nh_.param<double>("variance", intialNoiceVarX, 0.001);
-	nh_.param<double>("variance", intialNoiceVarY, 0.001);
+	nh_.param<double>("variance", intialNoiceVar, 0.001);
+	nh_.param<double>("varianceX", intialNoiceVarX, 0.001);
+	nh_.param<double>("varianceY", intialNoiceVarY, 0.001);
 
 	nh_.param<int>("num_policies", numPolicies, 1);
 	nh_.param<int>("num_dim", numDim, 1);
